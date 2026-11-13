@@ -6,7 +6,7 @@ import {
 } from "@netcity/shared";
 /** All actions use the authoritative player position, never message coordinates. */
 export function handleEquipment(
-  player: PlayerView,
+  player: Pick<PlayerView, "x" | "z" | "ticketStep" | "rewards">,
   equipment: EquipmentView,
   value: unknown,
 ): ActionResult {

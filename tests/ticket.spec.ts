@@ -1,8 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 async function snapshot(page: Page) {
   return page.evaluate(async () => {
-    const source = await (await fetch("/src/world.ts")).text();
-    const modulePath = source.match(/from "([^"]*@babylonjs_core[^"]*)"/)![1];
+    const modulePath = "/src/world.ts";
     const { EngineStore } = await import(/* @vite-ignore */ modulePath);
     const scene = EngineStore.LastCreatedScene;
     return {
@@ -21,14 +20,23 @@ async function drive(
   start: () => Promise<void>,
   stop: () => Promise<void>,
 ) {
+  // Warm the scene before holding movement: shader compilation can stall rAF
+  // while server movement continues, making a test overshoot a narrow doorway.
+  await page.evaluate(async () => {
+    const modulePath = "/src/world.ts";
+    const { EngineStore } = await import(/* @vite-ignore */ modulePath);
+    await new Promise<void>((resolve) =>
+      EngineStore.LastCreatedScene.executeWhenReady(() => resolve()),
+    );
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+  });
   await start();
   try {
     await page.evaluate(
       async ({ axis, goal }) => {
-        const source = await (await fetch("/src/world.ts")).text();
-        const modulePath = source.match(
-          /from "([^"]*@babylonjs_core[^"]*)"/,
-        )![1];
+        const modulePath = "/src/world.ts";
         const { EngineStore } = await import(/* @vite-ignore */ modulePath);
         const deadline = performance.now() + 10000;
         await new Promise<void>((resolve, reject) => {
@@ -42,7 +50,11 @@ async function drive(
             }
             if (performance.now() > deadline) {
               window.dispatchEvent(new Event("blur"));
-              reject(new Error("Could not reach waypoint"));
+              reject(
+                new Error(
+                  `Could not reach waypoint: ${JSON.stringify(EngineStore.LastCreatedScene.activeCamera.position)}`,
+                ),
+              );
               return;
             }
             requestAnimationFrame(frame);
@@ -56,6 +68,18 @@ async function drive(
     await stop();
   }
   await page.waitForTimeout(150);
+}
+// A human makes small corrections before entering a doorway. Use real input
+// pulses and confirmed positions instead of assuming a long held key stops exactly.
+async function alignDoor(page:Page,pulse:(direction:number)=>Promise<void>) {
+  for(let i=0;i<12;i++){
+    const z=(await snapshot(page)).z;
+    if(Math.abs(z)<0.35)return;
+    await pulse(z>0?-1:1);
+    await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+    await page.waitForTimeout(180);
+  }
+  expect(Math.abs((await snapshot(page)).z)).toBeLessThan(0.35);
 }
 test("complete ticket in browser with server replicated port and no duplicate award", async ({
   browser,
@@ -79,6 +103,9 @@ test("complete ticket in browser with server replicated port and no duplicate aw
     () => a.keyboard.down("KeyW"),
     () => a.keyboard.up("KeyW"),
   );
+  await alignDoor(a,async direction=>{
+    const key=direction>0?'KeyW':'KeyS';await a.keyboard.down(key);await a.waitForTimeout(60);await a.keyboard.up(key);
+  });
   await a.evaluate(() =>
     document.dispatchEvent(
       new MouseEvent("mousemove", { movementX: Math.PI / 2 / 0.002 }),
@@ -110,6 +137,11 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   await dialog.locator('[data-port="3"]').click();
   await expect(dialog).toContainText("Повторная награда недоступна");
   await expect(a.getByText("Награды за заявку: 1/1")).toBeVisible();
+  await a.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await a.locator("canvas").click({ position: { x: 450, y: 350 } });
+  await a.keyboard.press("KeyE");
+  await expect(dialog).toBeVisible();
   expect(errors).toEqual([]);
   await a.screenshot({ path: "/tmp/netcity-002-ticket.png" });
   await context.close();
@@ -143,6 +175,9 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
     () => touch("touchStart", sx, sy - 45),
     () => touch("touchEnd"),
   );
+  await alignDoor(page,async direction=>{
+    await touch('touchStart',sx,sy-direction*45);await page.waitForTimeout(60);await touch('touchEnd');
+  });
   const old = (await snapshot(page)).yaw;
   // Two genuine touch swipes rotate to the office entrance.
   for (const amount of [200, Math.PI / 2 / 0.004 - 200]) {
@@ -173,6 +208,51 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
   await page.setViewportSize({ width: 390, height: 844 });
   const portrait = await dialog.boundingBox();
   expect(portrait!.width).toBeLessThanOrEqual(390);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await context.close();
+});
+
+test("mobile multitouch and blur stop movement without leaving the joystick stuck", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    viewport: { width: 844, height: 650 },
+    isMobile: true,
+    hasTouch: true,
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.locator("aside")).toContainText("В сети");
+  const cdp = await context.newCDPSession(page);
+  const stick = (await page.getByLabel("Джойстик движения").boundingBox())!;
+  const first = { id: 1, x: stick.x + 60, y: stick.y + 15 };
+  const before = await snapshot(page);
+  const send = (type: string, touchPoints: object[]) =>
+    cdp.send("Input.dispatchTouchEvent", { type, touchPoints });
+  await send("touchStart", [first]);
+  await send("touchStart", [first, { id: 2, x: 520, y: 350 }]);
+  await send("touchMove", [first, { id: 2, x: 570, y: 350 }]);
+  await expect
+    .poll(async () => (await snapshot(page)).yaw)
+    .toBeGreaterThan(before.yaw + 0.1);
+  await expect
+    .poll(async () => (await snapshot(page)).z)
+    .toBeGreaterThan(before.z + 0.2);
+  await page.evaluate(() => window.dispatchEvent(new Event("blur")));
+  await send("touchEnd", []);
+  await page.waitForTimeout(400);
+  const stopped = await snapshot(page);
+  await page.waitForTimeout(300);
+  expect(Math.abs((await snapshot(page)).z - stopped.z)).toBeLessThan(0.01);
+  await send("touchStart", [first]);
+  await expect
+    .poll(async () => (await snapshot(page)).z)
+    .toBeGreaterThan(stopped.z + 0.2);
+  await send("touchCancel", []);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

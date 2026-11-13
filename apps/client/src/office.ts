@@ -1,18 +1,7 @@
-import {
-  MeshBuilder,
-  StandardMaterial,
-  Color3,
-  Vector3,
-  DynamicTexture,
-  type Scene,
-} from "@babylonjs/core";
-import { OFFICE_WALLS, SWITCH } from "@netcity/shared";
-export function buildOffice(scene: Scene) {
-  const mat = (name: string, color: string) => {
-    const m = new StandardMaterial(name, scene);
-    m.diffuseColor = Color3.FromHexString(color);
-    return m;
-  };
+import { MeshBuilder, StandardMaterial, Vector3, type Scene } from "./babylon";
+import { OFFICE_WALLS, OFFICE_DOORS, SWITCH } from "@netcity/shared";
+import { sign, batchStatic, type Palette } from "./visuals";
+export function buildOffice(scene: Scene, mat: Palette) {
   const wall = mat("office-wall", "#aebac8"),
     dark = mat("rack-metal", "#172a3d"),
     panel = mat("patch-panel", "#62798a");
@@ -47,8 +36,48 @@ export function buildOffice(scene: Scene) {
   // Open door leaf and lintels preserve a walkable entrance and server-room doorway.
   for (const x of [8, 13]) {
     box("door-lintel", x, 3, 0, 0.35, 0.6, 2.4, dark);
-    box("open-door", x + 0.8, 1.3, -1.15, 1.6, 2.6, 0.12, dark);
   }
+  for (const door of OFFICE_DOORS)
+    box("open-door", door.x, 1.3, door.z, door.width, 2.6, door.depth, dark);
+  const accents = [];
+  accents.push(
+    box("office-canopy", 7.6, 3.65, 0, 1.2, 0.15, 4, mat("trim", "#247d86")),
+  );
+  accents.push(
+    box("office-ceiling", 14, 3.7, 0, 12, 0.15, 12, mat("ceiling", "#dbe4df")),
+  );
+  for (const x of [10.5, 15.5]) {
+    accents.push(
+      box(
+        "ceiling-light",
+        x,
+        3.58,
+        0,
+        0.12,
+        0.03,
+        5,
+        mat("office-light", "#d2fff0", true),
+      ),
+    );
+    for (const z of [-5.78, 5.78])
+      accents.push(
+        box("wall-stripe", x, 1, z, 4.8, 0.16, 0.05, mat("trim", "#247d86")),
+      );
+  }
+  // Floor route makes the server-room entrance readable without additional HUD clutter.
+  accents.push(
+    box(
+      "floor-route",
+      11.5,
+      0.015,
+      0,
+      6,
+      0.012,
+      0.08,
+      mat("route", "#59c8bc", true),
+    ),
+  );
+  batchStatic(scene, accents);
   box("rack", 18.5, 1.3, 0, 0.8, 2.6, 1.6, dark);
   const switchMesh = box(
     "switch",
@@ -86,6 +115,7 @@ export function buildOffice(scene: Scene) {
             new Vector3(17.8, 1.7, (i - 3.5) * 0.16),
           ],
           radius: 0.025,
+          tessellation: 6,
         },
         scene,
       ).material = green;
@@ -98,6 +128,7 @@ export function buildOffice(scene: Scene) {
         new Vector3(17.3, 0.6, -0.24),
       ],
       radius: 0.035,
+      tessellation: 6,
     },
     scene,
   );
@@ -111,6 +142,7 @@ export function buildOffice(scene: Scene) {
         new Vector3(17.8, 1.7, -0.24),
       ],
       radius: 0.025,
+      tessellation: 6,
     },
     scene,
   );
@@ -123,38 +155,21 @@ export function buildOffice(scene: Scene) {
     y: number,
     z: number,
   ) => {
-    const mesh = MeshBuilder.CreatePlane(
-      name,
-      { width: 3, height: 0.7, sideOrientation: 2 },
-      scene,
-    );
+    const { mesh } = sign(scene, name, text, 3, 0.7);
     mesh.position.set(x, y, z);
-    mesh.rotation.y = -Math.PI / 2;
-    const texture = new DynamicTexture(
-      `${name}-text`,
-      { width: 1024, height: 256 },
-      scene,
-    );
-    texture.drawText(
-      text,
-      null,
-      165,
-      "bold 64px sans-serif",
-      "white",
-      "#172a3d",
-      true,
-    );
-    const material = new StandardMaterial(name, scene);
-    material.diffuseTexture = texture;
-    material.emissiveColor = Color3.White();
-    mesh.material = material;
+    mesh.rotation.y = Math.PI / 2;
+    mesh.isPickable = false;
   };
   label("office-sign", "ОФИС №001 →", 7.8, 3.5, 0);
   label("server-sign", "СЕРВЕРНАЯ", 12.8, 3.4, 0);
+  label("switch-label", "SW-001 / 8 PORTS", 17.82, 2.55, 0);
+  let previous: boolean | undefined;
   return {
     floor,
     switchMesh,
     sync(connected: boolean) {
+      if (previous === connected) return;
+      previous = connected;
       ports[2].material = connected ? green : red;
       cable.setEnabled(!connected);
       repairedCable.setEnabled(connected);

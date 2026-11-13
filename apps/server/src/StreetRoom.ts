@@ -8,6 +8,7 @@ import {
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
+  declare nickname: string;
   declare ticketStep: number;
   declare rewards: number;
   declare x: number;
@@ -15,6 +16,7 @@ export class Player extends Schema {
   declare yaw: number;
   constructor() {
     super();
+    this.nickname = "";
     this.ticketStep = 1;
     this.rewards = 0;
     this.x = 0;
@@ -23,6 +25,7 @@ export class Player extends Schema {
   }
 }
 defineTypes(Player, {
+  nickname: "string",
   x: "number",
   z: "number",
   yaw: "number",
@@ -50,6 +53,7 @@ defineTypes(StreetState, { players: { map: Player }, equipment: Equipment });
 const IDLE: MoveInput = { forward: 0, strafe: 0, yaw: 0 };
 export class StreetRoom extends Room<{ state: StreetState }> {
   maxClients = 32;
+  private nextNickname = 1;
   private inputs = new Map<string, { input: MoveInput; at: number }>();
   onCreate() {
     this.setState(new StreetState());
@@ -86,6 +90,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
   }
   onJoin(client: Client) {
     const player = new Player();
+    player.nickname = `Инженер ${String(this.nextNickname++).padStart(2, "0")}`;
     player.z = (this.state.players.size % 10) * 2 - 10;
     this.state.players.set(client.sessionId, player);
   }

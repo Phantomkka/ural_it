@@ -10,11 +10,14 @@ export interface NetworkState {
   players: Map<string, NetworkPlayer>;
   equipment: EquipmentView;
 }
-export function connect() {
+export async function connect() {
   const endpoint =
     import.meta.env.VITE_SERVER_URL ||
     `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/game`;
-  return new Client(endpoint).joinOrCreate<NetworkState>(ROOM_NAME);
+  const room = await new Client(endpoint).joinOrCreate<NetworkState>(ROOM_NAME);
+  // Server sessions do not support resume: avoid buffered movement replay on a stale session.
+  room.reconnection.enabled = false;
+  return room;
 }
 
 export function sendEquipment(
@@ -22,4 +25,12 @@ export function sendEquipment(
   action: EquipmentAction,
 ) {
   room.send("equipment", action);
+}
+
+const closing = new WeakSet<Room<NetworkState>>();
+export function leaveRoom(room: Room<NetworkState>) {
+  if (closing.has(room)) return;
+  closing.add(room);
+  room.reconnection.enabled = false;
+  if (room.connection.isOpen) void room.leave().catch(() => {});
 }
