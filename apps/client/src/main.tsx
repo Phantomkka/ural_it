@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Room } from "@colyseus/sdk";
-import { TICKET_STEPS, type ActionResult } from "@netcity/shared";
+import {
+  TICKET_STEPS,
+  type ActionResult,
+  type PrivateProfile,
+  type ProgressResult,
+  type ProgressIntent,
+  type ProgressAction,
+} from "@netcity/shared";
 import {
   connect,
   sendEquipment,
+  sendProgress,
   leaveRoom,
   type NetworkState,
 } from "./network";
@@ -12,6 +20,8 @@ import { MODEL_COUNT, type GraphicsProgress } from "./assets";
 import { defaultQuality, type Quality } from "./quality";
 import { createWorld } from "./world";
 import { MobileControls, type TouchInput } from "./controls";
+import { ProgressPanel } from "./ProgressPanel";
+import { pendingProgress, savePending, operationId } from "./pendingProgress";
 import "./style.css";
 function App() {
   const [quality, setQuality] = useState<Quality>(defaultQuality);
@@ -40,6 +50,17 @@ function App() {
   const [rewards, setRewards] = useState(0);
   const [target, setTarget] = useState(false);
   const [panel, setPanel] = useState(false);
+  const [economy, setEconomy] = useState(false);
+  const [profile, setProfile] = useState<PrivateProfile | null>(null);
+  const [progressResult, setProgressResult] = useState<ProgressResult | null>(
+    null,
+  );
+  const [pending, setPending] = useState<ProgressAction | null>(
+    pendingProgress,
+  );
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+  const [rackServiced, setRackServiced] = useState(false);
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");
   const [messageOk, setMessageOk] = useState(true);
@@ -49,7 +70,7 @@ function App() {
   );
   const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (!panel) return;
+    if (!panel && !economy) return;
     const dialog = dialogRef.current!;
     const buttons = Array.from(
       dialog.querySelectorAll<HTMLButtonElement>("button"),
@@ -58,13 +79,17 @@ function App() {
     const onKey = (event: KeyboardEvent) => {
       if (event.code === "Escape") {
         event.preventDefault();
+        setEconomy(false);
         setPanel(false);
         touch.current.modal = false;
         canvas.current?.focus();
       }
-      if (event.code === "Tab" && buttons.length) {
-        const first = buttons[0],
-          last = buttons[buttons.length - 1];
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+      );
+      if (event.code === "Tab" && focusable.length) {
+        const first = focusable[0],
+          last = focusable[focusable.length - 1];
         if (event.shiftKey && document.activeElement === first) {
           event.preventDefault();
           last.focus();
@@ -76,7 +101,7 @@ function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [panel]);
+  }, [panel, economy]);
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
@@ -88,6 +113,9 @@ function App() {
       failed: [],
     });
     setPanel(false);
+    setEconomy(false);
+    setProfile(null);
+    setProgressResult(null);
     setMessage("");
     setStep(1);
     setRewards(0);
@@ -128,11 +156,39 @@ function App() {
           qualityRef.current,
         );
         worldRef.current = world;
+        room.onMessage("profile", (value: PrivateProfile) => {
+          if (!cancelled) setProfile(value);
+        });
+        room.onMessage("progressResult", (value: ProgressResult) => {
+          if (cancelled) return;
+          if (value.message !== "Профиль обновлён.") setProgressResult(value);
+          const prior = pendingRef.current;
+          if (
+            value.requestId &&
+            prior &&
+            "requestId" in prior &&
+            value.requestId === prior.requestId
+          ) {
+            savePending(null);
+            pendingRef.current = null;
+            setPending(null);
+          }
+        });
+        sendProgress(room, { type: "refresh" });
+        const refresh = window.setInterval(() => {
+          if (room.connection.isOpen) sendProgress(room, { type: "refresh" });
+        }, 5000);
+        const previousCleanup = cleanup;
+        cleanup = () => {
+          clearInterval(refresh);
+          previousCleanup?.();
+        };
         setStatus("В сети");
         const syncState = (state: NetworkState) => {
           if (cancelled || !state?.players || !state?.equipment) return;
           setCount(state.players.size);
           setConnected(state.equipment.port3Connected);
+          setRackServiced(state.equipment.rackServiced ?? false);
           const me = state.players.get(room.sessionId);
           if (me) {
             setStep(me.ticketStep);
@@ -147,6 +203,7 @@ function App() {
           setMessage(result.message);
           setMessageOk(result.ok);
           if (result.ok && result.inspected) {
+            setEconomy(false);
             touch.current.modal = true;
             setPanel(true);
             if (document.pointerLockElement) document.exitPointerLock();
@@ -157,6 +214,9 @@ function App() {
           setStatus("Соединение закрыто");
           setCount(0);
           setPanel(false);
+          setEconomy(false);
+          setProfile(null);
+          clearInterval(refresh);
           touch.current.modal = false;
           worldRef.current = null;
           roomRef.current = null;
@@ -177,9 +237,18 @@ function App() {
     };
   }, [attempt]);
   const closePanel = () => {
+    setEconomy(false);
     setPanel(false);
     touch.current.modal = false;
     canvas.current?.focus();
+  };
+  const act = (intent: ProgressIntent) => {
+    if (!roomRef.current || pendingRef.current) return;
+    const action = { ...intent, requestId: operationId() };
+    savePending(action);
+    pendingRef.current = action;
+    setPending(action);
+    sendProgress(roomRef.current, action);
   };
   return (
     <>
@@ -197,6 +266,33 @@ function App() {
         <span>
           {nickname || "Инженер"} · Игроков: {count}
         </span>
+        <div className="profile-summary" aria-label="Деньги и опыт">
+          {profile ? (
+            <>
+              <b>{profile.credits} NET</b> · Ур. {profile.level}
+              <small>
+                {profile.xp} XP ·{" "}
+                {profile.persistence === "temporary"
+                  ? "Временные данные"
+                  : "PostgreSQL"}
+              </small>
+            </>
+          ) : (
+            <small>Загрузка профиля…</small>
+          )}
+        </div>
+        <button
+          className="open-progress"
+          onClick={() => {
+            setEconomy(true);
+            setPanel(false);
+            touch.current.modal = true;
+            if (document.pointerLockElement) document.exitPointerLock();
+          }}
+          disabled={status !== "В сети"}
+        >
+          Работа и снабжение
+        </button>
         <button onClick={() => setAttempt((v) => v + 1)}>
           Переподключиться
         </button>
@@ -291,15 +387,29 @@ function App() {
         )}
       </section>
       <div className="crosshair">+</div>
-      {target && !panel && (
+      {target && !panel && !economy && (
         <div className="interaction-hint">[E] Осмотреть коммутатор</div>
       )}
-      {!panel && (
+      {!panel && !economy && (
         <MobileControls
           key={attempt}
           enabled={target}
           input={touch.current}
           interact={() => worldRef.current?.interact()}
+        />
+      )}
+      {economy && (
+        <ProgressPanel
+          profile={profile}
+          pending={pending}
+          result={progressResult}
+          act={act}
+          retry={() => {
+            if (roomRef.current && pendingRef.current)
+              sendProgress(roomRef.current, pendingRef.current);
+          }}
+          close={closePanel}
+          dialogRef={dialogRef}
         />
       )}
       {panel && (
@@ -337,6 +447,26 @@ function App() {
                 );
               })}
             </div>
+            <section className="rack-maintenance">
+              <h3>Охлаждение серверной стойки</h3>
+              <p>{rackServiced ? "✓ Обслужено" : "Требуется очистка"}</p>
+              <button
+                onClick={() =>
+                  roomRef.current &&
+                  sendEquipment(roomRef.current, { type: "inspectRack" })
+                }
+              >
+                Осмотреть охлаждение
+              </button>
+              <button
+                onClick={() =>
+                  roomRef.current &&
+                  sendEquipment(roomRef.current, { type: "serviceRack" })
+                }
+              >
+                Очистить охлаждение
+              </button>
+            </section>
             <p
               role="status"
               className={`notification ${messageOk ? "success" : "error"}`}
@@ -348,7 +478,7 @@ function App() {
           </section>
         </div>
       )}
-      {!panel && message && (
+      {!panel && !economy && message && (
         <div
           className={`action-message notification ${messageOk ? "success" : "error"}`}
           role="status"

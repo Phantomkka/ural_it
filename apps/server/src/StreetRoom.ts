@@ -1,6 +1,13 @@
 import { Room, type Client } from "@colyseus/core";
 import { Schema, MapSchema, defineTypes } from "@colyseus/schema";
-import { handleEquipment } from "./equipment.js";
+import { ServerError } from "@colyseus/core";
+import { WorkController } from "./progress/workController.js";
+import { ProgressService } from "./progress/service.js";
+import {
+  MemoryProgressStore,
+  type ProgressStore,
+  validToken,
+} from "./progress/store.js";
 import {
   advance,
   isMoveInput,
@@ -34,12 +41,23 @@ defineTypes(Player, {
 });
 export class Equipment extends Schema {
   declare port3Connected: boolean;
+  declare rackServiced: boolean;
+  declare patchWorkId: string;
+  declare rackWorkId: string;
   constructor() {
     super();
     this.port3Connected = false;
+    this.rackServiced = false;
+    this.patchWorkId = "";
+    this.rackWorkId = "";
   }
 }
-defineTypes(Equipment, { port3Connected: "boolean" });
+defineTypes(Equipment, {
+  port3Connected: "boolean",
+  rackServiced: "boolean",
+  patchWorkId: "string",
+  rackWorkId: "string",
+});
 export class StreetState extends Schema {
   declare equipment: Equipment;
   declare players: MapSchema<Player>;
@@ -53,10 +71,15 @@ defineTypes(StreetState, { players: { map: Player }, equipment: Equipment });
 const IDLE: MoveInput = { forward: 0, strafe: 0, yaw: 0 };
 export class StreetRoom extends Room<{ state: StreetState }> {
   maxClients = 32;
-  private nextNickname = 1;
+  protected progressStore: ProgressStore = new MemoryProgressStore();
+  private work!: WorkController;
   private inputs = new Map<string, { input: MoveInput; at: number }>();
   onCreate() {
     this.setState(new StreetState());
+    this.work = new WorkController(
+      this,
+      new ProgressService(this.progressStore),
+    );
     this.setPatchRate(1000 / TICK_RATE);
     this.onMessage("move", (client, value: unknown) => {
       if (isMoveInput(value))
@@ -65,14 +88,12 @@ export class StreetRoom extends Room<{ state: StreetState }> {
           at: performance.now(),
         });
     });
-    this.onMessage("equipment", (client, value: unknown) => {
-      const player = this.state.players.get(client.sessionId);
-      if (player)
-        client.send(
-          "actionResult",
-          handleEquipment(player, this.state.equipment, value),
-        );
-    });
+    this.onMessage("equipment", (client, value: unknown) =>
+      this.work.equipment(client, value),
+    );
+    this.onMessage("progress", (client, value: unknown) =>
+      this.work.progress(client, value),
+    );
     // Messages only replace intent. Only this fixed-rate loop can move players.
     this.setSimulationInterval(() => {
       const now = performance.now();
@@ -88,13 +109,36 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       });
     }, 1000 / TICK_RATE);
   }
-  onJoin(client: Client) {
+  async onAuth(_client: Client, options: { guestToken?: unknown }) {
+    if (options.guestToken === undefined)
+      return { profileId: (await this.progressStore.register()).profileId };
+    if (!validToken(options.guestToken))
+      throw new ServerError(401, "Некорректный гостевой токен.");
+    const id = await this.progressStore.identify(options.guestToken);
+    if (!id)
+      throw new ServerError(
+        this.progressStore.mode === "temporary" ? 410 : 401,
+        this.progressStore.mode === "temporary"
+          ? "TEMP_PROFILE_EXPIRED"
+          : "Гостевой профиль не найден.",
+      );
+    return { profileId: id };
+  }
+  async onJoin(client: Client, _options: unknown, auth: { profileId: string }) {
+    const data = await this.progressStore.read(auth.profileId);
     const player = new Player();
-    player.nickname = `Инженер ${String(this.nextNickname++).padStart(2, "0")}`;
+    player.nickname = data.nickname;
+    player.ticketStep = data.tutorialCompleted ? 6 : 1;
+    player.rewards = data.tutorialCompleted ? 1 : 0;
     player.z = (this.state.players.size % 10) * 2 - 10;
     this.state.players.set(client.sessionId, player);
+    this.work.attach(client, auth.profileId);
+  }
+  async onDispose() {
+    await this.work.idle();
   }
   onLeave(client: Client) {
+    this.work.detach(client);
     this.inputs.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
   }

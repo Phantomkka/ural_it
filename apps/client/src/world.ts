@@ -239,7 +239,10 @@ export function createWorld(
           avatars.delete(id);
           graphics.refreshCasters();
         }
-      office.sync(room.state.equipment?.port3Connected ?? false);
+      office.sync(
+        room.state.equipment?.port3Connected ?? false,
+        room.state.equipment?.rackServiced ?? false,
+      );
       if (performance.now() - lastPick > 100) {
         const next = active && !touch.modal && targetSwitch();
         if (next !== lastTarget) {
