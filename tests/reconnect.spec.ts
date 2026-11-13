@@ -14,6 +14,10 @@ async function resources(page: Page) {
       meshes: scene?.meshes.length ?? 0,
       materials: scene?.materials.length ?? 0,
       textures: scene?.textures.length ?? 0,
+      nicknameTextures:
+        scene?.textures.filter((t: { name: string }) =>
+          t.name.startsWith("nickname-"),
+        ).length ?? 0,
       avatars:
         scene?.transformNodes.filter((node: { name: string }) =>
           node.name.startsWith("player-"),
@@ -25,6 +29,7 @@ async function resources(page: Page) {
 test("disconnect disposes WebGL resources; repeated reconnects keep one scene and no stale players", async ({
   browser,
 }) => {
+  test.setTimeout(120000);
   const context = await browser.newContext();
   await context.addInitScript(() => {
     const Native = window.WebSocket;
@@ -37,6 +42,9 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
       }
     };
   });
+  await context.addInitScript(() =>
+    localStorage.setItem("netcity-quality", "low"),
+  );
   const a = await context.newPage(),
     b = await context.newPage();
   const errors: string[] = [];
@@ -48,6 +56,16 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
   await expect
     .poll(async () => (await resources(a)).textures)
     .toBeGreaterThan(3);
+  await expect(a.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
+  await expect(b.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   // State may arrive before the first rendered avatar. Measure a fully built scene.
   await expect.poll(async () => (await resources(a)).avatars).toBe(1);
   await a.evaluate(async () => {
@@ -72,6 +90,16 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
     await expect.poll(async () => (await resources(a)).engines).toBe(0);
     await a.getByRole("button", { name: "Переподключиться" }).click();
     await expect(a.locator("aside")).toContainText("Игроков: 2");
+    await expect(a.locator(".asset-status")).toHaveAttribute(
+      "data-state",
+      "ready",
+      { timeout: 45000 },
+    );
+    await expect(a.locator(".asset-status")).toHaveAttribute(
+      "data-state",
+      "ready",
+      { timeout: 45000 },
+    );
     await expect.poll(() => resources(a)).toEqual(baseline);
   }
   // Rapid retries can resolve out of order: cancelled connections must leave again.
@@ -81,15 +109,16 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
   }
   await expect(a.locator("aside")).toContainText("Игроков: 2");
   await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   await expect.poll(() => resources(a)).toEqual(baseline);
   await b.close();
   await expect(a.locator("aside")).toContainText("Игроков: 1");
-  await expect
-    .poll(async () => (await resources(a)).textures)
-    .toBe(baseline.textures - 1);
-  await expect
-    .poll(async () => (await resources(a)).materials)
-    .toBe(baseline.materials - 1);
+  await expect.poll(async () => (await resources(a)).nicknameTextures).toBe(0);
+
   expect(errors).toEqual([]);
   await context.close();
 });

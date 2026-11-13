@@ -8,10 +8,21 @@ import {
   leaveRoom,
   type NetworkState,
 } from "./network";
+import { MODEL_COUNT, type GraphicsProgress } from "./assets";
+import { defaultQuality, type Quality } from "./quality";
 import { createWorld } from "./world";
 import { MobileControls, type TouchInput } from "./controls";
 import "./style.css";
 function App() {
+  const [quality, setQuality] = useState<Quality>(defaultQuality);
+  const qualityRef = useRef(quality);
+  qualityRef.current = quality;
+  const [graphics, setGraphics] = useState<GraphicsProgress>({
+    state: "loading",
+    loaded: 0,
+    total: MODEL_COUNT,
+    failed: [],
+  });
   const canvas = useRef<HTMLCanvasElement>(null);
   const roomRef = useRef<Room<NetworkState> | null>(null);
   const worldRef = useRef<ReturnType<typeof createWorld> | null>(null);
@@ -70,6 +81,12 @@ function App() {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
     setStatus("Подключение…");
+    setGraphics({
+      state: "loading",
+      loaded: 0,
+      total: MODEL_COUNT,
+      failed: [],
+    });
     setPanel(false);
     setMessage("");
     setStep(1);
@@ -100,11 +117,20 @@ function App() {
           if (roomRef.current === room) roomRef.current = null;
           leaveRoom(room);
         };
-        world = createWorld(canvas.current!, room, touch.current, setTarget);
+        world = createWorld(
+          canvas.current!,
+          room,
+          touch.current,
+          setTarget,
+          (progress) => {
+            if (!cancelled) setGraphics(progress);
+          },
+          qualityRef.current,
+        );
         worldRef.current = world;
         setStatus("В сети");
-        room.onStateChange((state) => {
-          if (cancelled) return;
+        const syncState = (state: NetworkState) => {
+          if (cancelled || !state?.players || !state?.equipment) return;
           setCount(state.players.size);
           setConnected(state.equipment.port3Connected);
           const me = state.players.get(room.sessionId);
@@ -113,7 +139,9 @@ function App() {
             setRewards(me.rewards);
             setNickname(me.nickname);
           }
-        });
+        };
+        room.onStateChange(syncState);
+        syncState(room.state);
         room.onMessage("actionResult", (result: ActionResult) => {
           if (cancelled) return;
           setMessage(result.message);
@@ -172,6 +200,48 @@ function App() {
         <button onClick={() => setAttempt((v) => v + 1)}>
           Переподключиться
         </button>
+        <label className="quality-setting">
+          Качество графики
+          <select
+            aria-label="Качество графики"
+            value={quality}
+            onChange={(event) => {
+              const next = event.target.value as Quality;
+              setQuality(next);
+              worldRef.current?.setQuality(next);
+            }}
+          >
+            <option value="low">Низкое</option>
+            <option value="medium">Среднее</option>
+            <option value="high">Высокое</option>
+          </select>
+        </label>
+        <div
+          className="asset-status"
+          data-state={graphics.state}
+          aria-live="polite"
+        >
+          {graphics.state === "loading"
+            ? graphics.loaded === graphics.total
+              ? "Подготовка освещения…"
+              : `Загрузка моделей: ${graphics.loaded}/${graphics.total}`
+            : graphics.state === "ready"
+              ? "✓ Модели загружены"
+              : `⚠ Резервная графика: ${graphics.failed.length} ошибок`}
+          {graphics.state === "loading" && (
+            <progress
+              aria-label="Загрузка моделей"
+              value={graphics.loaded}
+              max={graphics.total}
+            />
+          )}
+          {graphics.failed.length > 0 && (
+            <details>
+              <summary>Не загружено</summary>
+              {graphics.failed.join(", ")}. Можно переподключиться для повтора.
+            </details>
+          )}
+        </div>
       </aside>
       <section className="ticket" aria-label="Заявка №001">
         <div className="eyebrow">SERVICE DESK / #001</div>

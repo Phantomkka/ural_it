@@ -77,3 +77,12 @@ test("both office doors can be traversed in both directions without clipping wal
   assert.ok(Math.abs(p.x - 6) < 1e-8);
   assert.equal(p.z, 0);
 });
+
+test("door-safe browser navigation interval clears both doors with player radius", () => {
+  for (const z of [-0.6, 0.7]) {
+    let p = { x: 6, z };
+    for (let i = 0; i < 70; i++)
+      p = advance(p, { forward: 0, strafe: 1, yaw: 0 }, 1 / 30);
+    assert.ok(p.x > 15.5, `door blocked at z=${z}`);
+  }
+});

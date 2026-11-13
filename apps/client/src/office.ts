@@ -1,4 +1,4 @@
-import { MeshBuilder, StandardMaterial, Vector3, type Scene } from "./babylon";
+import { MeshBuilder, PBRMaterial, Vector3, type Scene } from "./babylon";
 import { OFFICE_WALLS, OFFICE_DOORS, SWITCH } from "@netcity/shared";
 import { sign, batchStatic, type Palette } from "./visuals";
 export function buildOffice(scene: Scene, mat: Palette) {
@@ -13,7 +13,7 @@ export function buildOffice(scene: Scene, mat: Palette) {
     width: number,
     height: number,
     depth: number,
-    material: StandardMaterial,
+    material: PBRMaterial,
   ) => {
     const mesh = MeshBuilder.CreateBox(name, { width, height, depth }, scene);
     mesh.position.set(x, y, z);
@@ -33,6 +33,17 @@ export function buildOffice(scene: Scene, mat: Palette) {
   OFFICE_WALLS.slice(0, -1).forEach((w, i) =>
     box(`office-wall-${i}`, w.x, 1.8, w.z, w.width, 3.6, w.depth, wall),
   );
+  for (const z of [-3.6, 3.6])
+    box(
+      "office-brick-cladding",
+      7.835,
+      0.5,
+      z,
+      0.025,
+      1,
+      4.8,
+      mat("brick", "#bca58f"),
+    );
   // Open door leaf and lintels preserve a walkable entrance and server-room doorway.
   for (const x of [8, 13]) {
     box("door-lintel", x, 3, 0, 0.35, 0.6, 2.4, dark);

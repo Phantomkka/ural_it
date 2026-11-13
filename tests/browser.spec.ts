@@ -3,6 +3,9 @@ test("two browser players connect, render 3D, move and disconnect", async ({
   browser,
 }) => {
   const context = await browser.newContext();
+  await context.addInitScript(() =>
+    localStorage.setItem("netcity-quality", "low"),
+  );
   const a = await context.newPage();
   const b = await context.newPage();
   const errors: string[] = [];
@@ -13,6 +16,16 @@ test("two browser players connect, render 3D, move and disconnect", async ({
   await b.goto("/");
   await expect(a.locator("aside")).toContainText("Игроков: 2");
   await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
+  await expect(b.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   // Inspect the actual Babylon scene through the same Vite module used by world.ts.
   const sceneSnapshot = async (page: typeof a) =>
     page.evaluate(async () => {
@@ -26,13 +39,17 @@ test("two browser players connect, render 3D, move and disconnect", async ({
         players: scene.transformNodes
           .filter((m: { name: string }) => m.name.startsWith("player-"))
           .map((m: { position: { z: number } }) => m.position.z),
-        swing: Math.abs(
-          scene.meshes.find((m: { name: string }) => m.name === "leg-left")
-            ?.rotation.x ?? 0,
-        ),
-        humanParts: scene.meshes.filter(
-          (m: { name: string }) => m.name === "head",
-        ).length,
+        swing:
+          scene.transformNodes.find((m: { name: string }) =>
+            m.name.startsWith("player-"),
+          )?.metadata.walkWeight ?? 0,
+        humanParts: scene.transformNodes
+          .filter((m: { name: string }) => m.name.startsWith("player-"))
+          .reduce(
+            (n: number, root: any) =>
+              n + root.getChildMeshes().filter((m: any) => m.skeleton).length,
+            0,
+          ),
         labels: scene.transformNodes
           .filter((m: { name: string }) => m.name.startsWith("player-"))
           .map((m: { metadata: { nickname: string } }) => m.metadata.nickname),
@@ -43,10 +60,20 @@ test("two browser players connect, render 3D, move and disconnect", async ({
     .poll(async () => (await sceneSnapshot(b)).players.length)
     .toBe(1);
   expect((await sceneSnapshot(a)).buildings).toBe(10);
-  expect((await sceneSnapshot(a)).humanParts).toBe(1);
+  expect((await sceneSnapshot(a)).humanParts).toBeGreaterThan(0);
   expect((await sceneSnapshot(a)).labels[0]).toMatch(/^Инженер /);
   await a.screenshot({ path: "/tmp/netcity-polish-overview.png" });
   const before = (await sceneSnapshot(a)).z;
+  await expect(a.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
+  await expect(b.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   await a.bringToFront();
   await a.locator("canvas").click({ position: { x: 400, y: 300 } });
   await expect

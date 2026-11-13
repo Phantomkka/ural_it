@@ -1,0 +1,4 @@
+Source: https://github.com/Poly-Haven/polyhaven.com/blob/master/public/locales/en/license.json
+License-page quote (p2): Our assets are all licensed as CC0, which is effectively Public Domain even in jurisdictions that do not support the Public Domain.
+Canonical license: https://polyhaven.com/license
+Distribution attribution: https://github.com/pmndrs/drei-assets/blob/master/README.md — HDRIs from HDRI Haven.

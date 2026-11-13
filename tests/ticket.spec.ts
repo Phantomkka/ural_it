@@ -71,20 +71,39 @@ async function drive(
 }
 // A human makes small corrections before entering a doorway. Use real input
 // pulses and confirmed positions instead of assuming a long held key stops exactly.
-async function alignDoor(page:Page,pulse:(direction:number)=>Promise<void>) {
-  for(let i=0;i<12;i++){
-    const z=(await snapshot(page)).z;
-    if(Math.abs(z)<0.35)return;
-    await pulse(z>0?-1:1);
-    await page.evaluate(()=>window.dispatchEvent(new Event('blur')));
+async function alignDoor(
+  page: Page,
+  pulse: (direction: number) => Promise<void>,
+) {
+  const settle = () =>
+    page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+  await settle();
+  for (let i = 0; i < 12; i++) {
+    const z = (await snapshot(page)).z;
+    // The 2.4m opening and open door leaf leave this safe interval for a 0.4m-radius actor.
+    // Do not require an exact center coordinate under a low-FPS software renderer.
+    if (z >= -0.6 && z <= 0.7) return;
+    await pulse(z > 0 ? -1 : 1);
+    await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await page.waitForTimeout(180);
+    await settle();
   }
-  expect(Math.abs((await snapshot(page)).z)).toBeLessThan(0.35);
+  const z = (await snapshot(page)).z;
+  expect(z).toBeGreaterThanOrEqual(-0.6);
+  expect(z).toBeLessThanOrEqual(0.7);
 }
 test("complete ticket in browser with server replicated port and no duplicate award", async ({
   browser,
 }) => {
   const context = await browser.newContext();
+  await context.addInitScript(() =>
+    localStorage.setItem("netcity-quality", "low"),
+  );
   const a = await context.newPage(),
     b = await context.newPage();
   const errors: string[] = [];
@@ -94,6 +113,16 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   await expect(a.locator("aside")).toContainText("В сети");
   await b.goto("/");
   await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
+  await expect(b.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   await a.bringToFront();
   await a.locator("canvas").click({ position: { x: 450, y: 350 } });
   await drive(
@@ -103,8 +132,22 @@ test("complete ticket in browser with server replicated port and no duplicate aw
     () => a.keyboard.down("KeyW"),
     () => a.keyboard.up("KeyW"),
   );
-  await alignDoor(a,async direction=>{
-    const key=direction>0?'KeyW':'KeyS';await a.keyboard.down(key);await a.waitForTimeout(60);await a.keyboard.up(key);
+  await alignDoor(a, async (direction) => {
+    // Time small corrections in the browser, not across slow DevTools round trips.
+    // These events use the same public keyboard handlers as real input; no room state is changed.
+    await a.evaluate(
+      (direction) =>
+        new Promise<void>((resolve) => {
+          const code = direction > 0 ? "KeyW" : "KeyS";
+          window.dispatchEvent(new KeyboardEvent("keydown", { code }));
+          setTimeout(() => {
+            window.dispatchEvent(new Event("blur"));
+            window.dispatchEvent(new KeyboardEvent("keyup", { code }));
+            resolve();
+          }, 35);
+        }),
+      direction,
+    );
   });
   await a.evaluate(() =>
     document.dispatchEvent(
@@ -121,6 +164,7 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   await expect(
     a.getByText("[E] Осмотреть коммутатор", { exact: true }),
   ).toBeVisible();
+  await a.screenshot({ path: "/tmp/netcity-overhaul-server-room.png" });
   await a.keyboard.press("KeyE");
   const dialog = a.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -154,9 +198,17 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
     isMobile: true,
     hasTouch: true,
   });
+  await context.addInitScript(() =>
+    localStorage.setItem("netcity-quality", "low"),
+  );
   const page = await context.newPage();
   await page.goto("/");
   await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   const cdp = await context.newCDPSession(page);
   const touch = async (type: string, x?: number, y?: number) => {
     await cdp.send("Input.dispatchTouchEvent", {
@@ -175,8 +227,10 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
     () => touch("touchStart", sx, sy - 45),
     () => touch("touchEnd"),
   );
-  await alignDoor(page,async direction=>{
-    await touch('touchStart',sx,sy-direction*45);await page.waitForTimeout(60);await touch('touchEnd');
+  await alignDoor(page, async (direction) => {
+    await touch("touchStart", sx, sy - direction * 45);
+    await page.waitForTimeout(60);
+    await touch("touchEnd");
   });
   const old = (await snapshot(page)).yaw;
   // Two genuine touch swipes rotate to the office entrance.
@@ -224,9 +278,17 @@ test("mobile multitouch and blur stop movement without leaving the joystick stuc
     isMobile: true,
     hasTouch: true,
   });
+  await context.addInitScript(() =>
+    localStorage.setItem("netcity-quality", "low"),
+  );
   const page = await context.newPage();
   await page.goto("/");
   await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".asset-status")).toHaveAttribute(
+    "data-state",
+    "ready",
+    { timeout: 45000 },
+  );
   const cdp = await context.newCDPSession(page);
   const stick = (await page.getByLabel("Джойстик движения").boundingBox())!;
   const first = { id: 1, x: stick.x + 60, y: stick.y + 15 };

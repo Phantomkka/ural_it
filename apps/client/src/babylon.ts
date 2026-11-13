@@ -26,3 +26,10 @@ export const MeshBuilder = {
   CreateSphere,
   CreateTube,
 };
+export { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial.js";
+export { Texture } from "@babylonjs/core/Materials/Textures/texture.js";
+export { HDRCubeTexture } from "@babylonjs/core/Materials/Textures/hdrCubeTexture.js";
+export { BackgroundMaterial } from "@babylonjs/core/Materials/Background/backgroundMaterial.js";
+export { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator.js";
+import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent.js";
+export { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture.js";
