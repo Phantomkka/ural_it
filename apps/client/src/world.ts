@@ -9,6 +9,14 @@ import {
   DirectionalLight,
 } from "./babylon";
 export { EngineStore } from "./babylon";
+import {
+  AssetLibrary,
+  CHARACTER_FILES,
+  appearanceVariant,
+  type GraphicsProgress,
+} from "./assets";
+import { buildAssetDistrict } from "./assetDistrict";
+import { configureGraphics, type Quality } from "./quality";
 import { buildStreet } from "./street";
 import { createPalette } from "./visuals";
 import { createAvatar } from "./avatar";
@@ -22,9 +30,13 @@ export function createWorld(
   room: Room<NetworkState>,
   touch: TouchInput,
   onTarget: (target: boolean) => void,
+  onGraphics: (progress: GraphicsProgress) => void = () => {},
+  initialQuality: Quality = "medium",
 ) {
   const mobile = matchMedia("(pointer: coarse)").matches;
-  const engine = new Engine(canvas, !mobile, { stencil: false });
+  const engine = new Engine(canvas, !mobile && initialQuality !== "low", {
+    stencil: false,
+  });
   try {
     engine.setHardwareScalingLevel(mobile ? 1.25 : 1);
     const scene = new Scene(engine);
@@ -47,6 +59,15 @@ export function createWorld(
     const sun = new DirectionalLight("sun", new Vector3(-0.6, -1, 0.4), scene);
     sun.intensity = 0.75;
     sun.diffuse = new Color3(1, 0.91, 0.77);
+    scene.imageProcessingConfiguration.toneMappingEnabled = true;
+    scene.imageProcessingConfiguration.toneMappingType = 1;
+    scene.imageProcessingConfiguration.exposure = 1.15;
+    const graphics = configureGraphics(scene, engine, sun, initialQuality);
+    const library = new AssetLibrary(scene, (progress) => {
+      const loading = { ...progress, state: "loading" as const };
+      scene.metadata = { ...scene.metadata, graphics: loading };
+      onGraphics(loading);
+    });
     const material = createPalette(scene);
     buildStreet(scene, material);
     const office = buildOffice(scene, material);
@@ -138,6 +159,34 @@ export function createWorld(
         });
     }, 1000 / TICK_RATE);
     let disposed = false;
+    void Promise.all([library.load(), graphics.environmentReady])
+      .then(() => {
+        if (disposed) return;
+        if (!graphics.environmentLoaded)
+          library.failed.push("potsdamer_platz_128.env");
+        buildAssetDistrict(scene, library, material);
+        graphics.refreshCasters();
+        graphics.activate();
+        const progress = {
+          ...scene.metadata.graphics,
+          state: library.failed.length ? "degraded" : "ready",
+          failed: [...library.failed],
+        } as GraphicsProgress;
+        scene.metadata = { ...scene.metadata, graphics: progress };
+        onGraphics(progress);
+      })
+      .catch((error) => {
+        if (!disposed) {
+          console.warn("Graphics fallback", error);
+          const progress = {
+            ...scene.metadata.graphics,
+            state: "degraded",
+            failed: [...library.failed, "scene"],
+          } as GraphicsProgress;
+          scene.metadata = { ...scene.metadata, graphics: progress };
+          onGraphics(progress);
+        }
+      });
     let lastTarget = false,
       lastPick = 0;
     const onVisibility = () => {
@@ -159,10 +208,21 @@ export function createWorld(
       room.state.players?.forEach((player, id) => {
         if (id === room.sessionId) return;
         present.add(id);
+        if (
+          !library.has(CHARACTER_FILES[appearanceVariant(id)]) &&
+          !library.complete
+        )
+          return;
         let avatar = avatars.get(id);
+        if (avatar && !avatar.loaded && library.has(avatar.asset)) {
+          avatar.dispose();
+          avatars.delete(id);
+          avatar = undefined;
+        }
         if (!avatar) {
-          avatar = createAvatar(scene, id, player, material);
+          avatar = createAvatar(scene, id, player, material, library);
           avatars.set(id, avatar);
+          graphics.refreshCasters();
         }
         avatar.update(
           player,
@@ -177,6 +237,7 @@ export function createWorld(
         if (!present.has(id)) {
           avatar.dispose();
           avatars.delete(id);
+          graphics.refreshCasters();
         }
       office.sync(room.state.equipment?.port3Connected ?? false);
       if (performance.now() - lastPick > 100) {
@@ -209,11 +270,13 @@ export function createWorld(
       for (const avatar of avatars.values()) avatar.dispose();
       avatars.clear();
       onTarget(false);
+      library.dispose();
+      graphics.dispose();
       scene.dispose();
       engine.dispose();
     };
     room.onLeave(dispose);
-    return { interact, dispose };
+    return { interact, dispose, setQuality: graphics.apply };
   } catch (error) {
     engine.dispose();
     throw error;

@@ -4,18 +4,29 @@ import {
   Mesh,
   MeshBuilder,
   StandardMaterial,
+  PBRMaterial,
   type Scene,
 } from "./babylon";
 /** One palette per scene. Frozen shared materials never accumulate across reconnects. */
 export function createPalette(scene: Scene) {
-  const cache = new Map<string, StandardMaterial>();
+  const cache = new Map<string, PBRMaterial>();
   return (name: string, color: string, glow = false) => {
     let material = cache.get(name);
     if (!material) {
-      material = new StandardMaterial(name, scene);
-      material.diffuseColor = Color3.FromHexString(color);
-      material.specularColor = new Color3(0.08, 0.08, 0.08);
-      if (glow) material.emissiveColor = material.diffuseColor.scale(0.7);
+      material = new PBRMaterial(name, scene);
+      material.albedoColor = Color3.FromHexString(color).toLinearSpace();
+      material.metallic =
+        name.includes("metal") ||
+        name.includes("rack") ||
+        name.includes("patch-panel")
+          ? 0.8
+          : 0;
+      material.roughness = name.includes("glass")
+        ? 0.12
+        : name.includes("metal")
+          ? 0.3
+          : 0.82;
+      if (glow) material.emissiveColor = material.albedoColor.scale(0.7);
       material.freeze();
       cache.set(name, material);
     }
@@ -66,9 +77,9 @@ export function sign(
 }
 /** Merge static meshes sharing a material. Keep gameplay hit targets and building identifiers separate. */
 export function batchStatic(scene: Scene, meshes: Mesh[]) {
-  const groups = new Map<StandardMaterial, Mesh[]>();
+  const groups = new Map<StandardMaterial | PBRMaterial, Mesh[]>();
   for (const mesh of meshes) {
-    const material = mesh.material as StandardMaterial;
+    const material = mesh.material as StandardMaterial | PBRMaterial;
     const group = groups.get(material) ?? [];
     group.push(mesh);
     groups.set(material, group);

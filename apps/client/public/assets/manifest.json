@@ -1,0 +1,170 @@
+[
+  {
+    "file": "building_A_withoutBase.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/building_A_withoutBase.gltf",
+    "sha256": "b265a77b0ce9759c54f574629bcf909e049fb00525c06176cc700d458f0f7fb9",
+    "bytes": 50120
+  },
+  {
+    "file": "building_C_withoutBase.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/building_C_withoutBase.gltf",
+    "sha256": "f57c98065cfbee9a1a30db7826e7dbbd14175f9d32495196305c037ecf66f3c3",
+    "bytes": 64856
+  },
+  {
+    "file": "building_E_withoutBase.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/building_E_withoutBase.gltf",
+    "sha256": "58bcdf77b350d3c5f2a89137221fa5c964ca590cde1ecd1c196ba6bc911b3424",
+    "bytes": 83392
+  },
+  {
+    "file": "building_H_withoutBase.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/building_H_withoutBase.gltf",
+    "sha256": "b0764cc3c267c9712913be8f30fb994c4ef8a01089c3810912d26135ca2caa32",
+    "bytes": 108188
+  },
+  {
+    "file": "bench.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/bench.gltf",
+    "sha256": "9d18680647b957253f3ae54fb068a71cff4747a3651b23f667ded9d86baa8a1e",
+    "bytes": 24084
+  },
+  {
+    "file": "streetlight.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/streetlight.gltf",
+    "sha256": "bd7956c0a1004fafad3fc3d67bbe112b143a48d0ec262541e1baf4a938d2a0cc",
+    "bytes": 28432
+  },
+  {
+    "file": "trash_B.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/trash_B.gltf",
+    "sha256": "57f91c5707b22eb9052f64a2ddb905630fbaece5a8ad082e0e396aa6472c3b3d",
+    "bytes": 21884
+  },
+  {
+    "file": "car_sedan.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/car_sedan.gltf",
+    "sha256": "895276c6bc43b4f8d804fd34f63973e78923e93e693abe6918ca4605fbc67b05",
+    "bytes": 80008
+  },
+  {
+    "file": "car_hatchback.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/car_hatchback.gltf",
+    "sha256": "837d944d594e557c7283cbe978b0b3aba13dd2348d3f9b08bb490058a19487e3",
+    "bytes": 78260
+  },
+  {
+    "file": "trafficlight_A.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/trafficlight_A.gltf",
+    "sha256": "235216430e94c7c86a2045acc9110bc241c804dc801189a64a837229a811eea9",
+    "bytes": 51968
+  },
+  {
+    "file": "table_medium.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0/blob/96d5930a8dbdb363409bbc2d3341718b00e17c9c/addons/kaykit_furniture_bits/Assets/gltf/table_medium.gltf",
+    "sha256": "6724f87d838ed22629ee04006cce09be61309454d11260fa43fce41e7f6f7c46",
+    "bytes": 26244
+  },
+  {
+    "file": "chair_B.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0/blob/96d5930a8dbdb363409bbc2d3341718b00e17c9c/addons/kaykit_furniture_bits/Assets/gltf/chair_B.gltf",
+    "sha256": "dc7761a7029fb4502f63fa9f91c3a8374519ed0c11a197f916417921ba1fed09",
+    "bytes": 35236
+  },
+  {
+    "file": "cabinet_medium.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0/blob/96d5930a8dbdb363409bbc2d3341718b00e17c9c/addons/kaykit_furniture_bits/Assets/gltf/cabinet_medium.gltf",
+    "sha256": "71fa7a28170174f740a1c55a60f728f749ea86bc5d17a3424986e5fd0b299154",
+    "bytes": 40244
+  },
+  {
+    "file": "book_set.glb",
+    "author": "Kay Lousberg",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-Furniture-Bits-1.0/blob/96d5930a8dbdb363409bbc2d3341718b00e17c9c/addons/kaykit_furniture_bits/Assets/gltf/book_set.gltf",
+    "sha256": "91e017e55a6c88e99254eaf8f9cbe97585d14660e2a7eecd75b7959df23232c2",
+    "bytes": 28572
+  },
+  {
+    "file": "Worker_Male.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/Yametech12/ghostname-3d-assets/3ba341c4346e7833da316f4f8b127d349ca89041/models/Worker_Male.glb",
+    "sourceSha256": "15caab5b6ed3fab8fc3a1277b643765ae8887529a832b071b904d84e67af099a",
+    "sha256": "580916457c42df66d96f16956f0d61e3c3cae4f82e0644374ad0f9f612715a96",
+    "bytes": 388832,
+    "modification": "Pruned unused animation clips; kept Idle and Walk"
+  },
+  {
+    "file": "Worker_Female.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/Yametech12/ghostname-3d-assets/3ba341c4346e7833da316f4f8b127d349ca89041/models/Worker_Female.glb",
+    "sourceSha256": "e6a4c66e1174edffa64ba311ab84b2c627f54b30a1cce07b2032a1153f3f54e8",
+    "sha256": "a19180024b5e971dffe2bc47b12962a1dd6edd8ba3c8d11198f67c80ee4a985d",
+    "bytes": 575284,
+    "modification": "Pruned unused animation clips; kept Idle and Walk"
+  },
+  {
+    "file": "Casual_Male.glb",
+    "author": "Quaternius",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/Yametech12/ghostname-3d-assets/3ba341c4346e7833da316f4f8b127d349ca89041/models/Casual_Male.glb",
+    "sourceSha256": "c23137c46a8734a8dcd2058acf9acd9796eab0f025c719aaeb82c5e26f0df18c",
+    "sha256": "deb11da18617f4ea103e64c67b09c3b1d05d16a089cd6aa6385f176dd3701d88",
+    "bytes": 596736,
+    "modification": "Pruned unused animation clips; kept Idle and Walk"
+  },
+  {
+    "file": "grass-trees.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KenneyNL/Starter-Kit-City-Builder/blob/4535092b740b378b700efd9df9e27a631815b84a/models/grass-trees.glb",
+    "sha256": "18205e9cdb44454d3ff1fe0c5b024e2f37c2d984cd134303c98056d7d3459cc5",
+    "bytes": 48324
+  },
+  {
+    "file": "grass-trees-tall.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KenneyNL/Starter-Kit-City-Builder/blob/4535092b740b378b700efd9df9e27a631815b84a/models/grass-trees-tall.glb",
+    "sha256": "cba80abb45ffc080183638a58fd3d2fd748083b36e614ca985f2676702fb4d3e",
+    "bytes": 57176
+  },
+  {
+    "file": "office_facade.glb",
+    "author": "Kay Lousberg / KayKit",
+    "license": "CC0-1.0",
+    "source": "https://github.com/KayKit-Game-Assets/KayKit-City-Builder-Bits-1.0/blob/63976910ca04d16f0fc531b9c614244be8128713/addons/kaykit_city_builder_bits/Assets/gltf/building_A_withoutBase.gltf",
+    "sourceSha256": "b265a77b0ce9759c54f574629bcf909e049fb00525c06176cc700d458f0f7fb9",
+    "sha256": "4f9e7be1b035dcecf4c4f05f8b9df7cc387473e3e2af4299ffc9a49a416172e8",
+    "bytes": 75852,
+    "modification": "Baked scale/rotation and clipped a walkable office doorway while preserving source UVs, normals and materials"
+  }
+]

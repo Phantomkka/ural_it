@@ -1,0 +1,9 @@
+{
+  "file": "potsdamer_platz_128.env",
+  "author": "HDRI Haven / Poly Haven",
+  "license": "CC0-1.0",
+  "source": "potsdamer_platz_1k.hdr",
+  "modification": "128px prefiltered RGBD cubemap baked with Babylon EnvironmentTextureTools",
+  "sha256": "12a8088b7c489c30b16117249d3f09fbb838394ff5bf38bdf44f8223031b2425",
+  "bytes": 277988
+}

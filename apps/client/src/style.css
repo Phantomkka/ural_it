@@ -474,3 +474,59 @@ footer {
     font-size: 10px;
   }
 }
+.quality-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+select {
+  font: inherit;
+  border: 1px solid #688d9e;
+  background: #193b47;
+  color: #e7f4f5;
+  border-radius: 6px;
+  padding: 5px;
+  max-width: 100%;
+}
+.asset-status {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 9px;
+  max-width: 220px;
+}
+.asset-status progress {
+  display: block;
+  width: 100%;
+  height: 4px;
+  margin-top: 6px;
+  accent-color: var(--accent);
+}
+.asset-status[data-state="degraded"] {
+  color: #ffcda5;
+}
+.asset-status details {
+  max-height: 100px;
+  overflow: auto;
+  margin-top: 6px;
+}
+@media (pointer: coarse) {
+  .quality-setting {
+    font-size: 9px;
+    display: block;
+    margin-top: 6px;
+  }
+  .quality-setting select {
+    margin-left: 4px;
+    max-width: 80px;
+  }
+  .asset-status {
+    font-size: 8px;
+    max-width: 145px;
+  }
+  .asset-status[data-state="ready"] {
+    display: none;
+  }
+}

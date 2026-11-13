@@ -1,0 +1,7 @@
+Source: https://github.com/Quaternius/quaternius.github.io/blob/master/packs/ultimatedanimatedcharacter.html
+Pack: Ultimate Animated Character Pack by Quaternius
+The pack page explicitly links its License field to:
+https://creativecommons.org/publicdomain/zero/1.0/
+Quote: License ... CC0
+This evidence applies to the original CC0 character release, not later QAL releases.
+Conversion credit: https://github.com/Yametech12/ghostname-3d-assets
