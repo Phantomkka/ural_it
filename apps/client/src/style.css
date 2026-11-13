@@ -530,3 +530,167 @@ select {
     display: none;
   }
 }
+.profile-summary {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--accent);
+}
+.profile-summary small {
+  display: block;
+  color: var(--muted);
+  margin-top: 3px;
+}
+aside .open-progress {
+  display: block;
+  width: 100%;
+  margin-bottom: 7px;
+  min-height: 40px;
+}
+.progress-panel {
+  width: min(900px, 96vw);
+  max-height: 92dvh;
+  overflow: auto;
+  background: #102835;
+  border: 1px solid #688d9e;
+  border-radius: 18px;
+  padding: 20px;
+  scroll-padding-top: 65px;
+}
+.progress-heading {
+  position: sticky;
+  top: -20px;
+  z-index: 1;
+  background: #102835;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 0;
+}
+.progress-heading h2 {
+  font-size: 21px;
+}
+.progress-heading button {
+  min-width: 44px;
+  min-height: 44px;
+}
+.profile-card {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px;
+  background: #173e4a;
+  border-radius: 10px;
+}
+.profile-card span {
+  font-weight: bold;
+  color: var(--accent);
+}
+.profile-card progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.profile-card small {
+  width: 100%;
+}
+.persistence-mode {
+  font-size: 12px;
+}
+.persistence-mode[data-mode="temporary"] {
+  color: #ffcc9d;
+}
+.work-board,
+.supply-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.work-board article,
+.supply-list article {
+  padding: 14px;
+  border: 1px solid #527482;
+  border-radius: 12px;
+  background: #142e3b;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.work-board article[data-job-status="ACTIVE"] {
+  border-color: var(--accent);
+}
+.work-board p {
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+.job-id {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--muted);
+}
+.completed-order {
+  padding: 10px;
+  background: #193c32;
+  border-radius: 8px;
+  color: #a0f2ce;
+}
+.progress-panel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.supply-list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.supply-list span {
+  font-size: 12px;
+}
+.progress-panel > .notification {
+  margin: 14px 0 0;
+}
+.rack-maintenance {
+  margin: 15px 0;
+  border-top: 1px solid #527482;
+  padding-top: 10px;
+}
+.rack-maintenance h3 {
+  font-size: 15px;
+}
+.rack-maintenance button {
+  margin: 4px;
+  min-height: 44px;
+}
+@media (max-width: 600px) {
+  .progress-panel {
+    padding: 12px;
+    max-height: 94dvh;
+  }
+  .progress-heading {
+    top: -12px;
+  }
+  .work-board,
+  .supply-list {
+    grid-template-columns: 1fr;
+  }
+  .profile-summary {
+    font-size: 10px;
+  }
+  .profile-summary small {
+    font-size: 9px;
+  }
+  .progress-panel button {
+    min-height: 44px;
+  }
+}
+/* Keep purchase failures visible even while the mobile supply list is scrolled. */
+.progress-panel > .notification {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 12px;
+  box-shadow: 0 -4px 18px #071d3299;
+}
+.progress-panel {
+  scroll-padding-bottom: 90px;
+}

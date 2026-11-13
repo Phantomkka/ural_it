@@ -174,11 +174,27 @@ export function buildOffice(scene: Scene, mat: Palette) {
   label("office-sign", "ОФИС №001 →", 7.8, 3.5, 0);
   label("server-sign", "СЕРВЕРНАЯ", 12.8, 3.4, 0);
   label("switch-label", "SW-001 / 8 PORTS", 17.82, 2.55, 0);
+  const serviceLED = box(
+    "rack-service-led",
+    18.02,
+    2.35,
+    0.64,
+    0.03,
+    0.1,
+    0.1,
+    red,
+  );
+  serviceLED.isPickable = false;
+  let previousService: boolean | undefined;
   let previous: boolean | undefined;
   return {
     floor,
     switchMesh,
-    sync(connected: boolean) {
+    sync(connected: boolean, serviced = false) {
+      if (previousService !== serviced) {
+        serviceLED.material = serviced ? green : red;
+        previousService = serviced;
+      }
       if (previous === connected) return;
       previous = connected;
       ports[2].material = connected ? green : red;

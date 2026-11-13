@@ -101,7 +101,8 @@ export const TICKET_STEPS = [
   "Сеть восстановлена",
 ];
 export type EquipmentAction =
-  { type: "inspect" } | { type: "connect"; port: number };
+  | { type: "inspect" | "inspectRack" | "serviceRack" }
+  | { type: "connect"; port: number };
 export interface ActionResult {
   ok: boolean;
   message: string;
@@ -117,6 +118,9 @@ export interface PlayerView {
 }
 export interface EquipmentView {
   port3Connected: boolean;
+  rackServiced?: boolean;
+  patchWorkId?: string;
+  rackWorkId?: string;
 }
 export function canReachSwitch(player: { x: number; z: number }) {
   return (
@@ -128,3 +132,4 @@ export function canReachSwitch(player: { x: number; z: number }) {
     Math.hypot(player.x - SWITCH.x, player.z - SWITCH.z) <= INTERACTION_RANGE
   );
 }
+export * from "./progression.js";
