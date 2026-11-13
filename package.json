@@ -14,7 +14,9 @@
     "test:browser": "playwright test",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/db-migrate.mts",
     "test:postgres": "node --env-file-if-exists=.env --import tsx --test apps/server/src/progress.postgres.integration.ts",
-    "db:configure": "node scripts/configure-local-db.mjs"
+    "db:configure": "node scripts/configure-local-db.mjs",
+    "test:production": "playwright test -c playwright.production.config.ts",
+    "test:deployment": "node deploy/smoke.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",

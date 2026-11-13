@@ -1,0 +1,14 @@
+{
+  "node": {
+    "digest": "sha256:be8204d4bd327363357f532187b752ff62759c31bedf98e9e18fc08c9cbd605c",
+    "mediaType": "application/vnd.oci.image.index.v1+json"
+  },
+  "caddy": {
+    "digest": "sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0",
+    "mediaType": "application/vnd.oci.image.index.v1+json"
+  },
+  "postgres": {
+    "digest": "sha256:f377d590e5474681d4d7838635031a2b50647923b7abfa803ce9b5ff35d5c663",
+    "mediaType": "application/vnd.oci.image.index.v1+json"
+  }
+}

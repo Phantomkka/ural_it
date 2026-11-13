@@ -17,15 +17,17 @@ export function createGameServer(options: { store?: ProgressStore } = {}) {
       app.get("/health", async (_req: Request, res: Response) => {
         try {
           await store.health();
-          res.json({ status: "ok", persistence: store.mode });
+          res.json({
+            status: "ok",
+            persistence: store.mode,
+            revision: process.env.APP_REVISION ?? "development",
+          });
         } catch {
-          res
-            .status(503)
-            .json({
-              status: "error",
-              message:
-                "PostgreSQL недоступен. Проверьте DATABASE_URL и миграции.",
-            });
+          res.status(503).json({
+            status: "error",
+            message:
+              "PostgreSQL недоступен. Проверьте DATABASE_URL и миграции.",
+          });
         }
       });
       app.post("/guest", async (req: Request, res: Response) => {
@@ -49,12 +51,10 @@ export function createGameServer(options: { store?: ProgressStore } = {}) {
           res.setHeader("Cache-Control", "no-store");
           res.json({ token: guest.token });
         } catch {
-          res
-            .status(503)
-            .json({
-              message:
-                "Хранилище профилей недоступно. Проверьте PostgreSQL и миграции.",
-            });
+          res.status(503).json({
+            message:
+              "Хранилище профилей недоступно. Проверьте PostgreSQL и миграции.",
+          });
         }
       });
     },
