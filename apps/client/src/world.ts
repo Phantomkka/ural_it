@@ -20,16 +20,17 @@ import { configureGraphics, type Quality } from "./quality";
 import { buildStreet } from "./street";
 import { createPalette } from "./visuals";
 import { createAvatar } from "./avatar";
+import { buildComputers } from "./computers";
 import { buildOffice } from "./office";
 import type { TouchInput } from "./controls";
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
-import { sendEquipment, type NetworkState } from "./network";
+import { sendComputer, sendEquipment, type NetworkState } from "./network";
 export function createWorld(
   canvas: HTMLCanvasElement,
   room: Room<NetworkState>,
   touch: TouchInput,
-  onTarget: (target: boolean) => void,
+  onTarget: (target: boolean, label?: string) => void,
   onGraphics: (progress: GraphicsProgress) => void = () => {},
   initialQuality: Quality = "medium",
 ) {
@@ -71,21 +72,34 @@ export function createWorld(
     const material = createPalette(scene);
     buildStreet(scene, material);
     const office = buildOffice(scene, material);
-    for (const mesh of scene.meshes) mesh.freezeWorldMatrix();
-    const targetSwitch = () => {
+    const computers = buildComputers(scene, material);
+    for (const mesh of scene.meshes)
+      if (mesh.name !== "equipment-selection") mesh.freezeWorldMatrix();
+    const pickEquipment = () => {
       const hit = scene.pickWithRay(
         camera.getForwardRay(INTERACTION_RANGE),
         (mesh) => mesh.isPickable && !mesh.name.startsWith("player-"),
       );
-      return (
+      const id = hit?.pickedMesh?.metadata?.pcId;
+      if (id)
+        return {
+          id,
+          label: `Использовать ${id === "pc01" ? "OFFICE-PC01" : id === "pc02" ? "OFFICE-PC02" : "OFFICE-PC03"}`,
+        };
+      if (
         hit?.pickedMesh === office.switchMesh ||
-        !!hit?.pickedMesh?.name.startsWith("port-")
-      );
+        hit?.pickedMesh?.name.startsWith("port-")
+      )
+        return { id: "switch", label: "Осмотреть коммутатор" };
+      return null;
     };
     const interact = () => {
-      if (!active || touch.modal || !targetSwitch()) return;
+      if (!active || touch.modal) return;
+      const target = pickEquipment();
+      if (!target) return;
       stop();
-      sendEquipment(room, { type: "inspect" });
+      if (target.id === "switch") sendEquipment(room, { type: "inspect" });
+      else sendComputer(room, { type: "open", pcId: target.id });
     };
     const avatars = new Map<string, ReturnType<typeof createAvatar>>();
     const keys = new Set<string>();
@@ -187,7 +201,7 @@ export function createWorld(
           onGraphics(progress);
         }
       });
-    let lastTarget = false,
+    let lastTarget = "",
       lastPick = 0;
     const onVisibility = () => {
       if (document.hidden) stop();
@@ -243,11 +257,16 @@ export function createWorld(
         room.state.equipment?.port3Connected ?? false,
         room.state.equipment?.rackServiced ?? false,
       );
+      computers.sync(
+        room.state.devices,
+        room.state.equipment?.port3Connected ?? false,
+      );
       if (performance.now() - lastPick > 100) {
-        const next = active && !touch.modal && targetSwitch();
-        if (next !== lastTarget) {
-          onTarget(next);
-          lastTarget = next;
+        const next = active && !touch.modal ? pickEquipment() : null;
+        if ((next?.id ?? "") !== lastTarget) {
+          onTarget(!!next, next?.label);
+          computers.select(next?.id ?? "");
+          lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
       }

@@ -8,6 +8,13 @@ import {
   type ProgressStore,
   validToken,
 } from "./progress/store.js";
+import { handleComputer } from "./computerActions.js";
+import {
+  NetworkDevice,
+  JobProgress,
+  createDevices,
+  createJobs,
+} from "./networkState.js";
 import {
   advance,
   isMoveInput,
@@ -15,6 +22,7 @@ import {
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
+  declare jobs: MapSchema<JobProgress>;
   declare nickname: string;
   declare ticketStep: number;
   declare rewards: number;
@@ -23,6 +31,7 @@ export class Player extends Schema {
   declare yaw: number;
   constructor() {
     super();
+    this.jobs = createJobs();
     this.nickname = "";
     this.ticketStep = 1;
     this.rewards = 0;
@@ -32,6 +41,7 @@ export class Player extends Schema {
   }
 }
 defineTypes(Player, {
+  jobs: { map: JobProgress },
   nickname: "string",
   x: "number",
   z: "number",
@@ -59,20 +69,27 @@ defineTypes(Equipment, {
   rackWorkId: "string",
 });
 export class StreetState extends Schema {
+  declare devices: MapSchema<NetworkDevice>;
   declare equipment: Equipment;
   declare players: MapSchema<Player>;
   constructor() {
     super();
+    this.devices = createDevices();
     this.players = new MapSchema<Player>();
     this.equipment = new Equipment();
   }
 }
-defineTypes(StreetState, { players: { map: Player }, equipment: Equipment });
+defineTypes(StreetState, {
+  players: { map: Player },
+  equipment: Equipment,
+  devices: { map: NetworkDevice },
+});
 const IDLE: MoveInput = { forward: 0, strafe: 0, yaw: 0 };
 export class StreetRoom extends Room<{ state: StreetState }> {
   maxClients = 32;
   protected progressStore: ProgressStore = new MemoryProgressStore();
   private work!: WorkController;
+  private actionBudgets = new Map<string, { tokens: number; at: number }>();
   private inputs = new Map<string, { input: MoveInput; at: number }>();
   onCreate() {
     this.setState(new StreetState());
@@ -94,6 +111,35 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     this.onMessage("progress", (client, value: unknown) =>
       this.work.progress(client, value),
     );
+    this.onMessage("computer", (client, value: unknown) => {
+      const now = performance.now();
+      const budget = this.actionBudgets.get(client.sessionId) ?? {
+        tokens: 20,
+        at: now,
+      };
+      budget.tokens = Math.min(20, budget.tokens + (now - budget.at) / 100);
+      budget.at = now;
+      this.actionBudgets.set(client.sessionId, budget);
+      if (budget.tokens < 1) {
+        client.send("computerResult", {
+          ok: false,
+          message: "Слишком много действий. Подождите секунду.",
+        });
+        return;
+      }
+      budget.tokens--;
+      const player = this.state.players.get(client.sessionId);
+      if (player)
+        client.send(
+          "computerResult",
+          handleComputer(
+            player,
+            this.state.devices,
+            this.state.equipment,
+            value,
+          ),
+        );
+    });
     // Messages only replace intent. Only this fixed-rate loop can move players.
     this.setSimulationInterval(() => {
       const now = performance.now();
@@ -139,6 +185,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
   }
   onLeave(client: Client) {
     this.work.detach(client);
+    this.actionBudgets.delete(client.sessionId);
     this.inputs.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
   }

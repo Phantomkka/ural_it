@@ -133,3 +133,4 @@ export function canReachSwitch(player: { x: number; z: number }) {
   );
 }
 export * from "./progression.js";
+export * from "./officeNetwork.js";

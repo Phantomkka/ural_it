@@ -2,14 +2,18 @@ import { Client, type Room } from "@colyseus/sdk";
 import {
   ROOM_NAME,
   type PlayerView,
+  type DeviceView,
+  type ProgressView,
+  type ComputerAction,
   type EquipmentView,
   type EquipmentAction,
   type ProgressAction,
 } from "@netcity/shared";
-export type NetworkPlayer = PlayerView;
+export type NetworkPlayer = PlayerView & { jobs: Map<string, ProgressView> };
 export interface NetworkState {
   players: Map<string, NetworkPlayer>;
   equipment: EquipmentView;
+  devices: Map<string, DeviceView>;
 }
 let transientToken: string | null = null;
 export async function connect() {
@@ -77,4 +81,8 @@ export function leaveRoom(room: Room<NetworkState>) {
 
 export function sendProgress(room: Room<NetworkState>, action: ProgressAction) {
   room.send("progress", action);
+}
+
+export function sendComputer(room: Room<NetworkState>, action: ComputerAction) {
+  room.send("computer", action);
 }

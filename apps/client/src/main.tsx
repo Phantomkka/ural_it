@@ -8,11 +8,14 @@ import {
   type ProgressResult,
   type ProgressIntent,
   type ProgressAction,
+  type ComputerResult,
+  type ProgressView,
 } from "@netcity/shared";
 import {
   connect,
   sendEquipment,
   sendProgress,
+  sendComputer,
   leaveRoom,
   type NetworkState,
 } from "./network";
@@ -22,6 +25,8 @@ import { createWorld } from "./world";
 import { MobileControls, type TouchInput } from "./controls";
 import { ProgressPanel } from "./ProgressPanel";
 import { pendingProgress, savePending, operationId } from "./pendingProgress";
+import { VirtualComputer, type ComputerSnapshot } from "./VirtualComputer";
+import { TicketJournal } from "./TicketJournal";
 import "./style.css";
 function App() {
   const [quality, setQuality] = useState<Quality>(defaultQuality);
@@ -49,6 +54,11 @@ function App() {
   const [step, setStep] = useState(1);
   const [rewards, setRewards] = useState(0);
   const [target, setTarget] = useState(false);
+  const [targetLabel, setTargetLabel] = useState("Осмотреть коммутатор");
+  const [pcId, setPcId] = useState<string | null>(null);
+  const [devices, setDevices] = useState<ComputerSnapshot[]>([]);
+  const [jobs, setJobs] = useState(new Map<string, ProgressView>());
+  const [pcResult, setPcResult] = useState<ComputerResult | null>(null);
   const [panel, setPanel] = useState(false);
   const [economy, setEconomy] = useState(false);
   const [profile, setProfile] = useState<PrivateProfile | null>(null);
@@ -70,22 +80,27 @@ function App() {
   );
   const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (!panel && !economy) return;
+    if (!panel && !economy && !pcId) return;
     const dialog = dialogRef.current!;
     const buttons = Array.from(
-      dialog.querySelectorAll<HTMLButtonElement>("button"),
+      dialog.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), input, select, [tabindex="0"]',
+      ),
     );
     buttons[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.code === "Escape") {
         event.preventDefault();
         setEconomy(false);
+        setPcId(null);
         setPanel(false);
         touch.current.modal = false;
         canvas.current?.focus();
       }
       const focusable = Array.from(
-        dialog.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"),
+        dialog.querySelectorAll<HTMLElement>(
+          'button:not(:disabled),input,select,[tabindex="0"]',
+        ),
       );
       if (event.code === "Tab" && focusable.length) {
         const first = focusable[0],
@@ -101,7 +116,7 @@ function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [panel, economy]);
+  }, [panel, economy, pcId]);
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
@@ -116,6 +131,10 @@ function App() {
     setEconomy(false);
     setProfile(null);
     setProgressResult(null);
+    setPcId(null);
+    setDevices([]);
+    setJobs(new Map());
+    setPcResult(null);
     setMessage("");
     setStep(1);
     setRewards(0);
@@ -149,7 +168,10 @@ function App() {
           canvas.current!,
           room,
           touch.current,
-          setTarget,
+          (value, label) => {
+            setTarget(value);
+            setTargetLabel(label ?? "Осмотреть коммутатор");
+          },
           (progress) => {
             if (!cancelled) setGraphics(progress);
           },
@@ -184,13 +206,61 @@ function App() {
           previousCleanup?.();
         };
         setStatus("В сети");
+        let deviceVersion = "",
+          jobVersion = "";
         const syncState = (state: NetworkState) => {
           if (cancelled || !state?.players || !state?.equipment) return;
           setCount(state.players.size);
           setConnected(state.equipment.port3Connected);
           setRackServiced(state.equipment.rackServiced ?? false);
+          const version = Array.from(
+            state.devices?.values() ?? [],
+            (d) => `${d.id}:${d.revision}:${d.powered}`,
+          ).join("|");
+          if (version !== deviceVersion) {
+            deviceVersion = version;
+            setDevices(
+              Array.from(state.devices?.values() ?? [], (d) => ({
+                id: d.id,
+                name: d.name,
+                kind: d.kind,
+                powered: d.powered,
+                revision: d.revision,
+                interfaces: new Map(
+                  Array.from(d.interfaces.values(), (n) => [
+                    n.id,
+                    {
+                      id: n.id,
+                      ip: n.ip,
+                      mask: n.mask,
+                      gateway: n.gateway,
+                      dns: n.dns,
+                      connected: n.connected,
+                    },
+                  ]),
+                ),
+              })),
+            );
+          }
           const me = state.players.get(room.sessionId);
           if (me) {
+            const nextJobs = Array.from(
+              me.jobs?.entries() ?? [],
+              ([id, p]) =>
+                [
+                  id,
+                  {
+                    stage: p.stage,
+                    status: p.status,
+                    verifiedRevision: p.verifiedRevision,
+                  },
+                ] as const,
+            );
+            const version = JSON.stringify(nextJobs);
+            if (version !== jobVersion) {
+              jobVersion = version;
+              setJobs(new Map(nextJobs));
+            }
             setStep(me.ticketStep);
             setRewards(me.rewards);
             setNickname(me.nickname);
@@ -203,9 +273,23 @@ function App() {
           setMessage(result.message);
           setMessageOk(result.ok);
           if (result.ok && result.inspected) {
+            setPcId(null);
             setEconomy(false);
             touch.current.modal = true;
             setPanel(true);
+            if (document.pointerLockElement) document.exitPointerLock();
+          }
+        });
+        room.onMessage("computerResult", (result: ComputerResult) => {
+          if (cancelled) return;
+          setPcResult(result);
+          setMessage(result.message);
+          setMessageOk(result.ok);
+          if (result.ok && result.open && result.pcId) {
+            setEconomy(false);
+            setPcId(result.pcId);
+            setPanel(false);
+            touch.current.modal = true;
             if (document.pointerLockElement) document.exitPointerLock();
           }
         });
@@ -217,6 +301,7 @@ function App() {
           setEconomy(false);
           setProfile(null);
           clearInterval(refresh);
+          setPcId(null);
           touch.current.modal = false;
           worldRef.current = null;
           roomRef.current = null;
@@ -238,6 +323,7 @@ function App() {
   }, [attempt]);
   const closePanel = () => {
     setEconomy(false);
+    setPcId(null);
     setPanel(false);
     touch.current.modal = false;
     canvas.current?.focus();
@@ -284,6 +370,7 @@ function App() {
         <button
           className="open-progress"
           onClick={() => {
+            setPcId(null);
             setEconomy(true);
             setPanel(false);
             touch.current.modal = true;
@@ -378,19 +465,28 @@ function App() {
               </li>
             ))}
           </ol>
-          <small>Награды за заявку: {rewards}/1</small>
+          <small>Награды за заявку: {step === 6 ? 1 : 0}/1</small>
         </details>
         {step === 6 && (
           <strong role="status">
             ✅ Заявка выполнена! Сеть восстановлена.
           </strong>
         )}
+        <TicketJournal
+          jobs={jobs}
+          rewards={
+            Number(step === 6) +
+            Array.from(jobs.values()).filter((j) => j.status === "COMPLETED")
+              .length
+          }
+          step={step}
+        />
       </section>
       <div className="crosshair">+</div>
-      {target && !panel && !economy && (
-        <div className="interaction-hint">[E] Осмотреть коммутатор</div>
+      {target && !panel && !economy && !pcId && (
+        <div className="interaction-hint">[E] {targetLabel}</div>
       )}
-      {!panel && !economy && (
+      {!panel && !economy && !pcId && (
         <MobileControls
           key={attempt}
           enabled={target}
@@ -412,6 +508,22 @@ function App() {
           dialogRef={dialogRef}
         />
       )}
+      {pcId && devices.find((d) => d.id === pcId) && (
+        <VirtualComputer
+          key={pcId}
+          device={devices.find((d) => d.id === pcId)!}
+          uplink={connected}
+          progress={jobs.get(
+            pcId === "pc01" ? "004" : pcId === "pc02" ? "002" : "003",
+          )}
+          result={pcResult}
+          send={(action) =>
+            roomRef.current && sendComputer(roomRef.current, action)
+          }
+          close={closePanel}
+          dialogRef={dialogRef}
+        />
+      )}
       {panel && (
         <div className="modal-backdrop">
           <section
@@ -427,7 +539,14 @@ function App() {
             <div className="ports">
               {Array.from({ length: 8 }, (_, i) => {
                 const port = i + 1;
-                const online = port !== 3 || connected;
+                const online =
+                  port === 3
+                    ? connected
+                    : port === 2
+                      ? (devices
+                          .find((d) => d.id === "pc02")
+                          ?.interfaces.get("eth0")?.connected ?? false)
+                      : true;
                 return (
                   <button
                     key={port}
@@ -478,7 +597,7 @@ function App() {
           </section>
         </div>
       )}
-      {!panel && !economy && message && (
+      {!panel && !economy && !pcId && message && (
         <div
           className={`action-message notification ${messageOk ? "success" : "error"}`}
           role="status"
