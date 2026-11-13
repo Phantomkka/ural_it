@@ -29,7 +29,11 @@ export function handleEquipment(
     };
   }
   if (action.type !== "connect" || action.port !== 3)
-    return { ok: false, message: "Нужен порт №3. Другие порты уже заняты." };
+    return {
+      ok: false,
+      message:
+        "Нужен порт №3. Кабели рабочих компьютеров проверяйте у соответствующего ПК.",
+    };
   if (player.ticketStep < 5)
     return { ok: false, message: "Сначала осмотрите коммутатор." };
   if (player.ticketStep >= 6)

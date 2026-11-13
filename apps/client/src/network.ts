@@ -2,13 +2,17 @@ import { Client, type Room } from "@colyseus/sdk";
 import {
   ROOM_NAME,
   type PlayerView,
+  type DeviceView,
+  type ProgressView,
+  type ComputerAction,
   type EquipmentView,
   type EquipmentAction,
 } from "@netcity/shared";
-export type NetworkPlayer = PlayerView;
+export type NetworkPlayer = PlayerView & { jobs: Map<string, ProgressView> };
 export interface NetworkState {
   players: Map<string, NetworkPlayer>;
   equipment: EquipmentView;
+  devices: Map<string, DeviceView>;
 }
 export async function connect() {
   const endpoint =
@@ -33,4 +37,8 @@ export function leaveRoom(room: Room<NetworkState>) {
   closing.add(room);
   room.reconnection.enabled = false;
   if (room.connection.isOpen) void room.leave().catch(() => {});
+}
+
+export function sendComputer(room: Room<NetworkState>, action: ComputerAction) {
+  room.send("computer", action);
 }

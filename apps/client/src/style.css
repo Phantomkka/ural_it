@@ -453,7 +453,7 @@ footer {
   .ports small {
     font-size: 9px;
   }
-  .ticket details[open] ~ * {
+  .ticket > details:not(.journal)[open] ~ strong {
     display: none;
   }
 }
@@ -529,4 +529,236 @@ select {
   .asset-status[data-state="ready"] {
     display: none;
   }
+}
+/* Lightweight virtual workstation: regular DOM, no OS emulator or render dependency. */
+.journal {
+  border-top: 1px solid #446572;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.journal p {
+  font-size: 12px;
+}
+.journal article[hidden] {
+  display: none;
+}
+.journal li.done {
+  color: #71ddbf;
+}
+.virtual-computer {
+  width: min(1000px, 96vw);
+  max-height: 94dvh;
+  overflow: auto;
+  border: 1px solid #658aa0;
+  border-radius: 18px;
+  color: #e8f3fa;
+  background: linear-gradient(135deg, #143947, #101c2b);
+  box-shadow: 0 24px 100px #0009;
+}
+.os-title,
+.os-taskbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 18px;
+  background: #0d2232;
+  gap: 12px;
+}
+.os-title small {
+  display: block;
+  color: #a3c4d3;
+  margin-top: 4px;
+}
+.os-title button {
+  font-size: 18px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.os-network {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 18px;
+  font-size: 12px;
+  background: #214452;
+}
+.os-network[data-connected="false"] {
+  color: #ffc0ab;
+}
+.os-icons {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px;
+  flex-wrap: wrap;
+}
+.virtual-computer button {
+  min-height: 40px;
+}
+.virtual-computer button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.os-window {
+  margin: 0 18px;
+  padding: 16px;
+  background: #0b1a28d9;
+  border: 1px solid #345564;
+  border-radius: 10px;
+  min-height: 180px;
+  animation: window-open 0.16s ease-out;
+}
+.os-window h2 {
+  margin-top: 0;
+  font-size: 19px;
+}
+.os-window p {
+  line-height: 1.5;
+}
+.terminal-output {
+  background: #07121d;
+  color: #9df1c2;
+  padding: 14px;
+  border-radius: 6px;
+  min-height: 150px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  user-select: text;
+}
+.command-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.command-form input {
+  flex: 1;
+  min-width: 130px;
+}
+.virtual-computer input {
+  font: inherit;
+  color: #e5f8fa;
+  background: #182d40;
+  border: 1px solid #668898;
+  border-radius: 6px;
+  padding: 10px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+.virtual-computer input:focus {
+  outline: 2px solid #5fdbc2;
+}
+.command-shortcuts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.command-shortcuts button {
+  font-family: monospace;
+  font-size: 11px;
+}
+.network-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.network-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.pc-service {
+  padding: 14px 18px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pc-service p {
+  width: 100%;
+  margin: 2px 0;
+  font-size: 13px;
+}
+.virtual-computer > .notification {
+  margin: 0 18px 12px;
+}
+.os-taskbar {
+  font-size: 12px;
+  position: sticky;
+  bottom: 0;
+}
+.virtual-computer dt {
+  color: #9bbcca;
+}
+.virtual-computer dd {
+  margin: 0 0 10px;
+}
+@keyframes window-open {
+  from {
+    opacity: 0.3;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .os-window {
+    animation: none;
+  }
+}
+@media (max-width: 600px) {
+  .virtual-computer {
+    width: 100vw;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .computer-backdrop {
+    padding: 0;
+  }
+  .os-network {
+    font-size: 10px;
+    gap: 6px;
+  }
+  .os-window {
+    margin: 0 8px;
+    padding: 12px;
+  }
+  .os-icons {
+    padding: 8px;
+    gap: 5px;
+  }
+  .os-icons button {
+    font-size: 12px;
+    flex: 1 1 40%;
+  }
+  .network-form {
+    grid-template-columns: 1fr;
+  }
+  .terminal-output {
+    max-height: 180px;
+    font-size: 12px;
+  }
+  .os-taskbar {
+    font-size: 10px;
+  }
+  .pc-service {
+    padding: 12px 8px;
+  }
+  .virtual-computer input {
+    font-size: 16px;
+  }
+}
+
+.virtual-computer {
+  scroll-padding-top: 80px;
+}
+.os-title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }

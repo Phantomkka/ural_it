@@ -1,3 +1,4 @@
+import { COMPUTERS } from "@netcity/shared";
 import { TransformNode, MeshBuilder, type Scene } from "./babylon";
 import { BUILDINGS, OFFICE, STREET_DETAILS } from "@netcity/shared";
 import { AssetLibrary, fitModel } from "./assets";
@@ -172,10 +173,7 @@ export function buildAssetDistrict(
       3,
     );
   }
-  for (const [x, z] of [
-    [10, -4],
-    [15, 4],
-  ]) {
+  for (const { x, z } of COMPUTERS) {
     place("table_medium.glb", `desk-${placements}`, x, z, 0.8, 2, 0.9);
     place(
       "book_set.glb",
@@ -223,18 +221,7 @@ export function buildAssetDistrict(
     return mesh;
   };
   const metal = mat("rack-metal", "#24333d"),
-    screen = mat("monitor-screen", "#439dca", true),
     black = mat("screen-frame", "#15232d");
-  for (const [x, z] of [
-    [10, -4],
-    [15, 4],
-  ]) {
-    box("monitor", x, 1.35, z, 0.12, 0.7, 1.05, black);
-    box("monitor-display", x - 0.07, 1.35, z, 0.015, 0.58, 0.9, screen);
-    box("monitor-stand", x, 1, z, 0.08, 0.3, 0.08, metal);
-    box("computer", x + 0.2, 0.4, z + 0.7, 0.5, 0.8, 0.25, black);
-    box("keyboard", x - 0.4, 0.83, z, 0.25, 0.035, 0.6, black);
-  }
   // Authored server hardware: keep all gameplay hit targets and shared footprints intact.
   scene.getMeshByName("rack")?.setEnabled(false);
   for (const x of [18.15, 18.85])

@@ -101,7 +101,8 @@ export const TICKET_STEPS = [
   "Сеть восстановлена",
 ];
 export type EquipmentAction =
-  { type: "inspect" } | { type: "connect"; port: number };
+  | { type: "inspect" }
+  | { type: "connect"; port: number };
 export interface ActionResult {
   ok: boolean;
   message: string;
@@ -128,3 +129,4 @@ export function canReachSwitch(player: { x: number; z: number }) {
     Math.hypot(player.x - SWITCH.x, player.z - SWITCH.z) <= INTERACTION_RANGE
   );
 }
+export * from "./officeNetwork.js";
