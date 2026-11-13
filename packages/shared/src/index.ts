@@ -47,7 +47,7 @@ export function advance(
       magnitude) *
     distance;
   const blocked = (x: number, z: number) =>
-    [...BUILDINGS.filter((b) => b !== OFFICE), ...OFFICE_WALLS].some(
+    WORLD_COLLIDERS.some(
       (b) =>
         Math.abs(x - b.x) < b.width / 2 + 0.4 &&
         Math.abs(z - b.z) < b.depth / 2 + 0.4,
@@ -72,6 +72,25 @@ export const OFFICE_WALLS = [
   { x: 13, z: 3.6, width: 0.3, depth: 4.8 },
   { x: 18.5, z: 0, width: 0.8, depth: 1.6 },
 ];
+// The open leaves occupy the same footprint used by the scene.
+export const OFFICE_DOORS = [8, 13].map((x) => ({
+  x: x + 0.8,
+  z: -1.15,
+  width: 1.6,
+  depth: 0.12,
+}));
+export const STREET_DETAILS = [-1, 1].flatMap((side) =>
+  [-28, -12, 12, 28].map((z) => ({ x: side * 6.8, z })),
+);
+export const WORLD_COLLIDERS = [
+  ...BUILDINGS.filter((b) => b !== OFFICE),
+  ...OFFICE_WALLS,
+  ...OFFICE_DOORS,
+  ...STREET_DETAILS.map((p) => ({ ...p, width: 0.25, depth: 0.25 })),
+  ...[-1, 1].flatMap((side) =>
+    [-22, 22].map((z) => ({ x: side * 7, z, width: 1.5, depth: 2 })),
+  ),
+];
 export const TICKET_STEPS = [
   "Получить заявку",
   "Найти офис №001 (справа, вход напротив центра улицы)",
@@ -89,6 +108,7 @@ export interface ActionResult {
   inspected?: boolean;
 }
 export interface PlayerView {
+  nickname: string;
   x: number;
   z: number;
   yaw: number;
@@ -103,6 +123,8 @@ export function canReachSwitch(player: { x: number; z: number }) {
     Number.isFinite(player.x) &&
     Number.isFinite(player.z) &&
     player.x > 13.5 &&
+    player.x < 19.45 &&
+    Math.abs(player.z) < 5.45 &&
     Math.hypot(player.x - SWITCH.x, player.z - SWITCH.z) <= INTERACTION_RANGE
   );
 }

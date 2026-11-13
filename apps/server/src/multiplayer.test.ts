@@ -31,7 +31,7 @@ test("two players share server movement, resist message flooding and leave clean
     const initial = a.state.players.get(a.sessionId)!.z;
     const start = performance.now();
     for (let i = 0; i < 500; i++)
-      a.send("move", { forward: 1, strafe: 0, yaw: 0 });
+      a.send("move", { forward: 1, strafe: 0, yaw: 0, nickname: "spoof" });
     await until(() => b.state.players.get(a.sessionId)!.z > initial + 0.1);
     await sleep(400);
     const observed = b.state.players.get(a.sessionId)!;
@@ -48,6 +48,9 @@ test("two players share server movement, resist message flooding and leave clean
     const authoritative = matchMaker.getLocalRoomById(a.roomId) as StreetRoom;
     const pa = authoritative.state.players.get(a.sessionId)!;
     const pb = authoritative.state.players.get(b.sessionId)!;
+    assert.match(pa.nickname, /^Инженер /);
+    assert.notEqual(pa.nickname, pb.nickname);
+    assert.equal(b.state.players.get(a.sessionId)!.nickname, pa.nickname);
     const results: { ok: boolean }[] = [];
     a.onMessage("actionResult", (result) => results.push(result));
     a.send("equipment", { type: "inspect" });
