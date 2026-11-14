@@ -1,6 +1,6 @@
 import {useEffect,type ReactNode,type RefObject} from "react";
-export type TabletApp="home"|"calls"|"tickets"|"map"|"bag"|"company"|"settings"|"contacts";
-const APPS:Record<TabletApp,string>={home:"Обзор",calls:"Звонки",tickets:"Заявки",map:"GPS",bag:"Рюкзак и магазин",company:"Компания",settings:"Настройки",contacts:"Контакты"};
+export type TabletApp="home"|"calls"|"tickets"|"map"|"bag"|"company"|"settings"|"contacts"|"account";
+const APPS:Record<TabletApp,string>={home:"Обзор",calls:"Звонки",tickets:"Заявки",map:"GPS",bag:"Рюкзак и магазин",company:"Компания",settings:"Настройки",contacts:"Контакты",account:"Аккаунт"};
 export function Tablet({page,change,close,children,dialogRef,overlay,wallet}: {page:TabletApp;change:(p:TabletApp)=>void;close:()=>void;children:ReactNode;dialogRef:RefObject<HTMLElement|null>;overlay:boolean;wallet:string}) {
   useEffect(()=>{if(!overlay)dialogRef.current?.querySelector<HTMLButtonElement>('.tablet-nav [aria-current="page"]')?.focus();},[page,overlay]);
   return <div className="tablet-backdrop"><section className="tablet-frame" role={overlay?undefined:"dialog"} aria-modal={overlay?undefined:true} aria-label="Планшет инженера" ref={overlay?undefined:dialogRef}>

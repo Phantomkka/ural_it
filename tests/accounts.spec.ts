@@ -1,0 +1,88 @@
+import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { tabletApp } from './navigation';
+test.use({ actionTimeout: 15000 });
+test('NETCITY ID binds the active guest case, restores it on mobile, logs out and recovers securely', async ({ browser }) => {
+    test.setTimeout(180000);
+    const a = await browser.newContext({ viewport: { width: 1000, height: 720 } }), b = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    const page = await a.newPage(), phone = await b.newPage(), login = 'player_' + randomUUID().slice(0, 8), password = 'Browser account password 52!';
+    const errors: string[] = [];
+    for (const p of [page, phone])
+        p.on('pageerror', e => errors.push(e.message));
+    try {
+        await page.goto('/');
+        await expect(page.locator('.connection-status')).toContainText('В сети');
+        await tabletApp(page, 'Звонки');
+        await page.getByRole('button', { name: 'Ответить и принять', exact: true }).click();
+        await expect(page.locator('.profile-summary')).toContainText('30 NET');
+        const guest = await page.evaluate(() => sessionStorage.getItem('netcity-guest-token'));
+        await tabletApp(page, 'Аккаунт');
+        await page.getByRole('button', { name: 'Регистрация', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Создать и сохранить' })).toBeDisabled();
+        await expect(page.locator('.account-migration')).toContainText('30 NET');
+        await page.getByLabel('Логин', { exact: true }).fill(login);
+        await page.getByLabel('Пароль', { exact: true }).fill(password);
+        await page.getByLabel('Подтверждаю выбранный вариант сохранения прогресса').check();
+        await page.getByRole('button', { name: 'Создать и сохранить' }).click();
+        const recovery = await page.getByLabel('Ключ восстановления', { exact: true }).inputValue();
+        expect(recovery).toMatch(/^[a-f0-9]{64}$/);
+        await page.getByLabel('Я сохранил ключ восстановления').check();
+        await page.getByRole('button', { name: 'Вернуться в город' }).click();
+        await expect(page.locator('.connection-status')).toContainText('В сети');
+        await tabletApp(page, 'Заявки');
+        await expect(page.locator('.profile-summary')).toContainText('30 NET');
+        await expect(page.locator('.case-desk')).toContainText('Поговорите с клиентом');
+        expect(await page.evaluate(() => sessionStorage.getItem('netcity-guest-token'))).not.toBe(guest);
+        expect(await page.evaluate(() => document.cookie)).not.toContain('netcity_session');
+        const cookies = await a.cookies(), sessionCookie = cookies.find(c => c.name.endsWith('netcity_session'))!;
+        expect(sessionCookie).toMatchObject({ httpOnly: true, sameSite: 'Strict' });
+        if (sessionCookie.name.startsWith('__Host-'))
+            expect(sessionCookie.secure).toBe(true);
+        const storage = await page.evaluate(() => JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }));
+        expect(storage).not.toContain(password);
+        expect(storage).not.toContain(recovery);
+        expect(storage).not.toContain(sessionCookie.value);
+        await phone.goto('/');
+        await expect(phone.locator('.connection-status')).toContainText('В сети');
+        await tabletApp(phone, 'Аккаунт');
+        await phone.getByLabel('Логин', { exact: true }).fill(login);
+        await phone.getByLabel('Пароль', { exact: true }).fill(password);
+        await phone.getByRole('button', { name: 'Войти', exact: true }).tap();
+        await expect(phone.locator('.connection-status')).toContainText('В сети');
+        await tabletApp(phone, 'Заявки');
+        await expect(phone.locator('.profile-summary')).toContainText('30 NET');
+        await expect(phone.locator('.case-desk')).toContainText('Поговорите с клиентом');
+        expect(await phone.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+        await tabletApp(page, 'Аккаунт');
+        await page.getByRole('button', { name: 'Выйти из аккаунта' }).click();
+        await expect(page.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+        await expect(phone.locator('.profile-summary')).toContainText('30 NET');
+        await page.getByLabel('Логин', { exact: true }).fill(login);
+        await page.getByLabel('Пароль', { exact: true }).fill(password);
+        await page.getByRole('button', { name: 'Войти', exact: true }).click();
+        await expect(page.locator('.connection-status')).toContainText('В сети');
+        await tabletApp(page, 'Аккаунт');
+        await page.getByRole('button', { name: 'Выйти из аккаунта' }).click();
+        await page.getByRole('button', { name: 'Есть ключ восстановления' }).click();
+        await page.getByLabel('Логин', { exact: true }).fill(login);
+        await page.getByLabel('Новый пароль', { exact: true }).fill(password + 'new');
+        await page.getByLabel('Одноразовый ключ', { exact: true }).fill(recovery);
+        await page.getByRole('button', { name: 'Сменить пароль по ключу' }).click();
+        const next = await page.getByLabel('Ключ восстановления', { exact: true }).inputValue();
+        expect(next).not.toBe(recovery);
+        await expect(phone.getByRole('button', { name: 'Войти', exact: true })).toBeVisible();
+        await page.getByLabel('Я сохранил ключ восстановления').check();
+        await page.getByRole('button', { name: 'Перейти ко входу' }).click();
+        await page.getByLabel('Логин', { exact: true }).fill(login);
+        await page.getByLabel('Пароль', { exact: true }).fill(password + 'new');
+        await page.getByRole('button', { name: 'Войти', exact: true }).click();
+        await expect(page.locator('.connection-status')).toContainText('В сети');
+        await tabletApp(page, 'Заявки');
+        await expect(page.locator('.profile-summary')).toContainText('30 NET');
+        expect(errors).toEqual([]);
+    }
+    finally {
+        await b.close();
+        await a.close();
+    }
+});

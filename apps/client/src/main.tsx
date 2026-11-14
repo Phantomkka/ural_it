@@ -35,6 +35,8 @@ import { TicketJournal } from "./TicketJournal";
 import { MissionHud } from "./MissionHud";
 import {Tablet,type TabletApp} from "./Tablet";
 import {CaseDesk} from "./CaseDesk";
+import {AccountPanel} from './AccountPanel';
+import {accountExpected} from './auth';
 import {DistrictMap} from "./DistrictMap";
 import {CLIENT_CASE_TEMPLATE as CASE,clientCaseTarget,type CaseIntent} from "@netcity/shared";
 import "./style.css";
@@ -206,6 +208,10 @@ function App() {
       if(e.code===b.drop && !touch.current.modal){const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
     };
     window.addEventListener("keydown",keyboard,true);return()=>window.removeEventListener("keydown",keyboard,true);
+  },[]);
+  useEffect(()=>{
+    const changed=()=>{savePending(null);pendingRef.current=null;setPending(null);pendingCaseId.current=null;casePendingRef.current=false;setCasePending(false);setProfile(null);setAttempt(v=>v+1);};
+    window.addEventListener('netcity-auth-changed',changed);return()=>window.removeEventListener('netcity-auth-changed',changed);
   },[]);
   useEffect(() => {
     let cancelled = false;
@@ -418,10 +424,11 @@ function App() {
           setProfile(null);
           clearInterval(refresh);
           setPcId(null);
-          touch.current.modal = false;
+          touch.current.modal = tabletRef.current;
           worldRef.current = null;
           roomRef.current = null;
           setTarget(false);
+          if(accountExpected())openTablet('account');
         });
         room.onError((_code, message) => {
           if (!cancelled)
@@ -430,7 +437,7 @@ function App() {
       })
       .catch((error) => {
         cleanup?.();
-        if (!cancelled) setStatus(`Ошибка подключения: ${error.message}`);
+        if (!cancelled) {setStatus(`Ошибка подключения: ${error.message}`);if(error.code==='ACCOUNT_REQUIRED'||error.code===401&&accountExpected())openTablet('account');}
       });
     return () => {
       cancelled = true;
@@ -480,7 +487,7 @@ function App() {
             <small>Загрузка профиля…</small>
           )}
         </div>
-        <small className="home-identity-status" data-mode={identity.mode}>{identity.conflict?"В этой вкладке другой профиль — сохранённый профиль не заменён.":identity.mode==="device"?"Профиль запомнен на этом устройстве":identity.mode==="tab"?"Ключ профиля доступен только в этой вкладке":"Ключ профиля хранится только до закрытия игры"}</small>
+        <small className="home-identity-status" data-mode={identity.mode}>{identity.mode==="account"?"Профиль аккаунта · вход доступен на других устройствах":identity.conflict?"В этой вкладке другой профиль — сохранённый профиль не заменён.":identity.mode==="device"?"Профиль запомнен на этом устройстве":identity.mode==="tab"?"Ключ профиля доступен только в этой вкладке":"Ключ профиля хранится только до закрытия игры"}</small>
         <button
           className="open-progress"
           onClick={() => {
@@ -720,7 +727,7 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {CASE.address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {CASE.address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
       {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}

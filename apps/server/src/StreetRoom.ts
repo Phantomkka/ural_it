@@ -97,6 +97,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
   private work!: WorkController;
   private actionBudgets = new Map<string, { tokens: number; at: number }>();
   private inputs = new Map<string, { input: MoveInput; at: number }>();
+  async authorize(_client:Client){return true;}
   onCreate() {
     this.setState(new StreetState());
     this.work = new WorkController(
@@ -153,7 +154,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       });
     }, 1000 / TICK_RATE);
   }
-  async onAuth(_client: Client, options: { guestToken?: unknown }) {
+  async onAuth(_client: Client, options: { guestToken?: unknown }, _context?:unknown) {
     if (options.guestToken === undefined)
       return { profileId: (await this.progressStore.register()).profileId };
     if (!validToken(options.guestToken))
