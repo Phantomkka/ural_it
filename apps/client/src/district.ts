@@ -1,6 +1,8 @@
 import { MeshBuilder, Mesh, type Scene } from "./babylon";
 import { sign, type Palette } from "./visuals";
+import {CLIENT_CASE_TEMPLATE} from "@netcity/shared";
 export const CONTACTS = [
+  {id:"client",name:"Елена · бухгалтерия",...CLIENT_CASE_TEMPLATE.client,color:"#799fd4"},
   {id:"dispatcher",name:"Алина · диспетчер",x:4,z:-5,color:"#e2b46b"},
   {id:"supplier",name:"Марат · снабжение",x:-6,z:2,color:"#62cdb3"},
 ] as const;

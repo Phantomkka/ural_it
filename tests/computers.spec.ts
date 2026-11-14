@@ -1,76 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { drive, alignDoor } from "./navigation";
-async function view(page: Page) {
-  return page.evaluate(async () => {
-    const path = "/src/world.ts";
-    const { EngineStore } = await import(/* @vite-ignore */ path);
-    const c = EngineStore.LastCreatedScene.activeCamera;
-    return {
-      x: c.position.x,
-      z: c.position.z,
-      yaw: c.rotation.y,
-      pitch: c.rotation.x,
-    };
-  });
-}
-async function face(page: Page, x: number, z: number, pitch = 0) {
-  const p = await view(page),
-    yaw = Math.atan2(x - p.x, z - p.z);
-  await page.evaluate(
-    ({ dx, dy }) =>
-      document.dispatchEvent(
-        new MouseEvent("mousemove", { movementX: dx, movementY: dy }),
-      ),
-    { dx: (yaw - p.yaw) / 0.002, dy: (pitch - p.pitch) / 0.002 },
-  );
-  await page.evaluate(
-    () =>
-      new Promise<void>((r) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => r())),
-      ),
-  );
-}
-async function walk(page: Page, axis: "x" | "z", goal: number) {
-  await page.evaluate(
-    async ({ axis, goal }) => {
-      const path = "/src/world.ts";
-      const { EngineStore } = await import(/* @vite-ignore */ path);
-      const camera = EngineStore.LastCreatedScene.activeCamera;
-      const settle = () =>
-        new Promise<void>((r) =>
-          requestAnimationFrame(() => requestAnimationFrame(() => r())),
-        );
-      const end = performance.now() + 45000;
-      while (Math.abs(camera.position[axis] - goal) > 0.6) {
-        if (performance.now() > end)
-          throw Error(
-            `Waypoint ${axis} ${goal}: ${JSON.stringify(camera.position)}`,
-          );
-        const direction = Math.sign(goal - camera.position[axis]);
-        const yaw =
-          axis === "x"
-            ? (direction * Math.PI) / 2
-            : direction > 0
-              ? 0
-              : Math.PI;
-        document.dispatchEvent(
-          new MouseEvent("mousemove", {
-            movementX: (yaw - camera.rotation.y) / 0.002,
-            movementY: -camera.rotation.x / 0.002,
-          }),
-        );
-        await settle();
-        window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyW" }));
-        await new Promise((r) => setTimeout(r, 65));
-        window.dispatchEvent(new Event("blur"));
-        window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyW" }));
-        await new Promise((r) => setTimeout(r, 100));
-        await settle();
-      }
-    },
-    { axis, goal },
-  );
-}
+import { drive, alignDoor, tabletApp, legacyWork } from "./navigation";
+import {view,face,walk} from "./case-navigation";
 async function lock(page: Page) {
   await page.locator("canvas").click({ position: { x: 470, y: 340 } });
 }
@@ -125,7 +55,7 @@ test("diagnose and repair all office faults through the real virtual desktop, in
     localStorage.setItem("netcity-quality", "low"),
   );
   await page.goto("/");
-  await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".connection-status")).toContainText("В сети");
   await expect(page.locator(".asset-status")).toHaveAttribute(
     "data-state",
     "ready",
@@ -166,7 +96,7 @@ test("diagnose and repair all office faults through the real virtual desktop, in
   await expect(page.locator(".interaction-hint")).toContainText("коммутатор");
   await page.keyboard.press("KeyE");
   await page.locator('[data-port="3"]').click();
-  await expect(page.locator(".ticket")).toContainText("✅ Заявка выполнена!");
+  await expect(page.locator(".profile-summary")).toContainText("100 NET");
   await page.keyboard.press("Escape");
   await lock(page);
   await walk(page, "x", 16);
@@ -289,6 +219,8 @@ test("diagnose and repair all office faults through the real virtual desktop, in
   ).toBe(true);
   await page.screenshot({ path: test.info().outputPath("netcity-os-mobile.png") });
   await page.keyboard.press("Escape");
+  await tabletApp(page,"Заявки");
+  await page.getByText("Заявки NETCITY 2.0",{exact:true}).click();
   await page.locator(".journal summary").click();
   await expect(page.locator(".journal")).toContainText("награды: 4/4");
   for (const id of ["002", "003", "004"]) {
@@ -297,8 +229,9 @@ test("diagnose and repair all office faults through the real virtual desktop, in
   }
   expect(errors).toEqual([]);
   await page.reload();
+  await tabletApp(page,"Обзор");
   await expect(page.locator(".profile-summary")).toContainText("280 NET");
-  await page.getByRole("button",{name:"Работа и снабжение",exact:true}).click();
+  await legacyWork(page);
   await expect(page.locator(".diagnostic-board")).toContainText("Выполнено и оплачено");
   await expect(page.getByLabel("Моя IT-бригада")).toContainText("Контракт выполнен");
   await expect(page.getByTestId("reputation")).toHaveText("1");

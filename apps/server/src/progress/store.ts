@@ -8,8 +8,10 @@ import {
   type WorkOrder,
   type PrivateProfile,
   type ProgressResult,
+  type ServiceProgress,
 } from "@netcity/shared";
 export interface ProfileData {
+  service?: ServiceProgress;
   diagnostics?: string[];
   id: string;
   nickname: string;
@@ -76,6 +78,7 @@ export function newProfile(): ProfileData {
     tutorialCompleted: false,
     version: 0,
     diagnostics: [],
+    service: {cases:[],completed:0},
   };
 }
 export function snapshot(
@@ -87,6 +90,7 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.service!==undefined && (!Number.isSafeInteger(data.service.completed)||data.service.completed<0||!Array.isArray(data.service.cases)||data.service.cases.length>20||new Set(data.service.cases.map(c=>c.id)).size!==data.service.cases.length)) ||
     (data.diagnostics !== undefined && (!Array.isArray(data.diagnostics) || new Set(data.diagnostics).size !== data.diagnostics.length || data.diagnostics.some(id=>!JOBS.some(job=>job.id===id)))) ||
     ![
       data.credits,

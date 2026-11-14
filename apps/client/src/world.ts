@@ -7,6 +7,7 @@ import {
   Color3,
   Color4,
   DirectionalLight,
+  MeshBuilder,
 } from "./babylon";
 export { EngineStore } from "./babylon";
 import {
@@ -26,6 +27,8 @@ import type { TouchInput } from "./controls";
 import { DEFAULT_SETTINGS, isEditing, type Settings } from "./settings";
 import { buildDistrict, CONTACTS } from "./district";
 import { playFootstep } from "./sound";
+import {buildCaseObjects} from "./caseObjects";
+import type {ClientCase} from "@netcity/shared";
 export interface WorldView { x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
@@ -81,8 +84,9 @@ export function createWorld(
     const office = buildOffice(scene, material);
     const computers = buildComputers(scene, material);
     buildDistrict(scene,material);
+    const caseObjects=buildCaseObjects(scene,material);
     for (const mesh of scene.meshes)
-      if (mesh.name !== "equipment-selection" && !mesh.billboardMode) mesh.freezeWorldMatrix();
+      if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
     const pickEquipment = () => {
       const hit = scene.pickWithRay(
         camera.getForwardRay(INTERACTION_RANGE),
@@ -90,6 +94,8 @@ export function createWorld(
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
       const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(hit?.pickedMesh?.metadata?.entryDoor)return {id:"entry-door",label:"Открыть / закрыть дверь"};
+      if(hit?.pickedMesh?.metadata?.caseTarget)return {id:"contact:case-"+hit.pickedMesh.metadata.caseTarget,label:hit.pickedMesh.metadata.caseTarget==="dropped"?"Подобрать свою деталь":"Осмотреть CLIENT-PC04"};
       if(npcId) return {id:`contact:${npcId}`,label:`Поговорить: ${CONTACTS.find(n=>n.id===npcId)?.name??"инженер"}`};
       if (id)
         return {
@@ -108,11 +114,13 @@ export function createWorld(
       const target = pickEquipment();
       if (!target) return;
       stop();
-      if(target.id.startsWith("contact:")) onContact(target.id.slice(8));
+      if(target.id==="entry-door")room.send("interaction",{kind:"door"});
+      else if(target.id.startsWith("contact:")) onContact(target.id.slice(8));
       else if (target.id === "switch") sendEquipment(room, { type: "inspect" });
       else sendComputer(room, { type: "open", pcId: target.id });
     };
     const avatars = new Map<string, ReturnType<typeof createAvatar>>();
+    const carried=MeshBuilder.CreateBox("held-cable",{width:0.25,height:0.12,depth:0.2},scene);carried.material=material("held-cable","#64dec1");carried.parent=camera;carried.position.set(0.3,-0.4,0.8);carried.isPickable=false;carried.setEnabled(false);
     const keys = new Set<string>();
     let yaw = 0,
       pitch = 0,
@@ -245,6 +253,7 @@ export function createWorld(
       touch.lookY = 0;
       camera.rotation.set(pitch, yaw, 0);
       const me = room.state.players?.get(room.sessionId);
+      carried.setEnabled(me?.heldItem==="patch_cord");
       if (me) {
         origin ??= {x:me.x,z:me.z};
         moved ||= Math.hypot(me.x-origin.x,me.z-origin.z)>1;
@@ -296,6 +305,7 @@ export function createWorld(
       office.sync(
         room.state.equipment?.port3Connected ?? false,
         room.state.equipment?.rackServiced ?? false,
+        room.state.equipment?.officeDoorOpen ?? true,
       );
       computers.sync(
         room.state.devices,
@@ -342,7 +352,7 @@ export function createWorld(
       engine.dispose();
     };
     room.onLeave(dispose);
-    return { interact, dispose, setQuality: graphics.apply };
+    return { interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync };
   } catch (error) {
     engine.dispose();
     throw error;

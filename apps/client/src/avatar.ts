@@ -1,4 +1,4 @@
-import { TransformNode, Vector3, Mesh, type Scene } from "./babylon";
+import { TransformNode, Vector3, Mesh, MeshBuilder, type Scene } from "./babylon";
 import {
   AssetLibrary,
   CHARACTER_FILES,
@@ -26,6 +26,7 @@ export function createAvatar(
   model.root.parent = root;
   fitModel(model.root, undefined, 1.8, undefined);
   root.position.set(player.x, 0, player.z);
+  const held=MeshBuilder.CreateBox("remote-carried-part",{width:0.25,height:0.12,depth:0.2},scene);held.parent=root;held.position.set(0,1,0.5);held.material=mat("remote-part","#64dec1");held.isPickable=false;held.setEnabled(player.heldItem==="patch_cord");
   const idle = model.entries.animationGroups.find((group) =>
     group.name.endsWith("/Idle"),
   );
@@ -53,6 +54,7 @@ export function createAvatar(
     asset: file,
     loaded: true,
     update(next: PlayerView, dt: number, distance: number) {
+      held.setEnabled(next.heldItem==="patch_cord");
       const moving =
         Math.hypot(next.x - root.position.x, next.z - root.position.z) > 0.025;
       blend += (Number(moving) - blend) * Math.min(1, dt * 8);

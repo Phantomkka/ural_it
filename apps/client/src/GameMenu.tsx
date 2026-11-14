@@ -4,6 +4,7 @@ import type { Quality } from "./quality";
 import { DistrictMap } from "./DistrictMap";
 export type Menu = "settings" | "help" | "map" | "main" | "dispatcher";
 const LABELS: Record<Binding, string> = {
+  tablet:"Планшет",drop:"Положить деталь",
   forward:"Вперёд", back:"Назад", left:"Влево", right:"Вправо", sprint:"Бег",
   interact:"Взаимодействие", inventory:"Инвентарь", journal:"Журнал", map:"Карта", help:"Помощь",
 };
@@ -37,7 +38,7 @@ export function GameMenu({ menu, settings, change, quality, setQuality, close, r
           if (capture !== action) return;
           event.preventDefault(); event.stopPropagation();
           if (event.code === "Escape") { setCapture(null); return; }
-          if (!/^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(event.code)) {setError("Выберите букву, цифру, стрелку или Shift."); return;}
+          if (!/^(Tab|Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(event.code)) {setError("Выберите Tab, букву, цифру, стрелку или Shift."); return;}
           if (Object.entries(settings.bindings).some(([a,k]) => a !== action && k === event.code)) {setError("Эта клавиша уже назначена. Выберите другую."); return;}
           change({...settings, bindings:{...settings.bindings,[action]:event.code}}); setCapture(null); setError("");
         }}>{capture === action ? "Нажмите клавишу…" : keyLabel(settings.bindings[action])}</button>

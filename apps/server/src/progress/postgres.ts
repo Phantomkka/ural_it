@@ -22,6 +22,7 @@ function decode(row: Record<string, any>): ProfileData {
     tutorialCompleted: row.tutorial_completed,
     version: row.version,
     diagnostics: row.diagnostics ?? [],
+    service: row.service ?? {cases:[],completed:0},
   };
 }
 export class PostgresProgressStore implements ProgressStore {
@@ -64,6 +65,10 @@ export class PostgresProgressStore implements ProgressStore {
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=2")).rowCount) {
         await client.query(await readFile(new URL("../../migrations/002_diagnostics.sql", import.meta.url), "utf8"));
         await client.query("INSERT INTO schema_migrations(version) VALUES(2)");
+      }
+      if (!(await client.query("SELECT version FROM schema_migrations WHERE version=3")).rowCount) {
+        await client.query(await readFile(new URL("../../migrations/003_client_cases.sql", import.meta.url), "utf8"));
+        await client.query("INSERT INTO schema_migrations(version) VALUES(3)");
       }
       await client.query("COMMIT");
     } catch (error) {
@@ -159,7 +164,7 @@ export class PostgresProgressStore implements ProgressStore {
   }
   private async save(client: PoolClient, d: ProfileData) {
     await client.query(
-      "UPDATE profiles SET credits=$2,xp=$3,inventory=$4::jsonb,jobs=$5::jsonb,tutorial_completed=$6,version=$7,diagnostics=$8::jsonb WHERE id=$1",
+      "UPDATE profiles SET credits=$2,xp=$3,inventory=$4::jsonb,jobs=$5::jsonb,tutorial_completed=$6,version=$7,diagnostics=$8::jsonb,service=$9::jsonb WHERE id=$1",
       [
         d.id,
         d.credits,
@@ -169,6 +174,7 @@ export class PostgresProgressStore implements ProgressStore {
         d.tutorialCompleted,
         d.version,
         JSON.stringify(d.diagnostics ?? []),
+        JSON.stringify(d.service ?? {cases:[],completed:0}),
       ],
     );
   }

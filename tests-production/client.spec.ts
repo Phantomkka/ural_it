@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import {tabletApp,legacyWork} from "../tests/navigation";
 test("production client loads local models and connects two browser guests through reverse proxy", async ({
   browser,
 }) => {
@@ -17,10 +18,12 @@ test("production client loads local models and connects two browser guests throu
   const health=await (await a.request.get("/game/health")).json();
   expect(health).toMatchObject({status:"ok",persistence:"postgres"});
   expect(await (await a.request.get("/version.json")).json()).toEqual({revision:health.revision});
+  await tabletApp(a,"Обзор");
   await expect(a.locator(".profile-summary")).toContainText("Прогресс сохраняется");
+  await a.keyboard.press("Escape");
   await b.goto("/");
-  await expect(a.locator("aside")).toContainText("Игроков: 2");
-  await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
+  await expect(b.locator(".connection-status")).toContainText("Игроков: 2");
   for (const page of [a, b])
     await expect(page.locator(".asset-status")).toHaveAttribute(
       "data-state",
@@ -37,9 +40,7 @@ test("production client loads local models and connects two browser guests throu
     if (document.pointerLockElement) document.exitPointerLock();
   });
   await a.getByRole("button",{name:"Продолжить",exact:true}).click();
-  await a
-    .getByRole("button", { name: "Работа и снабжение", exact: true })
-    .click();
+  await legacyWork(a);
   const dialog = a.getByRole("dialog");
   await expect(dialog).toContainText("PostgreSQL");
   await dialog
@@ -53,4 +54,18 @@ test("production client loads local models and connects two browser guests throu
   await a.screenshot({ path: test.info().outputPath("netcity-production-client.png") });
   expect(errors).toEqual([]);
   await context.close();
+});
+
+test('built tablet persists accepted client call through PostgreSQL and reload',async({page})=>{
+  await page.goto('/');await expect(page.locator('.connection-status')).toContainText('В сети');
+  await tabletApp(page,'Звонки');
+  await page.getByRole('button',{name:'Ответить и принять',exact:true}).click();
+  await expect(page.locator('.profile-summary')).toContainText('30 NET');
+  await page.getByRole('button',{name:'Что изменилось вчера?',exact:true}).click();
+  await expect(page.locator('.case-feedback')).toContainText('Подойдите');
+  await page.reload();await expect(page.locator('.connection-status')).toContainText('В сети');
+  await tabletApp(page,'Заявки');
+  await expect(page.locator('.case-desk')).toContainText('Поговорите с клиентом');
+  await expect(page.locator('.profile-summary')).toContainText('30 NET');
+  await expect(page.getByRole('button',{name:'Ответить и принять',exact:true})).toHaveCount(0);
 });

@@ -12,10 +12,10 @@ test("two browser players connect, render 3D, move and disconnect", async ({
   for (const page of [a, b])
     page.on("pageerror", (e) => errors.push(e.message));
   await a.goto("/");
-  await expect(a.locator("aside")).toContainText("В сети");
+  await expect(a.locator(".connection-status")).toContainText("В сети");
   await b.goto("/");
-  await expect(a.locator("aside")).toContainText("Игроков: 2");
-  await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
+  await expect(b.locator(".connection-status")).toContainText("Игроков: 2");
   await expect(a.locator(".asset-status")).toHaveAttribute(
     "data-state",
     "ready",
@@ -83,18 +83,18 @@ test("two browser players connect, render 3D, move and disconnect", async ({
   await expect
     .poll(async () => (await sceneSnapshot(b)).swing)
     .toBeGreaterThan(0.02);
-  await a.keyboard.up("KeyW");
   await expect
     .poll(async () => (await sceneSnapshot(a)).z)
     .toBeGreaterThan(before + 0.5);
   await expect
     .poll(async () => (await sceneSnapshot(b)).players[0])
     .toBeGreaterThan(before + 0.5);
+  await a.keyboard.up("KeyW");
   await a.keyboard.press("Escape");
   await a.screenshot({ path: test.info().outputPath("netcity-browser.png") });
   await b.screenshot({ path: test.info().outputPath("netcity-polish-street.png") });
   await a.close();
-  await expect(b.locator("aside")).toContainText("Игроков: 1");
+  await expect(b.locator(".connection-status")).toContainText("Игроков: 1");
   await expect
     .poll(async () => (await sceneSnapshot(b)).players.length)
     .toBe(0);

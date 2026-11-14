@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
+import { refreshCases } from "./clientCases.js";
 import {
   ITEMS,
   WORK,
   REPEAT_DELAY_MS,
   DIAGNOSTIC_REWARD,
   JOBS,
+  BAG_LIMIT,bagUsage,ITEM_WEIGHT,
   type ItemId,
   type ProgressResult,
   type WorkKind,
@@ -19,6 +21,7 @@ import {
 const bad = (message: string): ProgressResult => ({ ok: false, message });
 const good = (message: string): ProgressResult => ({ ok: true, message });
 export function refreshBoard(data: ProfileData, now: number) {
+  refreshCases(data,now);
   for (const job of data.jobs)
     if (job.status === "AVAILABLE" && job.availableAt <= now)
       job.availableAt = 0;
@@ -117,6 +120,7 @@ export class ProgressService {
   ): ProgressResult {
     const d = tx.data;
     if (a.type === "buy") {
+      if(d.service?.cases.some(c=>!["RINGING","DECLINED","COMPLETED"].includes(c.stage)))return bad("По клиентской заявке покупайте запчасть у стойки Марата в приложении заявки.");
       if (typeof a.itemId !== "string" || !Object.hasOwn(ITEMS, a.itemId))
         return bad("Неизвестный товар.");
       const id = a.itemId as ItemId,
@@ -124,6 +128,8 @@ export class ProgressService {
       if (d.inventory[id] >= (item.consumable ? 99 : 1))
         return bad("Этот предмет уже есть в достаточном количестве.");
       if (d.credits < item.price) return bad("Недостаточно кредитов NET.");
+      const bag=bagUsage(d.inventory);
+      if(bag.weight+ITEM_WEIGHT[id]>BAG_LIMIT.weight || bag.slots+Number(d.inventory[id]===0)>BAG_LIMIT.slots)return bad("В рюкзаке нет места.");
       d.credits -= item.price;
       d.inventory[id]++;
       return good(`Куплено: ${item.name} (−${item.price} NET).`);
@@ -139,6 +145,7 @@ export class ProgressService {
     }
     if (job.status !== "AVAILABLE" || job.availableAt > this.now())
       return bad("Этот экземпляр заявки сейчас недоступен.");
+    if(d.service?.cases.some(c=>!["RINGING","DECLINED","COMPLETED"].includes(c.stage)))return bad("Сначала завершите клиентскую заявку.");
     if (d.jobs.some((j) => j.status === "ACTIVE"))
       return bad("Сначала завершите или отложите активную заявку.");
     const blocked = canAccept(job);

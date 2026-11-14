@@ -33,8 +33,33 @@ import { pendingProgress, savePending, operationId } from "./pendingProgress";
 import { VirtualComputer, type ComputerSnapshot } from "./VirtualComputer";
 import { TicketJournal } from "./TicketJournal";
 import { MissionHud } from "./MissionHud";
+import {Tablet,type TabletApp} from "./Tablet";
+import {CaseDesk} from "./CaseDesk";
+import {DistrictMap} from "./DistrictMap";
+import {CLIENT_CASE_TEMPLATE as CASE,clientCaseTarget,type CaseIntent} from "@netcity/shared";
 import "./style.css";
 function App() {
+  const [tablet,setTablet]=useState(false),[tabletApp,setTabletApp]=useState<TabletApp>("calls");
+  const tabletRef=useRef(false);
+  const [caseMessage,setCaseMessage]=useState(""),[casePending,setCasePending]=useState(false);
+  const casePendingRef=useRef(false);
+  const pendingCaseId=useRef<string|null>(null);
+  const retryCase=()=>{try{const raw=sessionStorage.getItem("netcity-pending-case");if(raw&&roomRef.current?.connection.isOpen)roomRef.current.send("case",JSON.parse(raw));}catch{setCaseMessage("Не удалось повторить операцию. Переподключитесь.");}};
+  function openTablet(page:TabletApp="calls") {
+    tabletRef.current=true;setTablet(true);setTabletApp(page);setEconomy(false);setPanel(false);setPcId(null);setMenu(page==="settings"?"settings":null);
+    touch.current.modal=true;if(document.pointerLockElement)document.exitPointerLock();
+  }
+  function closeTablet() {
+    tabletRef.current=false;setTablet(false);setEconomy(false);setPanel(false);setPcId(null);setMenu(null);touch.current.modal=false;canvas.current?.focus();
+  }
+  function caseAct(intent:CaseIntent) {
+    if(!roomRef.current||casePendingRef.current)return;
+    casePendingRef.current=true;setCasePending(true);setCaseMessage("");
+    const action={...intent,requestId:operationId()};pendingCaseId.current=action.requestId;
+    try{sessionStorage.setItem("netcity-pending-case",JSON.stringify(action));}catch{}
+    try {roomRef.current.send("case",action);} catch {setCaseMessage("Связь потеряна. Переподключитесь и повторите ту же операцию.");}
+  }
+
   const [identity,setIdentity]=useState<ReturnType<typeof identityStatus>>({mode:"memory",notice:"",conflict:false});
   const [settings, setSettings] = useState(readSettings);
   const settingsRef = useRef(settings);
@@ -78,6 +103,9 @@ function App() {
   const [panel, setPanel] = useState(false);
   const [economy, setEconomy] = useState(false);
   const [profile, setProfile] = useState<PrivateProfile | null>(null);
+  const latestProfile=useRef(profile);latestProfile.current=profile;
+  useEffect(()=>{worldRef.current?.setClientCase(profile?.service?.cases.at(-1));},[profile]);
+  useEffect(()=>{if(profile?.service?.cases.at(-1)?.stage!=="RINGING")return;const ring=()=>{if(!document.hidden)playFeedback(true,settingsRef.current.volume);};window.addEventListener("pointerdown",ring,{once:true});const t=setInterval(ring,7000);return()=>{clearInterval(t);window.removeEventListener("pointerdown",ring);};},[profile?.service?.cases.at(-1)?.id,profile?.service?.cases.at(-1)?.stage]);
   const previousProfile=useRef<PrivateProfile|null>(null);
   const [reward,setReward]=useState<{credits:number;xp:number}|null>(null);
   useEffect(()=> {
@@ -103,7 +131,7 @@ function App() {
   const [expanded, setExpanded] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (!panel && !economy && !pcId && !menu) return;
+    if (!tablet && !panel && !economy && !pcId && !menu) return;
     const dialog = dialogRef.current!;
     const buttons = Array.from(
       dialog.querySelectorAll<HTMLElement>(
@@ -112,12 +140,14 @@ function App() {
     );
     buttons[0]?.focus();
     const onKey = (event: KeyboardEvent) => {
+      if(event.defaultPrevented)return;
       if (event.code === "Escape") {
         event.preventDefault();
         setEconomy(false);
         setPcId(null);
         setPanel(false);
         setMenu(null);
+        tabletRef.current=false;setTablet(false);
         touch.current.modal = false;
         canvas.current?.focus();
       }
@@ -140,8 +170,9 @@ function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [panel, economy, pcId, menu]);
+  }, [panel, economy, pcId, menu, tablet]);
   const openMenu = (next: Menu) => {
+    tabletRef.current=true;setTablet(true);setTabletApp(next==="map"?"map":"settings");
     touch.current.modal = true;
     setPanel(false); setEconomy(false); setPcId(null); setMenu(next);
     if (document.pointerLockElement) document.exitPointerLock();
@@ -156,9 +187,9 @@ function App() {
       if (touch.current.modal) return;
       const b=settingsRef.current.bindings;
       if (event.code===b.help || event.key==="?") {event.preventDefault(); openMenu("help");}
-      if (event.code===b.map) {event.preventDefault(); openMenu("map");}
+      if (event.code===b.map) {event.preventDefault(); openTablet("map");}
       if (event.code===b.inventory || event.code===b.journal) {
-        event.preventDefault(); touch.current.modal=true; setEconomy(true);
+        event.preventDefault(); openTablet(event.code===b.inventory?"bag":"tickets");
         if(document.pointerLockElement) document.exitPointerLock();
       }
     };
@@ -167,10 +198,19 @@ function App() {
     window.addEventListener("netcity-unlock",unlock);
     return ()=>{window.removeEventListener("keydown",handler);window.removeEventListener("netcity-unlock",unlock);};
   }, []);
+  useEffect(()=>{
+    const keyboard=(e:KeyboardEvent)=>{
+      if(e.repeat||isEditing(e.target))return;
+      const b=settingsRef.current.bindings;
+      if(e.code===b.tablet && (!tabletRef.current || b.tablet!=="Tab")){e.preventDefault();e.stopPropagation();if(tabletRef.current)closeTablet();else openTablet();}
+      if(e.code===b.drop && !touch.current.modal){const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
+    };
+    window.addEventListener("keydown",keyboard,true);return()=>window.removeEventListener("keydown",keyboard,true);
+  },[]);
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
-    setStatus("Подключение…");
+    setStatus("Подключение…");tabletRef.current=false;setTablet(false);
     setGraphics({
       state: "loading",
       loaded: 0,
@@ -206,6 +246,14 @@ function App() {
           return;
         }
         roomRef.current = room;
+        casePendingRef.current=false;setCasePending(false);
+        room.onMessage("interactionResult",(r:ProgressResult)=>{setMessage(r.message);setMessageOk(r.ok);});
+        room.onMessage("caseResult",(result:ProgressResult)=>{
+          if(pendingCaseId.current && result.requestId!==pendingCaseId.current){setCaseMessage(result.message);return;}
+          pendingCaseId.current=null;casePendingRef.current=false;setCasePending(false);setCaseMessage(result.message);
+          try{sessionStorage.removeItem("netcity-pending-case");}catch{}
+        });
+        try{const raw=sessionStorage.getItem("netcity-pending-case");if(raw){casePendingRef.current=true;setCasePending(true);const action=JSON.parse(raw);pendingCaseId.current=action.requestId;room.send("case",action);}}catch{}
         const identityInfo=identityStatus();setIdentity(identityInfo);
         if(identityInfo.notice) {
           savePending(null);pendingRef.current=null;setPending(null);
@@ -234,6 +282,11 @@ function App() {
           () => settingsRef.current,
           setView,
           id=>{
+            if(id==="case-hardware"){openTablet("tickets");return;}
+            if(id==="case-dropped"){const c=latestProfile.current?.service?.cases.at(-1);if(c)caseAct({action:"take",caseId:c.id});return;}
+            if(id==="client"){openTablet("tickets");return;}
+            if(id==="supplier"){openTablet("bag");return;}
+            tabletRef.current=true;setTablet(true);
             touch.current.modal=true;
             if(id==="supplier") {setEconomy(true);setMenu(null);} else setMenu("dispatcher");
             if(document.pointerLockElement) document.exitPointerLock();
@@ -339,7 +392,7 @@ function App() {
             setPcId(null);
             setEconomy(false);
             touch.current.modal = true;
-            setPanel(true);
+            setPanel(true);tabletRef.current=true;setTablet(true);
             if (document.pointerLockElement) document.exitPointerLock();
           }
         });
@@ -350,7 +403,7 @@ function App() {
           setMessageOk(result.ok);
           if (result.ok && result.open && result.pcId) {
             setEconomy(false);
-            setPcId(result.pcId);
+            setPcId(result.pcId);tabletRef.current=true;setTablet(true);
             setPanel(false);
             touch.current.modal = true;
             if (document.pointerLockElement) document.exitPointerLock();
@@ -385,6 +438,7 @@ function App() {
     };
   }, [attempt]);
   const closePanel = () => {
+    tabletRef.current=false;setTablet(false);
     setEconomy(false);
     setPcId(null);
     setPanel(false);
@@ -400,15 +454,10 @@ function App() {
     setPending(action);
     sendProgress(roomRef.current, action);
   };
-  return (
-    <>
-      <canvas tabIndex={0} ref={canvas} aria-label="Трёхмерная улица NETCITY" />
-      <header>
-        <button className="brand-link" aria-label="Главное меню" onClick={()=>openMenu("main")}><b>
-          NETCITY <span>ONLINE</span>
-        </b></button>
-        <small>IT DISTRICT / ОФИС №001</small>
-      </header>
+  const homeView=(<>
+      {tutorial && status === "В сети" && <Tutorial
+        journey={{moved:view.moved,looked:view.looked,inspected:step>=4}} completed={profile?.tutorialCompleted??false}
+        settings={settings} dismiss={dismissTutorial}/>}
       <aside data-online={status === "В сети"}>
         <div className="connection">
           <i /> {status}
@@ -416,7 +465,7 @@ function App() {
         <span>
           {nickname || "Инженер"} · Игроков: {count}
         </span>
-        <div className="profile-summary" aria-label="Деньги и опыт">
+        <div className="home-profile-summary" aria-label="Деньги и опыт">
           {profile ? (
             <>
               <b>{profile.credits} NET</b> · Ур. {profile.level}
@@ -431,7 +480,7 @@ function App() {
             <small>Загрузка профиля…</small>
           )}
         </div>
-        <small className="identity-status" data-mode={identity.mode}>{identity.conflict?"В этой вкладке другой профиль — сохранённый профиль не заменён.":identity.mode==="device"?"Профиль запомнен на этом устройстве":identity.mode==="tab"?"Ключ профиля доступен только в этой вкладке":"Ключ профиля хранится только до закрытия игры"}</small>
+        <small className="home-identity-status" data-mode={identity.mode}>{identity.conflict?"В этой вкладке другой профиль — сохранённый профиль не заменён.":identity.mode==="device"?"Профиль запомнен на этом устройстве":identity.mode==="tab"?"Ключ профиля доступен только в этой вкладке":"Ключ профиля хранится только до закрытия игры"}</small>
         <button
           className="open-progress"
           onClick={() => {
@@ -470,7 +519,7 @@ function App() {
           </select>
         </label>
         <div
-          className="asset-status"
+          className="home-asset-status"
           data-state={graphics.state}
           aria-live="polite"
         >
@@ -497,6 +546,8 @@ function App() {
         </div>
         </details>
       </aside>
+</>);
+  const journalView=(<>
       <section className="ticket" aria-label="Заявка №001">
         <div className="eyebrow">SERVICE DESK / #001</div>
         <h2>В офисе пропала сеть</h2>
@@ -554,26 +605,15 @@ function App() {
         />
         <MissionHud tracked={tracked} track={setTracked} view={view} profile={profile} jobs={jobs} step={step}/>
       </section>
-      <div className="crosshair">+</div>
-      {reward && <div className="reward-toast" role="status" aria-label="Получена награда"><b>Работа принята!</b><span>+{reward.credits} NET · +{reward.xp} XP</span><small>Баланс подтверждён сервером</small></div>}
-      {target && !panel && !economy && !pcId && !menu && (
-        <div className="interaction-hint"><span>[{keyLabel(settings.bindings.interact)}] {targetLabel}</span><small>Дистанция действия: до 2,5 м</small></div>
-      )}
-      {!panel && !economy && !pcId && !menu && (
-        <MobileControls
-          key={attempt}
-          enabled={target}
-          input={touch.current}
-          interact={() => worldRef.current?.interact()}
-        />
-      )}
-      {tutorial && !panel && !economy && !pcId && !menu && status === "В сети" && <Tutorial
-        journey={{moved:view.moved,looked:view.looked,inspected:step>=4}} completed={profile?.tutorialCompleted??false}
-        settings={settings} dismiss={dismissTutorial}/>}
-      {!view.locked && !matchMedia("(pointer: coarse)").matches && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}
-      {menu && <GameMenu menu={menu} settings={settings} change={changeSettings} quality={quality}
+</>);
+  return (
+    <>
+      <canvas tabIndex={0} ref={canvas} aria-label="Трёхмерная улица NETCITY" />
+
+      {tablet && <Tablet wallet={profile?`${profile.credits} NET · Ур. ${profile.level} · ${profile.xp} XP · ${profile.persistence==="temporary"?"Временные данные":"Прогресс сохраняется"}`:"Загрузка профиля…"} page={tabletApp} change={openTablet} close={closeTablet} dialogRef={dialogRef} overlay={!!(menu||economy||pcId||panel)}>
+        {(menu||economy||pcId||panel)?<>      {menu && <GameMenu menu={menu} settings={settings} change={changeSettings} quality={quality}
         setQuality={q=>{setQuality(q);worldRef.current?.setQuality(q);}} close={closePanel}
-        repeat={()=>{setTutorial(true);closePanel();}} dialogRef={dialogRef} position={view}
+        repeat={()=>{setTutorial(true);openTablet("home");}} dialogRef={dialogRef} position={view}
         navigate={setMenu} track={setTracked} work={()=>{setMenu(null);setEconomy(true);touch.current.modal=true;}}/>}
       {economy && (
         <ProgressPanel
@@ -680,7 +720,34 @@ function App() {
           </section>
         </div>
       )}
-      {!panel && !economy && !pcId && !menu && message && (
+</>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {CASE.address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+      </Tablet>}
+      <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
+      {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
+      <small hidden className="identity-status" data-mode={identity.mode}>{identity.conflict?"другой профиль":identity.mode==="tab"?"только в этой вкладке":""}</small>
+      <header className="legacy-header">
+        <button className="brand-link" aria-label="Главное меню" onClick={()=>openMenu("main")}><b>
+          NETCITY <span>ONLINE</span>
+        </b></button>
+        <small>IT DISTRICT / ОФИС №001</small>
+      </header>
+
+
+      <div className="crosshair">+</div>
+      {reward && <div className="reward-toast" role="status" aria-label="Получена награда"><b>Работа принята!</b><span>+{reward.credits} NET · +{reward.xp} XP</span><small>Баланс подтверждён сервером</small></div>}
+      {target && !tablet && !panel && !economy && !pcId && !menu && (
+        <div className="interaction-hint"><span>[{keyLabel(settings.bindings.interact)}] {targetLabel}</span><small>Дистанция действия: до 2,5 м</small></div>
+      )}
+      {!tablet && !panel && !economy && !pcId && !menu && (
+        <MobileControls
+          key={attempt}
+          enabled={target}
+          input={touch.current}
+          interact={() => worldRef.current?.interact()}
+        />
+      )}
+      {!view.locked && !matchMedia("(pointer: coarse)").matches && !tablet && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}
+      {!tablet && !panel && !economy && !pcId && !menu && message && (
         <div
           className={`action-message notification ${messageOk ? "success" : "error"}`}
           role="status"
@@ -688,7 +755,7 @@ function App() {
           {message}
         </div>
       )}
-      <footer>
+      <footer className="legacy-footer">
         <small>
           {Object.values(settings.bindings).slice(0,4).map(keyLabel).join("/")} — движение · {keyLabel(settings.bindings.sprint)} — бег · {keyLabel(settings.bindings.interact)} — осмотр · Esc — меню
           <br />

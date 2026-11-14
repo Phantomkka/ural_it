@@ -36,6 +36,7 @@ export function advance(
   position: { x: number; z: number },
   input: MoveInput,
   dt: number,
+  entryOpen = true,
 ) {
   const magnitude = Math.max(1, Math.hypot(input.forward, input.strafe));
   const distance = MOVE_SPEED * (input.sprint === true ? SPRINT_MULTIPLIER : 1) * Math.max(0, Math.min(dt, 1 / TICK_RATE));
@@ -50,7 +51,7 @@ export function advance(
       magnitude) *
     distance;
   const blocked = (x: number, z: number) =>
-    WORLD_COLLIDERS.some(
+    (entryOpen?WORLD_COLLIDERS:[...WORLD_COLLIDERS.filter(c=>c!==OFFICE_DOORS[0]),ENTRY_DOOR_CLOSED]).some(
       (b) =>
         Math.abs(x - b.x) < b.width / 2 + 0.4 &&
         Math.abs(z - b.z) < b.depth / 2 + 0.4,
@@ -82,6 +83,7 @@ export const OFFICE_DOORS = [8, 13].map((x) => ({
   width: 1.6,
   depth: 0.12,
 }));
+export const ENTRY_DOOR_CLOSED={x:8,z:-0.35,width:0.12,depth:1.6};
 export const STREET_DETAILS = [-1, 1].flatMap((side) =>
   [-28, -12, 12, 28].map((z) => ({ x: side * 6.8, z })),
 );
@@ -112,6 +114,7 @@ export interface ActionResult {
   inspected?: boolean;
 }
 export interface PlayerView {
+  heldItem?:string;
   nickname: string;
   x: number;
   z: number;
@@ -120,6 +123,7 @@ export interface PlayerView {
   rewards: number;
 }
 export interface EquipmentView {
+  officeDoorOpen?:boolean;
   port3Connected: boolean;
   rackServiced?: boolean;
   patchWorkId?: string;
@@ -138,3 +142,4 @@ export function canReachSwitch(player: { x: number; z: number }) {
 export * from "./progression.js";
 export * from "./officeNetwork.js";
 export * from "./company.js";
+export * from "./clientCases.js";

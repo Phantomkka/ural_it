@@ -22,6 +22,7 @@ import {
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
+  declare heldItem:string;
   declare jobs: MapSchema<JobProgress>;
   declare nickname: string;
   declare ticketStep: number;
@@ -33,6 +34,7 @@ export class Player extends Schema {
     super();
     this.jobs = createJobs();
     this.nickname = "";
+    this.heldItem="";
     this.ticketStep = 1;
     this.rewards = 0;
     this.x = 0;
@@ -41,6 +43,7 @@ export class Player extends Schema {
   }
 }
 defineTypes(Player, {
+  heldItem:"string",
   jobs: { map: JobProgress },
   nickname: "string",
   x: "number",
@@ -50,6 +53,7 @@ defineTypes(Player, {
   rewards: "number",
 });
 export class Equipment extends Schema {
+  declare officeDoorOpen:boolean;
   declare port3Connected: boolean;
   declare rackServiced: boolean;
   declare patchWorkId: string;
@@ -57,12 +61,14 @@ export class Equipment extends Schema {
   constructor() {
     super();
     this.port3Connected = false;
+    this.officeDoorOpen=true;
     this.rackServiced = false;
     this.patchWorkId = "";
     this.rackWorkId = "";
   }
 }
 defineTypes(Equipment, {
+  officeDoorOpen:"boolean",
   port3Connected: "boolean",
   rackServiced: "boolean",
   patchWorkId: "string",
@@ -111,6 +117,8 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     this.onMessage("progress", (client, value: unknown) =>
       this.work.progress(client, value),
     );
+    this.onMessage("case",(client,value:unknown)=>this.work.clientCase(client,value));
+    this.onMessage("interaction",(client,value:unknown)=>this.work.interaction(client,value));
     this.onMessage("computer", (client, value: unknown) => {
       const now = performance.now();
       const budget = this.actionBudgets.get(client.sessionId) ?? {
@@ -136,7 +144,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       this.state.players.forEach((player, id) => {
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
-        Object.assign(player, advance(player, input, 1 / TICK_RATE));
+        Object.assign(player, advance(player, input, 1 / TICK_RATE,this.state.equipment.officeDoorOpen));
         if (player.x > 5 && Math.abs(player.z) < 3)
           player.ticketStep = Math.max(player.ticketStep, 2);
         if (player.x > 13.5 && player.x < 20 && Math.abs(player.z) < 5.5)
@@ -164,6 +172,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     const data = await this.progressStore.read(auth.profileId);
     const player = new Player();
     player.nickname = data.nickname;
+    player.heldItem="";
     player.ticketStep = data.tutorialCompleted ? 6 : 1;
     player.rewards = Number(data.tutorialCompleted) + (data.diagnostics?.length ?? 0);
     for (const job of JOBS) if(data.diagnostics?.includes(job.id)) {

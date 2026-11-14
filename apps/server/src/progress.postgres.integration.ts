@@ -8,6 +8,7 @@ import { matchMaker } from "@colyseus/core";
 import { ROOM_NAME } from "@netcity/shared";
 import { PostgresProgressStore } from "./progress/postgres.js";
 import { progressContract } from "./progress.contract.js";
+import { clientCaseContract } from "./clientCases.contract.js";
 import { ProgressService } from "./progress/service.js";
 import { hashToken, newProfile } from "./progress/store.js";
 import { createGameServer } from "./server.js";
@@ -34,7 +35,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
   try {
     await store.migrate();
     await store.migrate();
-    await t.test("additive upgrade preserves legacy profiles and older writers preserve diagnostics", async()=>{
+    await t.test("additive upgrade preserves legacy profiles and older writers preserve diagnostics and cases", async()=>{
       const legacy=schema+"_legacy";
       await admin.query(`CREATE SCHEMA ${legacy}`);
       const legacyUrl=new URL(base);legacyUrl.searchParams.set("options",`-c search_path=${legacy}`);
@@ -50,12 +51,17 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
         assert.equal(after.credits,123);assert.equal(after.xp,87);assert.deepEqual(after.jobs,d.jobs);assert.deepEqual(after.diagnostics,[]);
         const service=new ProgressService(upgraded);
         await service.finishDiagnostic(d.id,"003",()=>null);
+        await service.command(d.id,{type:"refresh"});
+        const cases=(await upgraded.read(d.id)).service;
+        assert.equal(cases?.cases.length,1);
         // Same statement used by the previous release: the new column survives rollback of application code.
         await old.query("UPDATE profiles SET credits=credits+1 WHERE id=$1",[d.id]);
         assert.deepEqual((await upgraded.read(d.id)).diagnostics,["003"]);
+        assert.deepEqual((await upgraded.read(d.id)).service,cases);
       } finally {await upgraded.close();await old.end();await admin.query(`DROP SCHEMA ${legacy} CASCADE`);}
     });
     await progressContract(t, store);
+    await t.test("client case transactional lifecycle and replay protection",()=>clientCaseContract(store));
     await t.test(
       "hash-only storage and persistence across a real server and pool restart",
       async () => {
@@ -75,6 +81,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
           requestId: randomUUID(),
         });
         await service.finishDiagnostic(guest.profileId,"003",()=>null);
+        const savedService=(await store.read(guest.profileId)).service;
         const row = (
           await store.pool.query(
             "SELECT token_hash FROM profiles WHERE id=$1",
@@ -106,6 +113,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
           assert.equal(profiles[0].credits, 130);
           assert.equal(profiles[0].xp, 100);
           assert.deepEqual(profiles[0].diagnostics,["003"]);
+          assert.deepEqual(profiles[0].service,savedService);
           assert.equal(profiles[0].inventory.patch_cord, 1);
           assert.equal(profiles[0].tutorialCompleted, true);
           assert.equal(profiles[0].persistence, "postgres");

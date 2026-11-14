@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { advance, isMoveInput, MOVE_SPEED, TICK_RATE, SPRINT_MULTIPLIER } from "@netcity/shared";
+
+test("closed entry blocks the same doorway used by the visual leaf",()=>{
+  const input={forward:1,strafe:0,yaw:Math.PI/2};
+  const walk=(open:boolean)=>{let p={x:7,z:0};for(let i=0;i<24;i++)p=advance(p,input,1/TICK_RATE,open);return p;};
+  assert.ok(walk(false).x<8);assert.ok(walk(true).x>10);
+});
 test("sprint is optional, bounded, and does not bypass walls or the fixed step", () => {
   assert.equal(isMoveInput({forward:1,strafe:0,yaw:0,sprint:"true"}), false);
   assert.equal(isMoveInput({forward:1,strafe:0,yaw:0,sprint:true}), true);
