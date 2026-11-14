@@ -3,6 +3,7 @@ import {
   COMMANDS,
   COMPUTERS,
   JOBS,
+  DIAGNOSTIC_REWARD,
   type ComputerAction,
   type ComputerId,
   type ComputerResult,
@@ -21,6 +22,7 @@ export function VirtualComputer({
   send,
   close,
   dialogRef,
+  paid,
 }: {
   device: ComputerSnapshot;
   uplink: boolean;
@@ -29,6 +31,7 @@ export function VirtualComputer({
   send: (action: ComputerAction) => void;
   close: () => void;
   dialogRef: RefObject<HTMLElement | null>;
+  paid: boolean;
 }) {
   const pcId = device.id as ComputerId,
     nic = device.interfaces.get("eth0")!;
@@ -98,6 +101,7 @@ export function VirtualComputer({
             ✕
           </button>
         </div>
+        <p className="diagnostic-reward">{paid ? "✓ Награда за этот ПК уже сохранена в профиле." : `За полный цикл диагностики: ${DIAGNOSTIC_REWARD.credits} NET и ${DIAGNOSTIC_REWARD.xp} XP. Нужен набор инструментов и исправная общая сеть; активную работу на доске сначала завершите или отложите.`}</p>
         <div className="os-network" data-connected={nic.connected}>
           <span>● Кабель: {nic.connected ? "подключён" : "отключён"}</span>
           <span>

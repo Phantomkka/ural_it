@@ -937,6 +937,16 @@ aside .open-progress {
 .bindings button { min-width: 70px; min-height: 44px; }
 .menu-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
 .district-map { display: block; width: min(100%, 480px); max-height: 55dvh; margin: auto; border: 1px solid var(--line); border-radius: 12px; }
+.mission-hud { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.mission-hud label { display: grid; gap: 6px; font-size: 11px; color: var(--muted); }
+.mission-hud p { margin: 8px 0; }
+.mission-hud small { display: block; margin-top: 7px; }
+.mission-bearing { display: inline-block; margin-right: 10px; font-size: 22px; color: #ffd38b; }
+.reward-toast { position: fixed; z-index: 12; pointer-events:none; top: 22px; left: 50%; transform:translateX(-50%); background:#133f36f5; border:1px solid var(--accent); border-radius:14px; padding:16px 24px; text-align:center; box-shadow:0 10px 40px #0004; }
+.reward-toast span,.reward-toast small { display:block; margin-top:6px; }
+.reward-toast span { color:var(--accent); font-size:22px; font-weight:bold; }
+.diagnostic-reward { padding: 10px 18px; margin:0; color:#a7e8d3; font-size:12px; line-height:1.5; }
+@media (pointer:coarse) { .reward-toast { top: 300px; width: 230px; padding:12px; } }
 .touch-sprint { position: absolute; right: 30px; bottom: 115px; pointer-events: auto; touch-action: none; min-height: 44px; min-width: 95px; }
 @media (pointer: coarse) {
   .tutorial-card { left: 10px; bottom: 180px; width: min(320px, 45vw); max-height: 32dvh; padding: 12px; }

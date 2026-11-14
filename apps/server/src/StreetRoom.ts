@@ -8,7 +8,6 @@ import {
   type ProgressStore,
   validToken,
 } from "./progress/store.js";
-import { handleComputer } from "./computerActions.js";
 import {
   NetworkDevice,
   JobProgress,
@@ -19,6 +18,7 @@ import {
   advance,
   isMoveInput,
   TICK_RATE,
+  JOBS,
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
@@ -128,17 +128,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
         return;
       }
       budget.tokens--;
-      const player = this.state.players.get(client.sessionId);
-      if (player)
-        client.send(
-          "computerResult",
-          handleComputer(
-            player,
-            this.state.devices,
-            this.state.equipment,
-            value,
-          ),
-        );
+      if (this.state.players.has(client.sessionId)) this.work.computer(client,value);
     });
     // Messages only replace intent. Only this fixed-rate loop can move players.
     this.setSimulationInterval(() => {
@@ -175,7 +165,10 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     const player = new Player();
     player.nickname = data.nickname;
     player.ticketStep = data.tutorialCompleted ? 6 : 1;
-    player.rewards = data.tutorialCompleted ? 1 : 0;
+    player.rewards = Number(data.tutorialCompleted) + (data.diagnostics?.length ?? 0);
+    for (const job of JOBS) if(data.diagnostics?.includes(job.id)) {
+      const progress=player.jobs.get(job.id)!;progress.stage=job.steps.length;progress.status="COMPLETED";
+    }
     player.z = (this.state.players.size % 10) * 2 - 10;
     this.state.players.set(client.sessionId, player);
     this.work.attach(client, auth.profileId);

@@ -3,6 +3,8 @@ import {
   ITEMS,
   WORK,
   REPEAT_DELAY_MS,
+  DIAGNOSTIC_REWARD,
+  JOBS,
   type ItemId,
   type ProgressResult,
   type WorkKind,
@@ -39,6 +41,26 @@ export class ProgressService {
     return this.store.transaction(id, null, (tx) => {
       refreshBoard(tx.data, this.now());
       return good("Профиль обновлён.");
+    });
+  }
+  /** Called only after a complete server-side PC workflow; never from a progress message. */
+  finishDiagnostic(id: string, jobId: string, verify: () => string | null) {
+    return this.store.transaction(id, `diagnostic:${jobId}`, tx => {
+      if (!JOBS.some(j => j.id === jobId)) return bad("Неизвестная диагностика.");
+      if (tx.data.diagnostics?.includes(jobId)) return {ok:true, replayed:true, message:"Диагностика уже оплачена. Повторное начисление не выполняется."};
+      const error = verify();
+      if (error) return bad(error);
+      if (tx.data.jobs.some(j=>j.status==="ACTIVE")) return bad("Сначала завершите или отложите активную работу на доске.");
+      if (tx.data.inventory.toolkit < 1) return bad("Для обслуживания ПК нужен набор инструментов.");
+      const hash = createHash("sha256").update(`diagnostic:${id}:${jobId}`).digest("hex").slice(0,32);
+      const rewardId = `${hash.slice(0,8)}-${hash.slice(8,12)}-${hash.slice(12,16)}-${hash.slice(16,20)}-${hash.slice(20)}`;
+      tx.data.diagnostics = [...(tx.data.diagnostics ?? []), jobId];
+      tx.data.credits += DIAGNOSTIC_REWARD.credits;
+      tx.data.xp += DIAGNOSTIC_REWARD.xp;
+      tx.reward = {jobId:rewardId,...DIAGNOSTIC_REWARD};
+      const result=good(`✅ Заявка №${jobId} выполнена! +${DIAGNOSTIC_REWARD.credits} NET, +${DIAGNOSTIC_REWARD.xp} XP.`);
+      tx.saveOperation = {fingerprint:`diagnostic:${jobId}`,result};
+      return result;
     });
   }
   /** Caller supplies a server-only equipment availability check, never client world state. */

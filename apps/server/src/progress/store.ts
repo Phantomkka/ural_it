@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import {
   ITEMS,
+  JOBS,
   levelFor,
   type ItemId,
   type WorkOrder,
@@ -8,6 +9,7 @@ import {
   type ProgressResult,
 } from "@netcity/shared";
 export interface ProfileData {
+  diagnostics?: string[];
   id: string;
   nickname: string;
   credits: number;
@@ -72,6 +74,7 @@ export function newProfile(): ProfileData {
     jobs: [newJob("patch", true), newJob("rack")],
     tutorialCompleted: false,
     version: 0,
+    diagnostics: [],
   };
 }
 export function snapshot(
@@ -83,6 +86,7 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.diagnostics !== undefined && (!Array.isArray(data.diagnostics) || new Set(data.diagnostics).size !== data.diagnostics.length || data.diagnostics.some(id=>!JOBS.some(job=>job.id===id)))) ||
     ![
       data.credits,
       data.xp,

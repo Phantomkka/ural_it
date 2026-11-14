@@ -31,6 +31,7 @@ import { ProgressPanel } from "./ProgressPanel";
 import { pendingProgress, savePending, operationId } from "./pendingProgress";
 import { VirtualComputer, type ComputerSnapshot } from "./VirtualComputer";
 import { TicketJournal } from "./TicketJournal";
+import { MissionHud } from "./MissionHud";
 import "./style.css";
 function App() {
   const [settings, setSettings] = useState(readSettings);
@@ -38,6 +39,7 @@ function App() {
   settingsRef.current = settings;
   const changeSettings = (next: Settings) => { setSettings(next); saveSettings(next); };
   const [menu, setMenu] = useState<Menu | null>(null);
+  const [tracked,setTracked]=useState("001");
   const [view, setView] = useState<WorldView>({x:0,z:-10,yaw:0,moved:false,looked:false,locked:false});
   const [tutorial, setTutorial] = useState(() => {try {return localStorage.getItem("netcity-tutorial-v2")!=="done";} catch {return true;}});
   const dismissTutorial = () => { setTutorial(false); try {localStorage.setItem("netcity-tutorial-v2","done");} catch { /* optional */ } };
@@ -74,6 +76,15 @@ function App() {
   const [panel, setPanel] = useState(false);
   const [economy, setEconomy] = useState(false);
   const [profile, setProfile] = useState<PrivateProfile | null>(null);
+  const previousProfile=useRef<PrivateProfile|null>(null);
+  const [reward,setReward]=useState<{credits:number;xp:number}|null>(null);
+  useEffect(()=> {
+    const previous=previousProfile.current;
+    previousProfile.current=profile;
+    if(!profile) {setReward(null);return;}
+    if(previous && profile.credits>previous.credits) setReward({credits:profile.credits-previous.credits,xp:profile.xp-previous.xp});
+  },[profile]);
+  useEffect(()=>{if(!reward)return; const timer=setTimeout(()=>setReward(null),7000);return()=>clearTimeout(timer);},[reward]);
   const [progressResult, setProgressResult] = useState<ProgressResult | null>(
     null,
   );
@@ -525,8 +536,10 @@ function App() {
           }
           step={step}
         />
+        <MissionHud tracked={tracked} track={setTracked} view={view} profile={profile} jobs={jobs} step={step}/>
       </section>
       <div className="crosshair">+</div>
+      {reward && <div className="reward-toast" role="status" aria-label="Получена награда"><b>Работа принята!</b><span>+{reward.credits} NET · +{reward.xp} XP</span><small>Баланс подтверждён сервером</small></div>}
       {target && !panel && !economy && !pcId && !menu && (
         <div className="interaction-hint"><span>[{keyLabel(settings.bindings.interact)}] {targetLabel}</span><small>Дистанция действия: до 2,5 м</small></div>
       )}
@@ -557,6 +570,7 @@ function App() {
           }}
           close={closePanel}
           dialogRef={dialogRef}
+          track={id=>{setTracked(id);closePanel();}}
         />
       )}
       {pcId && devices.find((d) => d.id === pcId) && (
@@ -573,6 +587,7 @@ function App() {
           }
           close={closePanel}
           dialogRef={dialogRef}
+          paid={profile?.diagnostics?.includes(pcId === "pc01" ? "004" : pcId === "pc02" ? "002" : "003") ?? false}
         />
       )}
       {panel && (
