@@ -26,6 +26,7 @@ import { GameMenu, type Menu } from "./GameMenu";
 import { Tutorial } from "./Tutorial";
 import { isEditing, keyLabel, readSettings, saveSettings, type Settings } from "./settings";
 import { playFeedback } from "./sound";
+import { identityStatus } from "./identity";
 import { MobileControls, type TouchInput } from "./controls";
 import { ProgressPanel } from "./ProgressPanel";
 import { pendingProgress, savePending, operationId } from "./pendingProgress";
@@ -34,6 +35,7 @@ import { TicketJournal } from "./TicketJournal";
 import { MissionHud } from "./MissionHud";
 import "./style.css";
 function App() {
+  const [identity,setIdentity]=useState<ReturnType<typeof identityStatus>>({mode:"memory",notice:"",conflict:false});
   const [settings, setSettings] = useState(readSettings);
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -204,6 +206,11 @@ function App() {
           return;
         }
         roomRef.current = room;
+        const identityInfo=identityStatus();setIdentity(identityInfo);
+        if(identityInfo.notice) {
+          savePending(null);pendingRef.current=null;setPending(null);
+          setMessage(identityInfo.notice);setMessageOk(false);
+        }
         // Register cleanup before constructing WebGL resources so setup failures also release the room.
         let world: ReturnType<typeof createWorld> | undefined;
         cleanup = () => {
@@ -424,6 +431,7 @@ function App() {
             <small>Загрузка профиля…</small>
           )}
         </div>
+        <small className="identity-status" data-mode={identity.mode}>{identity.conflict?"В этой вкладке другой профиль — сохранённый профиль не заменён.":identity.mode==="device"?"Профиль запомнен на этом устройстве":identity.mode==="tab"?"Ключ профиля доступен только в этой вкладке":"Ключ профиля хранится только до закрытия игры"}</small>
         <button
           className="open-progress"
           onClick={() => {
