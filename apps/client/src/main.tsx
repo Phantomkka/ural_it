@@ -40,7 +40,7 @@ function App() {
   const changeSettings = (next: Settings) => { setSettings(next); saveSettings(next); };
   const [menu, setMenu] = useState<Menu | null>(null);
   const [tracked,setTracked]=useState("001");
-  const [view, setView] = useState<WorldView>({x:0,z:-10,yaw:0,moved:false,looked:false,locked:false});
+  const [view, setView] = useState<WorldView>({x:0,z:-10,yaw:0,moved:false,looked:false,locked:false,fps:0,activeMeshes:0});
   const [tutorial, setTutorial] = useState(() => {try {return localStorage.getItem("netcity-tutorial-v2")!=="done";} catch {return true;}});
   const dismissTutorial = () => { setTutorial(false); try {localStorage.setItem("netcity-tutorial-v2","done");} catch { /* optional */ } };
   const [quality, setQuality] = useState<Quality>(defaultQuality);
@@ -161,7 +161,9 @@ function App() {
       }
     };
     window.addEventListener("keydown",handler);
-    return ()=>window.removeEventListener("keydown",handler);
+    const unlock=()=>{if(!touch.current.modal)openMenu("settings");};
+    window.addEventListener("netcity-unlock",unlock);
+    return ()=>{window.removeEventListener("keydown",handler);window.removeEventListener("netcity-unlock",unlock);};
   }, []);
   useEffect(() => {
     let cancelled = false;
@@ -224,6 +226,11 @@ function App() {
           qualityRef.current,
           () => settingsRef.current,
           setView,
+          id=>{
+            touch.current.modal=true;
+            if(id==="supplier") {setEconomy(true);setMenu(null);} else setMenu("dispatcher");
+            if(document.pointerLockElement) document.exitPointerLock();
+          },
         );
         worldRef.current = world;
         room.onMessage("profile", (value: PrivateProfile) => {
@@ -390,9 +397,9 @@ function App() {
     <>
       <canvas tabIndex={0} ref={canvas} aria-label="Трёхмерная улица NETCITY" />
       <header>
-        <b>
+        <button className="brand-link" aria-label="Главное меню" onClick={()=>openMenu("main")}><b>
           NETCITY <span>ONLINE</span>
-        </b>
+        </b></button>
         <small>IT DISTRICT / ОФИС №001</small>
       </header>
       <aside data-online={status === "В сети"}>
@@ -410,7 +417,7 @@ function App() {
                 {profile.xp} XP ·{" "}
                 {profile.persistence === "temporary"
                   ? "Временные данные"
-                  : "PostgreSQL"}
+                  : "Прогресс сохраняется"}
               </small>
             </>
           ) : (
@@ -437,6 +444,7 @@ function App() {
         <button onClick={()=>openMenu("map")}>Карта</button>
         <button onClick={()=>openMenu("help")} aria-label="Помощь и управление">?</button>
         <details className="diagnostics"><summary>Графика и загрузка</summary>
+        <p aria-label="Производительность">{Math.round(view.fps)} FPS · объектов в кадре: {view.activeMeshes}</p>
         <label className="quality-setting">
           Качество графики
           <select
@@ -557,7 +565,8 @@ function App() {
       {!view.locked && !matchMedia("(pointer: coarse)").matches && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}
       {menu && <GameMenu menu={menu} settings={settings} change={changeSettings} quality={quality}
         setQuality={q=>{setQuality(q);worldRef.current?.setQuality(q);}} close={closePanel}
-        repeat={()=>{setTutorial(true);closePanel();}} dialogRef={dialogRef} position={view}/>}
+        repeat={()=>{setTutorial(true);closePanel();}} dialogRef={dialogRef} position={view}
+        navigate={setMenu} track={setTracked} work={()=>{setMenu(null);setEconomy(true);touch.current.modal=true;}}/>}
       {economy && (
         <ProgressPanel
           profile={profile}

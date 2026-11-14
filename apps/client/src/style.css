@@ -946,6 +946,13 @@ aside .open-progress {
 .reward-toast span,.reward-toast small { display:block; margin-top:6px; }
 .reward-toast span { color:var(--accent); font-size:22px; font-weight:bold; }
 .diagnostic-reward { padding: 10px 18px; margin:0; color:#a7e8d3; font-size:12px; line-height:1.5; }
+.brand-link { padding:0; background:none; border:0; min-height:0; border-radius:2px; text-align:left; }
+.brand-link:hover { background:none; color:var(--accent); }
+.welcome-menu { max-width:650px; padding:30px; }
+.welcome-menu h1 { letter-spacing:2px; font-size:32px; }
+.welcome-menu p { line-height:1.75; color:#bad4dc; }
+.welcome-menu .menu-actions { display:grid; grid-template-columns:1fr 1fr; }
+@media(max-width:600px) { .welcome-menu { padding:20px; } .welcome-menu h1 { font-size:24px; } .welcome-menu .menu-actions { grid-template-columns:1fr; } }
 @media (pointer:coarse) { .reward-toast { top: 300px; width: 230px; padding:12px; } }
 .touch-sprint { position: absolute; right: 30px; bottom: 115px; pointer-events: auto; touch-action: none; min-height: 44px; min-width: 95px; }
 @media (pointer: coarse) {

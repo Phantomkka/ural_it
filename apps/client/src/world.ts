@@ -24,7 +24,9 @@ import { buildComputers } from "./computers";
 import { buildOffice } from "./office";
 import type { TouchInput } from "./controls";
 import { DEFAULT_SETTINGS, isEditing, type Settings } from "./settings";
-export interface WorldView { x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; }
+import { buildDistrict, CONTACTS } from "./district";
+import { playFootstep } from "./sound";
+export interface WorldView { x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
 import { sendComputer, sendEquipment, type NetworkState } from "./network";
@@ -37,6 +39,7 @@ export function createWorld(
   initialQuality: Quality = "medium",
   settings: () => Settings = () => DEFAULT_SETTINGS,
   onView: (view: WorldView) => void = () => {},
+  onContact: (id: string) => void = () => {},
 ) {
   const mobile = matchMedia("(pointer: coarse)").matches;
   const engine = new Engine(canvas, !mobile && initialQuality !== "low", {
@@ -77,14 +80,17 @@ export function createWorld(
     buildStreet(scene, material);
     const office = buildOffice(scene, material);
     const computers = buildComputers(scene, material);
+    buildDistrict(scene,material);
     for (const mesh of scene.meshes)
-      if (mesh.name !== "equipment-selection") mesh.freezeWorldMatrix();
+      if (mesh.name !== "equipment-selection" && !mesh.billboardMode) mesh.freezeWorldMatrix();
     const pickEquipment = () => {
       const hit = scene.pickWithRay(
         camera.getForwardRay(INTERACTION_RANGE),
         (mesh) => mesh.isPickable && !mesh.name.startsWith("player-"),
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
+      const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(npcId) return {id:`contact:${npcId}`,label:`Поговорить: ${CONTACTS.find(n=>n.id===npcId)?.name??"инженер"}`};
       if (id)
         return {
           id,
@@ -102,7 +108,8 @@ export function createWorld(
       const target = pickEquipment();
       if (!target) return;
       stop();
-      if (target.id === "switch") sendEquipment(room, { type: "inspect" });
+      if(target.id.startsWith("contact:")) onContact(target.id.slice(8));
+      else if (target.id === "switch") sendEquipment(room, { type: "inspect" });
       else sendComputer(room, { type: "open", pcId: target.id });
     };
     const avatars = new Map<string, ReturnType<typeof createAvatar>>();
@@ -111,6 +118,7 @@ export function createWorld(
       pitch = 0,
       active = true;
     let moved = false, looked = false, origin: {x:number;z:number} | undefined;
+    let footstep: {x:number;z:number}|undefined;
     const keydown = (e: KeyboardEvent) => {
       if (!touch.modal && !isEditing(e.target) && (document.pointerLockElement === canvas || document.activeElement === canvas)) {
         const bindings = settings().bindings;
@@ -134,8 +142,14 @@ export function createWorld(
       if (hadInput && active && room.connection.isOpen)
         room.send("move", { forward: 0, strafe: 0, yaw });
     };
+    let hadLock=false;
     const lock = () => {
-      if (document.pointerLockElement !== canvas) stop();
+      const locked=document.pointerLockElement===canvas;
+      if (!locked) {
+        stop();
+        if(hadLock && !touch.modal && document.hasFocus()) window.dispatchEvent(new Event("netcity-unlock"));
+      }
+      hadLock=locked;
     };
     const mouse = (e: MouseEvent) => {
       if (!touch.modal && document.pointerLockElement === canvas) {
@@ -234,6 +248,11 @@ export function createWorld(
       if (me) {
         origin ??= {x:me.x,z:me.z};
         moved ||= Math.hypot(me.x-origin.x,me.z-origin.z)>1;
+        footstep ??= {x:me.x,z:me.z};
+        if(Math.hypot(me.x-footstep.x,me.z-footstep.z)>1.4) {
+          if(!touch.modal && !document.hidden) playFootstep(settings().volume);
+          footstep={x:me.x,z:me.z};
+        }
         const blend = Math.hypot(me.x-camera.position.x,me.z-camera.position.z)>3 ? 1 : 1-Math.exp(-25*Math.min(engine.getDeltaTime()/1000,0.1));
         camera.position.x += (me.x-camera.position.x)*blend;
         camera.position.z += (me.z-camera.position.z)*blend;
@@ -293,7 +312,7 @@ export function createWorld(
           lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
-        onView({x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas});
+        onView({x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
       }
       scene.render();
     });
