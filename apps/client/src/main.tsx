@@ -1,3 +1,4 @@
+import {CompanyPanel} from "./CompanyPanel";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Room } from "@colyseus/sdk";
@@ -40,11 +41,15 @@ import type {CableAction} from "@netcity/shared";
 import {AccountPanel} from './AccountPanel';
 import {accountExpected} from './auth';
 import {DistrictMap} from "./DistrictMap";
-import {CLIENT_CASE_TEMPLATE as CASE,clientCaseTarget,type CaseIntent} from "@netcity/shared";
+import {CLIENT_CASE_TEMPLATE as CASE,caseTemplate,clientCaseTarget,type CaseIntent} from "@netcity/shared";
 import "./style.css";
 function App() {
   const [tablet,setTablet]=useState(false),[tabletApp,setTabletApp]=useState<TabletApp>("calls");
   const tabletRef=useRef(false);
+  const [businessPending,setBusinessPending]=useState(false),[businessMessage,setBusinessMessage]=useState("");
+  const businessRequest=useRef<{action:"upgrade"|"claim";id:string;requestId:string}|null>(null);
+  const businessAct=(action:"upgrade"|"claim",id:string)=>{if(!roomRef.current||businessRequest.current)return;const value={action,id,requestId:operationId()};businessRequest.current=value;setBusinessPending(true);try{sessionStorage.setItem("netcity-pending-business",JSON.stringify(value));roomRef.current.send("business",value);}catch{setBusinessMessage("Связь потеряна; повторите ту же операцию.");}};
+  const retryBusiness=()=>{if(businessRequest.current&&roomRef.current?.connection.isOpen)roomRef.current.send("business",businessRequest.current);};
   const [cablePending,setCablePending]=useState(false),[cableMessage,setCableMessage]=useState("");
   const cableRequest=useRef<CableAction|null>(null);
   const cableAct=(action:CableAction["action"])=>{if(!roomRef.current||cableRequest.current)return;const value={action,requestId:operationId()};cableRequest.current=value;setCablePending(true);try{roomRef.current.send("cable",value);}catch{setCableMessage('Связь потеряна. Переподключитесь и проверьте состояние бухты.');}};
@@ -211,13 +216,14 @@ function App() {
       if(e.repeat||isEditing(e.target))return;
       const b=settingsRef.current.bindings;
       if(e.code===b.tablet && (!tabletRef.current || b.tablet!=="Tab")){e.preventDefault();e.stopPropagation();if(tabletRef.current)closeTablet();else openTablet();}
-      if(e.code===b.drop && !touch.current.modal){if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
+      if(e.code===b.drop && !touch.current.modal){if(roomRef.current?.state.players?.get(roomRef.current.sessionId)?.heldItem?.startsWith("prop:")){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});return;}if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
     };
     window.addEventListener("keydown",keyboard,true);return()=>window.removeEventListener("keydown",keyboard,true);
   },[]);
   useEffect(()=>{
+    const prefs=()=>{const next=readSettings();setSettings(next);settingsRef.current=next;const q=defaultQuality();setQuality(q);worldRef.current?.setQuality(q);};window.addEventListener("netcity-preferences",prefs);
     const changed=()=>{savePending(null);pendingRef.current=null;setPending(null);pendingCaseId.current=null;casePendingRef.current=false;setCasePending(false);setProfile(null);setAttempt(v=>v+1);};
-    window.addEventListener('netcity-auth-changed',changed);return()=>window.removeEventListener('netcity-auth-changed',changed);
+    window.addEventListener('netcity-auth-changed',changed);return()=>{window.removeEventListener('netcity-auth-changed',changed);window.removeEventListener("netcity-preferences",prefs);};
   },[]);
   useEffect(() => {
     let cancelled = false;
@@ -258,6 +264,9 @@ function App() {
           return;
         }
         roomRef.current = room;
+        setBusinessPending(false);businessRequest.current=null;
+        room.onMessage("businessResult",(r:ProgressResult)=>{setBusinessMessage(r.message);if(r.requestId===businessRequest.current?.requestId){businessRequest.current=null;setBusinessPending(false);try{sessionStorage.removeItem("netcity-pending-business");}catch{}}});
+        try{const raw=sessionStorage.getItem("netcity-pending-business");if(raw){businessRequest.current=JSON.parse(raw);setBusinessPending(true);room.send("business",businessRequest.current);}}catch{}
         setCablePending(false);cableRequest.current=null;
         room.onMessage("cableResult",(r:ProgressResult)=>{setCableMessage(r.message);if(!r.requestId||r.requestId===cableRequest.current?.requestId){setCablePending(false);cableRequest.current=null;}});
         room.onMessage("cableHint",(r:ProgressResult)=>{setMessage(r.message);setMessageOk(false);});
@@ -300,6 +309,8 @@ function App() {
             if(id==="case-hardware"){openTablet("tickets");return;}
             if(id==="cable"){openTablet("tools");return;}
             if(id==="case-dropped"){const c=latestProfile.current?.service?.cases.at(-1);if(c)caseAct({action:"take",caseId:c.id});return;}
+            if(["alex","olga","igor"].includes(id)){openTablet("tickets");return;}
+            if(["courier","resident","guard","intern"].includes(id)){openTablet("contacts");return;}
             if(id==="client"){openTablet("tickets");return;}
             if(id==="supplier"){openTablet("bag");return;}
             tabletRef.current=true;setTablet(true);
@@ -737,7 +748,7 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {CASE.address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
       {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
@@ -761,6 +772,7 @@ function App() {
           enabled={target}
           input={touch.current}
           interact={() => worldRef.current?.interact()}
+          drop={()=>{const room=roomRef.current;if(room?.state.players?.get(room.sessionId)?.heldItem?.startsWith("prop:"))room.send("interaction",{kind:"dropProp"});else if(latestProfile.current?.cable?.carrier===room?.sessionId)cableAct("drop");else{const c=latestProfile.current?.service?.cases.at(-1);if(c?.carrying)caseAct({action:"drop",caseId:c.id});}}}
         />
       )}
       {!view.locked && !matchMedia("(pointer: coarse)").matches && !tablet && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}

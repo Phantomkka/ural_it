@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';
+import {initialCars,stepCars,trafficPhase,carBlocksPoint,pedestrianPosition} from '@netcity/shared';
+test('six cars share fixed lanes, stop on red and yield to players',()=>{const cars=initialCars();assert.equal(cars.length,6);assert.equal(trafficPhase(25000),'CROSS');const c={id:'one',x:2.4,z:-5,direction:1,speed:6};assert.equal(stepCars([c],[],25000,0.1)[0].z,-5);assert.equal(stepCars([c],[{x:2.4,z:0}],1000,0.1)[0].speed,0);assert.ok(stepCars([c],[],1000,0.1)[0].z>-5);assert.ok(carBlocksPoint({x:2.4,z:-5},c));});
+test('pedestrians stay on bounded sidewalks and wait between walks',()=>{for(let i=0;i<4;i++)for(let t=0;t<100000;t+=500){const p=pedestrianPosition(i,t);assert.equal(Math.abs(p.x),6);assert.ok(Math.abs(p.z)<40);}});

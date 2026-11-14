@@ -12,6 +12,7 @@ import {
   type ServiceProgress,
 } from "@netcity/shared";
 export interface ProfileData {
+  business?:import('@netcity/shared').BusinessProgress;
   cable?:import('@netcity/shared').CableTask;
   service?: ServiceProgress;
   diagnostics?: string[];
@@ -76,7 +77,7 @@ export function newProfile(): ProfileData {
     nickname: `Инженер ${id.slice(0, 6)}`,
     credits: 0,
     xp: 0,
-    inventory: { patch_cord: 0, cleaner: 0, toolkit: 1 },
+    inventory: { patch_cord: 0, cleaner: 0, toolkit: 1,power_supply:0,toner:0 },
     jobs: [newJob("patch", true), newJob("rack")],
     tutorialCompleted: false,
     version: 0,
@@ -93,6 +94,7 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.business!==undefined&&(!Array.isArray(data.business.upgrades)||new Set(data.business.upgrades).size!==data.business.upgrades.length||data.business.upgrades.some(x=>!['field-kit','workbench','service-van'].includes(x))||!Array.isArray(data.business.claimed)||new Set(data.business.claimed).size!==data.business.claimed.length||Object.keys(data.business.workCounts).length>32||Object.values(data.business.workCounts).some(n=>!Number.isSafeInteger(n)||n<0||n>2147483647))) ||
     (data.cable!==undefined && (data.cable.points.length<1||data.cable.points.length>12||![...data.cable.points,data.cable.endpoint].every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<=45&&Math.abs(p.z)<=45))) ||
     (data.service!==undefined && (!Number.isSafeInteger(data.service.completed)||data.service.completed<0||!Array.isArray(data.service.cases)||data.service.cases.length>20||new Set(data.service.cases.map(c=>c.id)).size!==data.service.cases.length)) ||
     (data.diagnostics !== undefined && (!Array.isArray(data.diagnostics) || new Set(data.diagnostics).size !== data.diagnostics.length || data.diagnostics.some(id=>!JOBS.some(job=>job.id===id)))) ||
@@ -118,12 +120,12 @@ export class MemoryProgressStore implements ProgressStore {
   private operations = new Map<string, Operation>();
   private rewards = new Set<string>();
   private tail: Promise<unknown> = Promise.resolve();
-  readonly accounts=new MemoryAccountStore((token)=>{
+  readonly accounts=new MemoryAccountStore((token,transferHash)=>{
     const task=this.tail.then(()=>{
-      if(token){const hash=hashToken(token),id=this.identities.get(hash);if(!id)throw new AuthConflict('Логин занят или гостевой профиль уже привязан.');this.identities.delete(hash);return {profileId:id,guestHash:hash};}
+      if(token||transferHash){const hash=transferHash??hashToken(token!),id=this.identities.get(hash);if(!id)throw new AuthConflict('Логин занят или гостевой профиль уже привязан.');this.identities.delete(hash);return {profileId:id,guestHash:hash};}
       const data=newProfile();this.profiles.set(data.id,data);return {profileId:data.id,guestHash:null};
     });this.tail=task.catch(()=>{});return task;
-  });
+  },token=>this.identify(token));
   async register() {
     const token = randomBytes(32).toString("hex"),
       data = newProfile();

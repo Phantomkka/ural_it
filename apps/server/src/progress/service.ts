@@ -129,7 +129,7 @@ export class ProgressService {
         return bad("Этот предмет уже есть в достаточном количестве.");
       if (d.credits < item.price) return bad("Недостаточно кредитов NET.");
       const bag=bagUsage(d.inventory);
-      if(bag.weight+ITEM_WEIGHT[id]>BAG_LIMIT.weight || bag.slots+Number(d.inventory[id]===0)>BAG_LIMIT.slots)return bad("В рюкзаке нет места.");
+      if(bag.weight+ITEM_WEIGHT[id]>(d.business?.upgrades.includes('service-van')?18:BAG_LIMIT.weight) || bag.slots+Number(d.inventory[id]===0)>BAG_LIMIT.slots)return bad("В рюкзаке нет места.");
       d.credits -= item.price;
       d.inventory[id]++;
       return good(`Куплено: ${item.name} (−${item.price} NET).`);

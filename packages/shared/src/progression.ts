@@ -1,12 +1,14 @@
 /** Rules for virtual NET credits only. The server is the authority. */
 import type { CompanyView } from "./company.js";
 import type { ServiceProgress } from "./clientCases.js";
-export const LEVELS = [0, 60, 180, 360] as const;
+export const LEVELS = [0,60,180,360,650,1000,1500,2200,3200,4600,6500,9000,12500,17000,23000,31000,42000,56000] as const;
 export const REPEAT_DELAY_MS = 30_000;
 export const ITEMS = {
   patch_cord: { name: "Патч-корд", price: 30, consumable: true },
   cleaner: { name: "Баллон для очистки", price: 20, consumable: true },
   toolkit: { name: "Набор инструментов", price: 50, consumable: false },
+  power_supply:{name:'Блок питания ПК',price:45,consumable:true},
+  toner:{name:'Картридж с тонером',price:55,consumable:true},
 } as const;
 export type ItemId = keyof typeof ITEMS;
 export const WORK = {
@@ -36,6 +38,7 @@ export interface WorkOrder {
   completedAt: number | null;
 }
 export interface PrivateProfile {
+  business?:import('./business.js').BusinessProgress;
   cable?:import('./cable.js').CableTask;
   service?: ServiceProgress;
   company?: CompanyView;

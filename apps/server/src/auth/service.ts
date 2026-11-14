@@ -3,6 +3,7 @@ import { ServerError, type AuthContext, type Client } from '@colyseus/core';
 import { hashToken, validToken, type ProgressStore } from '../progress/store.js';
 import { AuthConflict, type Account } from './store.js';
 import { AuthError, hashPassword, verifyPassword, loginName, validPassword } from './password.js';
+import {preferences} from './preferences.js';
 export { AuthError };
 export interface GameIdentity {
     profileId: string;
@@ -31,7 +32,7 @@ export class AuthService {
                 throw Error('NETCITY_ORIGIN must be an exact origin; HTTPS is required in production.');
         }
     }
-    origin(origin: string | null | undefined, host: string | null | undefined) { return !!origin && origin === (process.env.NETCITY_ORIGIN ?? `${this.production ? 'https' : 'http'}://${host}`); }
+    origin(origin: string | null | undefined, host: string | null | undefined) { return !!origin && origin === (process.env.NETCITY_ORIGIN || `${this.production ? 'https' : 'http'}://${host}`); }
     cookies(header: string | undefined | null) { const out: Record<string, string> = {}; for (const part of (header ?? '').split(';')) {
         const i = part.indexOf('=');
         if (i > 0)
@@ -61,14 +62,14 @@ export class AuthService {
         return { token, expiresAt, login: account.login };
     }
     async register(value: unknown, ip: string) {
-        const { a, login, password } = this.credentials(value, ['login', 'password', 'guestToken', 'confirm']);
-        if (a.confirm !== true || a.guestToken !== undefined && !validToken(a.guestToken))
+        const { a, login, password } = this.credentials(value, ['login', 'password', 'guestToken', 'confirm','transferCode','preferences']);
+        if (a.confirm !== true || a.guestToken !== undefined && !validToken(a.guestToken)||a.transferCode!==undefined&&!validToken(a.transferCode)||a.transferCode!==undefined&&a.guestToken!==undefined)
             throw new AuthError(400, 'Подтвердите создание аккаунта и выбор гостевого прогресса.');
         await this.throttle(ip, login);
         const recoveryCode = nonce(), passwordHash = await hashPassword(password);
         let account: Account;
         try {
-            account = await this.store.accounts.create(login, passwordHash, hashToken(recoveryCode), a.guestToken as string | undefined);
+            account = await this.store.accounts.create(login, passwordHash, hashToken(recoveryCode), a.guestToken as string | undefined,a.transferCode as string|undefined,preferences(a.preferences));
         }
         catch (e) {
             if (e instanceof AuthConflict)
@@ -77,7 +78,7 @@ export class AuthService {
         }
         if (account.guestHash)
             this.disconnect(i => !!i.guestToken && hashToken(i.guestToken) === account.guestHash);
-        return { ...await this.session(account), recoveryCode };
+        return { ...await this.session(account), recoveryCode,preferences:account.preferences??{} };
     }
     async login(value: unknown, ip: string) {
         const { login, password } = this.credentials(value, ['login', 'password']);

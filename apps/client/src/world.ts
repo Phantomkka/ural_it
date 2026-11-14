@@ -1,3 +1,5 @@
+import {CARRY_PROPS} from "@netcity/shared";
+import {buildLivingCity} from "./livingCity";
 import {buildCableObjects,createCableRoll} from "./cableObjects";
 import {
   Engine,
@@ -27,7 +29,7 @@ import { buildOffice } from "./office";
 import type { TouchInput } from "./controls";
 import { DEFAULT_SETTINGS, isEditing, type Settings } from "./settings";
 import { buildDistrict, CONTACTS } from "./district";
-import { playFootstep } from "./sound";
+import { playFootstep,playCityAmbience } from "./sound";
 import {buildCaseObjects} from "./caseObjects";
 import type {ClientCase} from "@netcity/shared";
 export interface WorldView { x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
@@ -87,8 +89,10 @@ export function createWorld(
     buildDistrict(scene,material);
     const caseObjects=buildCaseObjects(scene,material);
     const cableObjects=buildCableObjects(scene,material);
+    const city=buildLivingCity(scene,material);
+    const props=new Map(CARRY_PROPS.map(p=>{const mesh=MeshBuilder.CreateBox("carry-prop-"+p.id,{width:.5,height:p.id==="spare-pc"?.65:.35,depth:.5},scene);mesh.position.set(p.x,.3,p.z);mesh.material=material("prop-"+p.id,p.id==="toolbox"?"#497a93":"#b69570");mesh.metadata={propId:p.id,cityDynamic:true};return [p.id,mesh] as const;}));
     for (const mesh of scene.meshes)
-      if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && !mesh.metadata?.cableDynamic && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
+      if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && !mesh.metadata?.cableDynamic && !mesh.metadata?.cityDynamic && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
     const pickEquipment = () => {
       const hit = scene.pickWithRay(
         camera.getForwardRay(INTERACTION_RANGE),
@@ -96,6 +100,8 @@ export function createWorld(
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
       const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(hit?.pickedMesh?.metadata?.propId){const id=hit.pickedMesh.metadata.propId;return {id:"prop:"+id,label:"Поднять: "+CARRY_PROPS.find(p=>p.id===id)?.name};}
+      if(hit?.pickedMesh?.metadata?.heavy)return {id:"heavy",label:"Транспорт слишком тяжёлый"};
       if(hit?.pickedMesh?.metadata?.cableTarget)return {id:"contact:cable",label:"Бухта кабеля · инструменты"};
       if(hit?.pickedMesh?.metadata?.entryDoor)return {id:"entry-door",label:"Открыть / закрыть дверь"};
       if(hit?.pickedMesh?.metadata?.caseTarget)return {id:"contact:case-"+hit.pickedMesh.metadata.caseTarget,label:hit.pickedMesh.metadata.caseTarget==="dropped"?"Подобрать свою деталь":"Осмотреть CLIENT-PC04"};
@@ -117,7 +123,9 @@ export function createWorld(
       const target = pickEquipment();
       if (!target) return;
       stop();
-      if(target.id==="entry-door")room.send("interaction",{kind:"door"});
+      if(target.id.startsWith("prop:"))room.send("interaction",{kind:"takeProp",id:target.id.slice(5)});
+      else if(target.id==="entry-door")room.send("interaction",{kind:"door"});
+      else if(target.id==="heavy")room.send("interaction",{kind:"liftHeavy"});
       else if(target.id.startsWith("contact:")) onContact(target.id.slice(8));
       else if (target.id === "switch") sendEquipment(room, { type: "inspect" });
       else sendComputer(room, { type: "open", pcId: target.id });
@@ -240,7 +248,7 @@ export function createWorld(
         }
       });
     let lastTarget = "",
-      lastPick = 0;
+      lastPick = 0,lastAmbience=0;
     const onVisibility = () => {
       if (document.hidden) stop();
     };
@@ -257,6 +265,8 @@ export function createWorld(
       touch.lookY = 0;
       camera.rotation.set(pitch, yaw, 0);
       const me = room.state.players?.get(room.sessionId);
+      if(me&&!touch.modal&&!document.hidden&&performance.now()-lastAmbience>2500){playCityAmbience(me.x>8&&me.x<20&&Math.abs(me.z)<6,settings().volume);lastAmbience=performance.now();}
+      for(const [id,mesh]of props){const p=room.state.props?.get(id),holder=p?.holder&&room.state.players?.get(p.holder);if(p){mesh.position.set(holder?holder.x+Math.sin(holder.yaw)*.7:p.x,holder?1:.3,holder?holder.z+Math.cos(holder.yaw)*.7:p.z);mesh.isPickable=!holder;}}
       carried.setEnabled(me?.heldItem==="patch_cord");roll.setEnabled(me?.heldItem==="cable_roll");
       if (me) {
         origin ??= {x:me.x,z:me.z};
@@ -317,6 +327,7 @@ export function createWorld(
       );
       if (performance.now() - lastPick > 100) {
         if(room.state.players)cableObjects.update(room.state.players);
+        city.update(room.state.cars,room.state.trafficPhase??"DRIVE",room.state.worldClock??Date.now(),camera.position,0.1,library);
         const next = active && !touch.modal ? pickEquipment() : null;
         if ((next?.id ?? "") !== lastTarget) {
           onTarget(!!next, next?.label);

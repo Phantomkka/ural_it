@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
-import { CompanyPanel } from "./CompanyPanel";
+import { CompanyPanel } from "./LegacyCompanyPanel";
 import {
   ITEMS,
   JOBS,

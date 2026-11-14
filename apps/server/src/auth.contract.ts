@@ -41,6 +41,25 @@ export async function authContract(store: ProgressStore) {
     const race = await Promise.allSettled([0, 1].map(i => auth.register({ login: prefix + i, password, guestToken: fresh.token, confirm: true }, 'race')));
     assert.equal(race.filter(r => r.status === 'fulfilled').length, 1);
     assert.equal(race.filter(r => r.status === 'rejected' && r.reason instanceof AuthError && r.reason.status === 409).length, 1);
+    // Origin migration is one-use, preserves the same profile, and never merges balances.
+    const migrant=await store.register(), migrantBefore=await store.read(migrant.profileId);
+    const oldCode=await store.accounts.issueTransfer(migrant.token,{quality:'low'});
+    const code=await store.accounts.issueTransfer(migrant.token,{quality:'high',tutorialDone:true});
+    await assert.rejects(auth.register({login:prefix+'old',password,transferCode:oldCode,confirm:true},'transfer-old'));
+    assert.equal(await store.identify(migrant.token),migrant.profileId);
+    // A login conflict rolls the claim back, leaving its one-use code usable.
+    await assert.rejects(auth.register({login:name,password,transferCode:code,confirm:true},'transfer-conflict'));
+    assert.equal(await store.identify(migrant.token),migrant.profileId);
+    const transfers=await Promise.allSettled([0,1].map(i=>auth.register({login:prefix+'t'+i,password,transferCode:code,confirm:true},'transfer-race')));
+    assert.equal(transfers.filter(r=>r.status==='fulfilled').length,1);
+    const winner=transfers.find(r=>r.status==='fulfilled') as PromiseFulfilledResult<Awaited<ReturnType<AuthService['register']>>>;
+    assert.deepEqual(winner.value.preferences,{quality:'high',tutorialDone:true});
+    assert.equal((await auth.current(winner.value.token))?.account.profileId,migrant.profileId);
+    assert.equal(await store.identify(migrant.token),null);
+    assert.deepEqual(await store.read(migrant.profileId),migrantBefore);
+    await assert.rejects(store.accounts.issueTransfer(migrant.token,{}));
+    await assert.rejects(auth.register({login:prefix+'again',password,transferCode:code,confirm:true},'transfer-reuse'));
+    await assert.rejects(auth.register({login:prefix+'bad',password,confirm:true,preferences:{password:'forbidden'}},'transfer-prefs'));
     const bounded = 'limit_' + randomUUID().slice(0, 7);
     for (let i = 0; i < 8; i++)
         await auth.throttle('rate-ip', bounded);

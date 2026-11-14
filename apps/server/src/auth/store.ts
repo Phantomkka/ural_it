@@ -1,5 +1,7 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID,randomBytes,createHash } from 'node:crypto';
+const tokenHash=(s:string)=>createHash("sha256").update(s).digest("hex");
 export interface Account {
+    preferences?:Record<string,unknown>;
     id: string;
     login: string;
     profileId: string;
@@ -14,7 +16,8 @@ export interface Session {
     expiresAt: number;
 }
 export interface AccountStore {
-    create(login: string, passwordHash: string, recoveryHash: string, guestToken?: string): Promise<Account>;
+    issueTransfer(token:string,prefs:Record<string,unknown>):Promise<string>;
+    create(login: string, passwordHash: string, recoveryHash: string, guestToken?: string,transferCode?:string,prefs?:Record<string,unknown>): Promise<Account>;
     find(login: string): Promise<Account | null>;
     wasGuest(hash: string): Promise<boolean>;
     addSession(session: Session, passwordHash: string): Promise<boolean>;
@@ -37,21 +40,27 @@ export class MemoryAccountStore implements AccountStore {
         expires: number;
     }>();
     private tail: Promise<unknown> = Promise.resolve();
-    constructor(private claim: (token?: string) => Promise<{
+    private transfers=new Map<string,{guestHash:string;prefs:Record<string,unknown>;expires:number}>();
+    constructor(private claim: (token?: string,hash?:string) => Promise<{
         profileId: string;
         guestHash: string | null;
-    }>) { }
-    async create(login: string, passwordHash: string, recoveryHash: string, guestToken?: string) {
+    }>,private inspect:(token:string)=>Promise<string|null>) { }
+    async create(login: string, passwordHash: string, recoveryHash: string, guestToken?: string,transferCode?:string,prefs:Record<string,unknown>={}) {
         const task = this.tail.then(async () => {
             if (this.accounts.has(login))
                 throw new AuthConflict('Логин занят или гостевой профиль уже привязан.');
-            const profile = await this.claim(guestToken);
-            const account = { id: randomUUID(), login, passwordHash, recoveryHash, ...profile };
-            this.accounts.set(login, account);
+            const transfer=transferCode?this.transfers.get(tokenHash(transferCode)):null;
+            if(transferCode&&(!transfer||transfer.expires<=Date.now()))throw new AuthConflict("Код переноса истёк или уже использован.");
+            const profile = await this.claim(guestToken,transfer?.guestHash);
+            const account = { id: randomUUID(), login, passwordHash, recoveryHash,preferences:structuredClone(transfer?.prefs??prefs), ...profile };
+            this.accounts.set(login, account);if(transferCode)this.transfers.delete(tokenHash(transferCode));
             return structuredClone(account);
         });
         this.tail = task.catch(() => { });
         return task;
+    }
+    async issueTransfer(token:string,prefs:Record<string,unknown>){
+      const task=this.tail.then(async()=>{if(!await this.inspect(token))throw new AuthConflict('Гость уже привязан или не найден.');const guestHash=tokenHash(token);for(const [k,v]of this.transfers)if(v.guestHash===guestHash||v.expires<=Date.now())this.transfers.delete(k);const code=randomBytes(32).toString('hex');this.transfers.set(tokenHash(code),{guestHash,prefs:structuredClone(prefs),expires:Date.now()+300000});return code;});this.tail=task.catch(()=>{});return task;
     }
     async find(login: string) { await this.tail; return structuredClone(this.accounts.get(login) ?? null); }
     async wasGuest(hash: string) { await this.tail; return [...this.accounts.values()].some(a => a.guestHash === hash); }

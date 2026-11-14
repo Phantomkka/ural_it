@@ -1,3 +1,4 @@
+import {readSettings} from "./settings";
 import { gameHttp } from './endpoint';
 import { forgetGuestIdentity, setAccountIdentity } from './identity';
 const HINT = 'netcity-account-hint';
@@ -15,7 +16,10 @@ function mark(value: boolean) { remembered = value; try {
         localStorage.removeItem(HINT);
 }
 catch { } }
+export function collectPreferences(){let quality:string|null=null,tutorialDone=false;try{quality=localStorage.getItem("netcity-quality");tutorialDone=localStorage.getItem("netcity-tutorial-v2")==="done";}catch{}return {settings:readSettings(),...(["low","medium","high"].includes(quality??"")?{quality}:{}),tutorialDone};}
+export function applyPreferences(p:Record<string,unknown>|undefined,force=false){if(!p)return;try{if(p.settings&&(force||!localStorage.getItem("netcity-settings-v2")))localStorage.setItem("netcity-settings-v2",JSON.stringify(p.settings));if(p.quality&&(force||!localStorage.getItem("netcity-quality")))localStorage.setItem("netcity-quality",String(p.quality));if(p.tutorialDone===true)localStorage.setItem("netcity-tutorial-v2","done");window.dispatchEvent(new Event("netcity-preferences"));}catch{}}
 export interface AccountSession {
+    publicOrigin?:string;preferences?:Record<string,unknown>;
     login: string | null;
     csrf: string;
     expiresAt?: number;
@@ -38,7 +42,7 @@ export async function accountRequest(action: 'login' | 'register' | 'logout' | '
         throw Error(result.message ?? 'Действие не подтверждено.');
     return result as {
         login?: string;
-        recoveryCode?: string;
+        recoveryCode?: string;preferences?:Record<string,unknown>;
         expiresAt?: number;
     };
 }
@@ -52,7 +56,7 @@ export function accountChanged(login: string | null, boundGuest?: string) {
     mark(true);
     // Pending financial commands belong to the old connection/profile, never replay them after a switch.
     try {
-        for (const key of ['netcity-pending-operation', 'netcity-pending-progress', 'netcity-pending-case'])
+        for (const key of ['netcity-pending-operation', 'netcity-pending-progress', 'netcity-pending-case','netcity-pending-business'])
             sessionStorage.removeItem(key);
     }
     catch { }

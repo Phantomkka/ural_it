@@ -1,15 +1,8 @@
-import type { CompanyView } from "@netcity/shared";
-export function CompanyPanel({company,track}: {company:CompanyView;track:(id:string)=>void}) {
-  const done=company.contract.steps.filter(step=>step.completed).length;
-  return <section className="company-card" aria-label="Моя IT-бригада">
-    <div className="eyebrow">АУТСОРСИНГ · ПЕРВЫЙ КОНТРАКТ</div><h3>{company.name}</h3>
-    <p>Репутация: <strong data-testid="reputation">{company.reputation}</strong> · Одиночная бригада</p>
-    <h4>{company.contract.title}</h4><p>Восстановите общую сеть и проведите диагностику трёх рабочих мест.</p>
-    <progress aria-label="Прогресс контракта" value={done} max={company.contract.steps.length}/>
-    <ul>{company.contract.steps.map(step=><li key={step.id}>
-      <span>{step.completed?"✓":"○"} {step.title}</span>{!step.completed && <button onClick={()=>track(step.id)}>К заявке №{step.id}</button>}
-    </li>)}</ul>
-    <p role="status">{company.contract.completed?"Контракт выполнен · репутация +1":"Завершите этапы, чтобы получить первую единицу репутации."}</p>
-    <small>За этапы начисляются обычные награды заявок. Дополнительных денег за контракт нет. Приглашения в компанию и командные бюджеты появятся в следующих этапах.</small>
-  </section>;
+import {BUSINESS_UPGRADES,BUSINESS_CONTRACTS,type PrivateProfile} from '@netcity/shared';
+export function CompanyPanel({profile,send,pending,message,retry,openLegacy}:{profile:PrivateProfile|null;send:(action:'upgrade'|'claim',id:string)=>void;pending:boolean;message:string;retry:()=>void;openLegacy:()=>void}){
+ const b=profile?.business,counts=Object.values(b?.workCounts??{}),total=counts.reduce((n,v)=>n+v,0),distinct=counts.filter(v=>v>0).length;
+ return <section className="company-page"><div className="eyebrow">NETCITY · РАЗВИТИЕ КОМПАНИИ</div><h2>Моя компания</h2><h3>{profile?.company?.name}</h3><p>Репутация: {profile?.company?.reputation??0} · Завершено клиентских работ: {profile?.service?.completed??0} · Архетипов освоено: {distinct}/8</p>
+ <h3>Инструменты и возможности</h3><p>Улучшения оформляются у Марата. Покупайте их последовательно: новые инструменты открывают более сложные заказы.</p><div className="business-grid">{BUSINESS_UPGRADES.map(u=><article key={u.id}><h4>{u.name}</h4><p>{u.description}</p><small>Репутация {u.reputation} · {u.price} NET</small><button disabled={pending||!profile||b?.upgrades.includes(u.id)} onClick={()=>send('upgrade',u.id)}>{b?.upgrades.includes(u.id)?'Приобретено':'Оформить улучшение'}</button></article>)}</div>
+ <h3>Контракты бригады</h3><div className="business-grid">{BUSINESS_CONTRACTS.map(c=><article key={c.id}><h4>{c.name}</h4><p>Разных типов: {Math.min(distinct,c.distinct)}/{c.distinct}; работ: {Math.min(total,c.total)}/{c.total}.</p><p>Оплата {c.credits} NET / {c.xp} XP</p><button disabled={pending||!profile||b?.claimed.includes(c.id)||distinct<c.distinct||total<c.total} onClick={()=>send('claim',c.id)}>{b?.claimed.includes(c.id)?'Оплачено':'Сдать контракт компании'}</button></article>)}</div>
+ <p role="status">{message}</p>{pending&&<button onClick={retry}>Повторить операцию компании</button>}<button onClick={openLegacy}>Работы и контракт NETCITY 2.0</button><p>Цель сезона: освоить все восемь направлений и выполнить 32 клиентские работы. Нет штрафа за пропуск дней; новое обращение приходит после завершения предыдущего.</p></section>;
 }

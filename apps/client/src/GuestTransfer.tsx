@@ -1,0 +1,8 @@
+import {useState} from 'react';
+import {guestIdentity} from './identity';import {gameHttp} from './endpoint';import {collectPreferences} from './auth';
+export function GuestTransfer({origin}:{origin:string}){
+ const [code,setCode]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+ return <section className="account-panel"><div className="eyebrow">NETCITY · ЗАЩИЩЁННЫЙ ПЕРЕНОС</div><h2>Переход на HTTPS</h2><p>Пароли вводятся только на защищённом адресе. Ваш гостевой профиль и настройки этой страницы можно перенести одноразовым кодом; NET, XP и инвентарь остаются в той же базе.</p>
+ <button disabled={busy||!guestIdentity()} onClick={async()=>{setBusy(true);try{const response=await fetch(gameHttp()+'/auth/transfer',{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json'},body:JSON.stringify({guestToken:guestIdentity(),preferences:collectPreferences()})});const result=await response.json();if(!response.ok)throw Error(result.message);setCode(result.code);setMessage('Код действует 5 минут и используется один раз. Скопируйте его, откройте HTTPS, выберите регистрацию и вставьте код переноса.');}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}}>Создать одноразовый код переноса</button>
+ {code&&<textarea aria-label="Код переноса" value={code} readOnly onFocus={e=>e.target.select()}/>}<p role="status">{message}</p><a href={origin} target="_blank" rel="noopener noreferrer">Открыть защищённую NETCITY</a><p>Не передавайте код никому и не отправляйте его в адресной строке. Если гость уже привязан, просто войдите на HTTPS по логину.</p></section>;
+}

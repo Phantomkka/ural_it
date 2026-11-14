@@ -18,6 +18,10 @@ test('PostgreSQL accounts migrate once, bind transactionally and retain hashed s
         await store.migrate();
         await store.migrate();
         await authContract(store);
+        const expiring=await store.register(),expired=await store.accounts.issueTransfer(expiring.token,{});
+        await store.pool.query('UPDATE guest_transfers SET expires_at=$1 WHERE token_hash=$2',[Date.now()-1,(await import('./progress/store.js')).hashToken(expired)]);
+        await assert.rejects(new AuthService(store).register({login:'expired_transfer',password:'Expired transfer secret 123!',transferCode:expired,confirm:true},'expire'));
+        assert.equal(await store.identify(expiring.token),expiring.profileId);
         const auth = new AuthService(store), name = 'persist_' + randomUUID().slice(0, 8), guest = await store.register();
         const r = await auth.register({ login: name, password: 'Persistence secret 123!', confirm: true, guestToken: guest.token }, 'persist');
         const row = (await store.pool.query('SELECT * FROM account_sessions WHERE account_id=(SELECT id FROM accounts WHERE login=$1)', [name])).rows[0];
