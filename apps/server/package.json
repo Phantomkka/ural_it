@@ -1,0 +1,25 @@
+{
+  "name": "@netcity/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/index.ts",
+    "start": "node --env-file-if-exists=../../.env --import tsx src/index.ts",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@colyseus/core": "~0.17.56",
+    "@colyseus/schema": "^4.0.1",
+    "@colyseus/ws-transport": "~0.17.0",
+    "@netcity/shared": "*",
+    "express": "^5.3.0",
+    "pg": "^8.23.1",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "^0.17.43",
+    "@types/express": "^5.0.6",
+    "@types/pg": "^8.23.1"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "netcity-online",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n server,client \"npm run dev -w @netcity/server\" \"npm run dev -w @netcity/client\"",
+    "build": "npm run build -w @netcity/shared && npm run build -w @netcity/server && npm run build -w @netcity/client",
+    "typecheck": "tsc --noEmit -p apps/server && tsc --noEmit -p apps/client",
+    "test": "tsx --test apps/server/src/*.test.ts",
+    "test:browser": "playwright test",
+    "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/db-migrate.mts",
+    "test:postgres": "node --env-file-if-exists=.env --import tsx --test apps/server/src/progress.postgres.integration.ts",
+    "db:configure": "node scripts/configure-local-db.mjs",
+    "test:production": "playwright test -c playwright.production.config.ts",
+    "test:deployment": "node deploy/smoke.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.0",
+    "@types/node": "^24.10.0",
+    "concurrently": "^9.2.1",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.3"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,31 @@
+{
+	admin off
+	skip_install_trust
+}
+
+# Only this internal listener is used by Docker health checks. It is not published.
+http://:8081 {
+	respond /healthz "ok" 200
+}
+
+{$NETCITY_SITE:localhost} {
+	encode zstd gzip
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+	handle_path /game/* {
+		request_body {
+			max_size 64KB
+		}
+		reverse_proxy server:2567
+	}
+	handle {
+		root * /srv
+		@fresh path / /index.html /version.json
+		header @fresh Cache-Control "no-store"
+		try_files {path} /index.html
+		file_server
+	}
+}
