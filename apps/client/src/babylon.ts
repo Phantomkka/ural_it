@@ -1,5 +1,6 @@
 // Import only the Babylon features used by the game (no inspector/loaders/postprocessing).
 import "@babylonjs/core/Culling/ray.js";
+import "@babylonjs/core/Rendering/outlineRenderer.js";
 export { Engine } from "@babylonjs/core/Engines/engine.js";
 export { EngineStore } from "@babylonjs/core/Engines/engineStore.js";
 export { Scene } from "@babylonjs/core/scene.js";

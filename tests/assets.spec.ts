@@ -63,6 +63,7 @@ test("local models load with real skins and instanced architecture; quality swit
   expect(scene.office).toBe(true);
   expect(scene.fallbackBuilding).toBe(false);
   const widths: Record<string, number> = {};
+  await a.getByText("Графика и загрузка", {exact:true}).click();
   for (const quality of ["low", "high", "medium"]) {
     await a.getByLabel("Качество графики").selectOption(quality);
     await expect.poll(async () => (await assetScene(a)).quality).toBe(quality);
@@ -88,7 +89,7 @@ test("local models load with real skins and instanced architecture; quality swit
   await a.keyboard.press("Escape");
   await a.waitForTimeout(200);
   expect(remote).toEqual([]);
-  await a.screenshot({ path: "/tmp/netcity-overhaul-city.png" });
+  await a.screenshot({ path: test.info().outputPath("netcity-overhaul-city.png") });
   await context.close();
 });
 test("failed assets report degraded graphics while fallback city and multiplayer stay usable", async ({

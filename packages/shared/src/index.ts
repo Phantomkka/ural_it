@@ -1,9 +1,11 @@
 export const ROOM_NAME = "street";
 export const TICK_RATE = 30;
 export const MOVE_SPEED = 5;
+export const SPRINT_MULTIPLIER = 1.5;
 export const WORLD_LIMIT = 45;
 export const EYE_HEIGHT = 1.7;
 export interface MoveInput {
+  sprint?: boolean;
   forward: number;
   strafe: number;
   yaw: number;
@@ -21,6 +23,7 @@ export function isMoveInput(value: unknown): value is MoveInput {
   if (!value || typeof value !== "object") return false;
   const v = value as MoveInput;
   return (
+    (v.sprint === undefined || typeof v.sprint === "boolean") &&
     [v.forward, v.strafe, v.yaw].every(
       (n) => typeof n === "number" && Number.isFinite(n),
     ) &&
@@ -35,7 +38,7 @@ export function advance(
   dt: number,
 ) {
   const magnitude = Math.max(1, Math.hypot(input.forward, input.strafe));
-  const distance = MOVE_SPEED * Math.max(0, Math.min(dt, 1 / TICK_RATE));
+  const distance = MOVE_SPEED * (input.sprint === true ? SPRINT_MULTIPLIER : 1) * Math.max(0, Math.min(dt, 1 / TICK_RATE));
   const dx =
     ((Math.sin(input.yaw) * input.forward +
       Math.cos(input.yaw) * input.strafe) /

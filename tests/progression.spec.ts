@@ -139,7 +139,7 @@ test("earn NET and XP, buy consumables, service rack and perform a fresh repeat 
   await openProfile();
   await expect(dialog).toContainText("Уровень 2 · 170 XP");
   await expect(dialog.locator('[data-item="patch_cord"]')).toHaveText("0");
-  await page.screenshot({ path: "/tmp/netcity-progression-desktop.png" });
+  await page.screenshot({ path: test.info().outputPath("netcity-progression-desktop.png") });
   const token = await page.evaluate(() =>
     sessionStorage.getItem("netcity-guest-token"),
   );
@@ -180,7 +180,7 @@ test("mobile profile and supply UI fits portrait and landscape and does not cove
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.screenshot({ path: "/tmp/netcity-progression-mobile.png" });
+  await page.screenshot({ path: test.info().outputPath("netcity-progression-mobile.png") });
   await dialog
     .getByRole("button", { name: "Закрыть профиль", exact: true })
     .tap();

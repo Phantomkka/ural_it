@@ -23,6 +23,8 @@ import { createAvatar } from "./avatar";
 import { buildComputers } from "./computers";
 import { buildOffice } from "./office";
 import type { TouchInput } from "./controls";
+import { DEFAULT_SETTINGS, isEditing, type Settings } from "./settings";
+export interface WorldView { x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
 import { sendComputer, sendEquipment, type NetworkState } from "./network";
@@ -33,6 +35,8 @@ export function createWorld(
   onTarget: (target: boolean, label?: string) => void,
   onGraphics: (progress: GraphicsProgress) => void = () => {},
   initialQuality: Quality = "medium",
+  settings: () => Settings = () => DEFAULT_SETTINGS,
+  onView: (view: WorldView) => void = () => {},
 ) {
   const mobile = matchMedia("(pointer: coarse)").matches;
   const engine = new Engine(canvas, !mobile && initialQuality !== "low", {
@@ -106,11 +110,13 @@ export function createWorld(
     let yaw = 0,
       pitch = 0,
       active = true;
+    let moved = false, looked = false, origin: {x:number;z:number} | undefined;
     const keydown = (e: KeyboardEvent) => {
-      if (!touch.modal && document.pointerLockElement === canvas) {
-        if (e.code === "KeyE" && !e.repeat) interact();
+      if (!touch.modal && !isEditing(e.target) && (document.pointerLockElement === canvas || document.activeElement === canvas)) {
+        const bindings = settings().bindings;
+        if (e.code === bindings.interact && !e.repeat) interact();
         keys.add(e.code);
-        if (["KeyW", "KeyA", "KeyS", "KeyD", "Space"].includes(e.code))
+        if ([bindings.forward, bindings.back, bindings.left, bindings.right].includes(e.code))
           e.preventDefault();
       }
     };
@@ -124,6 +130,7 @@ export function createWorld(
       touch.y = 0;
       touch.lookX = 0;
       touch.lookY = 0;
+      touch.sprint = false;
       if (hadInput && active && room.connection.isOpen)
         room.send("move", { forward: 0, strafe: 0, yaw });
     };
@@ -132,8 +139,10 @@ export function createWorld(
     };
     const mouse = (e: MouseEvent) => {
       if (!touch.modal && document.pointerLockElement === canvas) {
-        yaw = (yaw + e.movementX * 0.002) % (Math.PI * 2);
-        pitch = Math.max(-1.45, Math.min(1.45, pitch + e.movementY * 0.002));
+        const s = settings();
+        yaw = (yaw + e.movementX * 0.002 * s.sensitivity) % (Math.PI * 2);
+        pitch = Math.max(-1.45, Math.min(1.45, pitch + e.movementY * 0.002 * s.sensitivity * (s.invertY ? -1 : 1)));
+        looked ||= Math.abs(e.movementX) + Math.abs(e.movementY) > 2;
       }
     };
     const click = () => {
@@ -149,15 +158,17 @@ export function createWorld(
     document.addEventListener("pointerlockchange", lock);
     document.addEventListener("mousemove", mouse);
     const timer = window.setInterval(() => {
-      if (active)
+      if (active) {
+        const bindings = settings().bindings;
         room.send("move", {
+          sprint: !touch.modal && (keys.has(bindings.sprint) || touch.sprint === true),
           forward: touch.modal
             ? 0
             : Math.max(
                 -1,
                 Math.min(
                   1,
-                  Number(keys.has("KeyW")) - Number(keys.has("KeyS")) + touch.y,
+                  Number(keys.has(bindings.forward)) - Number(keys.has(bindings.back)) + touch.y,
                 ),
               ),
           strafe: touch.modal
@@ -166,11 +177,12 @@ export function createWorld(
                 -1,
                 Math.min(
                   1,
-                  Number(keys.has("KeyD")) - Number(keys.has("KeyA")) + touch.x,
+                  Number(keys.has(bindings.right)) - Number(keys.has(bindings.left)) + touch.x,
                 ),
               ),
           yaw,
         });
+      }
     }, 1000 / TICK_RATE);
     let disposed = false;
     void Promise.all([library.load(), graphics.environmentReady])
@@ -210,14 +222,23 @@ export function createWorld(
     engine.runRenderLoop(() => {
       if (touch.modal || document.hidden || !active) stop();
       else {
+        const s = settings();
         yaw = (yaw + touch.lookX * 0.004) % (Math.PI * 2);
-        pitch = Math.max(-1.45, Math.min(1.45, pitch + touch.lookY * 0.004));
+        pitch = Math.max(-1.45, Math.min(1.45, pitch + touch.lookY * 0.004 * (s.invertY ? -1 : 1)));
+        looked ||= Math.abs(touch.lookX) + Math.abs(touch.lookY) > 2;
       }
       touch.lookX = 0;
       touch.lookY = 0;
       camera.rotation.set(pitch, yaw, 0);
       const me = room.state.players?.get(room.sessionId);
-      if (me) camera.position.set(me.x, EYE_HEIGHT, me.z);
+      if (me) {
+        origin ??= {x:me.x,z:me.z};
+        moved ||= Math.hypot(me.x-origin.x,me.z-origin.z)>1;
+        const blend = Math.hypot(me.x-camera.position.x,me.z-camera.position.z)>3 ? 1 : 1-Math.exp(-25*Math.min(engine.getDeltaTime()/1000,0.1));
+        camera.position.x += (me.x-camera.position.x)*blend;
+        camera.position.z += (me.z-camera.position.z)*blend;
+        camera.position.y = EYE_HEIGHT;
+      }
       const present = new Set<string>();
       room.state.players?.forEach((player, id) => {
         if (id === room.sessionId) return;
@@ -266,9 +287,13 @@ export function createWorld(
         if ((next?.id ?? "") !== lastTarget) {
           onTarget(!!next, next?.label);
           computers.select(next?.id ?? "");
+          office.switchMesh.renderOutline = next?.id === "switch";
+          office.switchMesh.outlineColor = Color3.FromHexString("#62e3bd");
+          office.switchMesh.outlineWidth = 0.03;
           lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
+        onView({x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas});
       }
       scene.render();
     });

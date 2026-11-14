@@ -62,7 +62,7 @@ test("two browser players connect, render 3D, move and disconnect", async ({
   expect((await sceneSnapshot(a)).buildings).toBe(10);
   expect((await sceneSnapshot(a)).humanParts).toBeGreaterThan(0);
   expect((await sceneSnapshot(a)).labels[0]).toMatch(/^Инженер /);
-  await a.screenshot({ path: "/tmp/netcity-polish-overview.png" });
+  await a.screenshot({ path: test.info().outputPath("netcity-polish-overview.png") });
   const before = (await sceneSnapshot(a)).z;
   await expect(a.locator(".asset-status")).toHaveAttribute(
     "data-state",
@@ -91,8 +91,8 @@ test("two browser players connect, render 3D, move and disconnect", async ({
     .poll(async () => (await sceneSnapshot(b)).players[0])
     .toBeGreaterThan(before + 0.5);
   await a.keyboard.press("Escape");
-  await a.screenshot({ path: "/tmp/netcity-browser.png" });
-  await b.screenshot({ path: "/tmp/netcity-polish-street.png" });
+  await a.screenshot({ path: test.info().outputPath("netcity-browser.png") });
+  await b.screenshot({ path: test.info().outputPath("netcity-polish-street.png") });
   await a.close();
   await expect(b.locator("aside")).toContainText("Игроков: 1");
   await expect

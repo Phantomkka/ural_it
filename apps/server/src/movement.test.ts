@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { advance, isMoveInput, MOVE_SPEED, TICK_RATE } from "@netcity/shared";
+import { advance, isMoveInput, MOVE_SPEED, TICK_RATE, SPRINT_MULTIPLIER } from "@netcity/shared";
+test("sprint is optional, bounded, and does not bypass walls or the fixed step", () => {
+  assert.equal(isMoveInput({forward:1,strafe:0,yaw:0,sprint:"true"}), false);
+  assert.equal(isMoveInput({forward:1,strafe:0,yaw:0,sprint:true}), true);
+  const next=advance({x:0,z:0},{forward:1,strafe:1,yaw:0,sprint:true},10);
+  assert.ok(Math.abs(Math.hypot(next.x,next.z)-MOVE_SPEED*SPRINT_MULTIPLIER/TICK_RATE)<1e-10);
+  assert.equal(advance({x:7.5,z:17},{forward:0,strafe:1,yaw:0,sprint:true},1).x,7.5);
+});
 test("rejects malformed and nonfinite movement", () => {
   for (const input of [
     null,

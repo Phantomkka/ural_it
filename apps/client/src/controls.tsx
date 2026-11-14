@@ -5,6 +5,7 @@ export interface TouchInput {
   lookX: number;
   lookY: number;
   modal: boolean;
+  sprint?: boolean;
 }
 export function MobileControls({
   input,
@@ -29,6 +30,7 @@ export function MobileControls({
       input.y = 0;
       input.lookX = 0;
       input.lookY = 0;
+      input.sprint = false;
       joystickElement.current?.style.setProperty("--stick-x", "0px");
       joystickElement.current?.style.setProperty("--stick-y", "0px");
     };
@@ -104,6 +106,10 @@ export function MobileControls({
       <button className="touch-interact" disabled={!enabled} onClick={interact}>
         Осмотреть
       </button>
+      <button className="touch-sprint" aria-pressed={input.sprint === true}
+        onPointerDown={e=>{ e.currentTarget.setPointerCapture(e.pointerId); input.sprint=true; }}
+        onPointerUp={()=>{input.sprint=false;}} onPointerCancel={()=>{input.sprint=false;}}
+        onLostPointerCapture={()=>{input.sprint=false;}}>Бег</button>
     </div>
   );
 }

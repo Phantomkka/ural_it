@@ -67,7 +67,7 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   await expect(
     a.getByText("[E] Осмотреть коммутатор", { exact: true }),
   ).toBeVisible();
-  await a.screenshot({ path: "/tmp/netcity-overhaul-server-room.png" });
+  await a.screenshot({ path: test.info().outputPath("netcity-overhaul-server-room.png") });
   await a.keyboard.press("KeyE");
   const dialog = a.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -90,7 +90,7 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   await a.keyboard.press("KeyE");
   await expect(dialog).toBeVisible();
   expect(errors).toEqual([]);
-  await a.screenshot({ path: "/tmp/netcity-002-ticket.png" });
+  await a.screenshot({ path: test.info().outputPath("netcity-002-ticket.png") });
   await context.close();
 });
 test("mobile joystick, swipe camera, interaction button and responsive equipment panel", async ({
@@ -161,7 +161,7 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
   expect(bounds!.width).toBeLessThanOrEqual(844);
   await dialog.locator('[data-port="3"]').tap();
   await expect(page.locator(".ticket")).toContainText("✅ Заявка выполнена!");
-  await page.screenshot({ path: "/tmp/netcity-002-mobile.png" });
+  await page.screenshot({ path: test.info().outputPath("netcity-002-mobile.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   const portrait = await dialog.boundingBox();
   expect(portrait!.width).toBeLessThanOrEqual(390);
