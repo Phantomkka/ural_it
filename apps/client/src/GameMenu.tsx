@@ -2,23 +2,31 @@ import { useState, type RefObject } from "react";
 import { DEFAULT_SETTINGS, keyLabel, type Binding, type Settings } from "./settings";
 import type { Quality } from "./quality";
 import { DistrictMap } from "./DistrictMap";
-export type Menu = "settings" | "help" | "map";
+export type Menu = "settings" | "help" | "map" | "main" | "dispatcher";
 const LABELS: Record<Binding, string> = {
   forward:"Вперёд", back:"Назад", left:"Влево", right:"Вправо", sprint:"Бег",
   interact:"Взаимодействие", inventory:"Инвентарь", journal:"Журнал", map:"Карта", help:"Помощь",
 };
-export function GameMenu({ menu, settings, change, quality, setQuality, close, repeat, dialogRef, position }: {
+export function GameMenu({ menu, settings, change, quality, setQuality, close, repeat, dialogRef, position, navigate, work, track }: {
   menu: Menu; settings: Settings; change: (s: Settings) => void; quality: Quality;
   setQuality: (q: Quality) => void; close: () => void; repeat: () => void;
   dialogRef: RefObject<HTMLElement | null>;
   position: {x:number;z:number};
+  navigate: (next:Menu)=>void; work:()=>void; track:(id:string)=>void;
 }) {
   const [capture, setCapture] = useState<Binding | null>(null);
   const [error, setError] = useState("");
+  if(menu === "main" || menu === "dispatcher") return <div className="modal-backdrop"><section className="progress-panel welcome-menu" ref={dialogRef} role="dialog" aria-modal="true" aria-label={menu==="main"?"Главное меню":"Диспетчер Алина"}>
+    <div className="eyebrow">НОВОЛИНСК · IT-КВАРТАЛ</div><h1>{menu==="main"?"NETCITY 2.0":"Алина · Service Desk"}</h1>
+    <p>{menu==="main"?"Ваша смена: находите неисправности, помогайте офисам и развивайтесь вместе с другими инженерами.":"Привет! Офис справа остался без сети. Пройди через вход по центру, затем в серверную. Найди коммутатор, осмотри его и подключи свободный кабель в порт №3."}</p>
+    <p>После ремонта загляните в снабжение: баллон для очистки пригодится для охлаждения. Кабель, адреса и DNS на рабочих ПК проверяются разными способами.</p>
+    <div className="menu-actions"><button onClick={close}>Продолжить смену</button><button onClick={()=>{track("001");close();}}>Отследить первую заявку</button><button onClick={work}>Доска работ и снабжение</button><button onClick={()=>navigate("map")}>Карта района</button><button onClick={()=>navigate("settings")}>Открыть настройки</button><button onClick={repeat}>Пройти обучение</button></div>
+  </section></div>;
   if(menu === "map") return <div className="modal-backdrop"><section className="progress-panel" ref={dialogRef} role="dialog" aria-modal="true" aria-label="Карта района"><div className="progress-heading"><h2>Новолинск · IT-квартал</h2><button onClick={close}>Закрыть карту</button></div><DistrictMap {...position}/></section></div>;
   return <div className="modal-backdrop"><section ref={dialogRef} role="dialog" aria-modal="true"
     aria-label={menu === "settings" ? "Настройки" : "Справка управления"} className="progress-panel game-menu">
     <div className="progress-heading"><h2>{menu === "settings" ? "Настройки" : "Как играть"}</h2><button onClick={close}>Продолжить</button></div>
+    <button onClick={()=>navigate("main")}>Главное меню</button>
     <p>Движение остановлено. Другие инженеры продолжают работу в общем мире.</p>
     <p>ПК: нажмите на улицу для обзора мышью. Esc освобождает курсор и открывает меню. Клики по интерфейсу не захватывают мышь.</p>
     <p>Телефон: стик слева — движение, свайп справа — камера, «Осмотреть» — действие. Два пальца работают одновременно.</p>

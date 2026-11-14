@@ -1,0 +1,32 @@
+{
+  "mode": "Chromium headless, forced SwiftShader software renderer; touch is emulated, not a physical phone",
+  "results": [
+    {
+      "quality": "low",
+      "mobile": false,
+      "samples": 80,
+      "meanFps": 7.9,
+      "p95FrameMs": 160.8,
+      "activeMeshes": 115,
+      "renderWidth": 853
+    },
+    {
+      "quality": "medium",
+      "mobile": false,
+      "samples": 33,
+      "meanFps": 3.2,
+      "p95FrameMs": 360.8,
+      "activeMeshes": 115,
+      "renderWidth": 1280
+    },
+    {
+      "quality": "low",
+      "mobile": true,
+      "samples": 120,
+      "meanFps": 33.9,
+      "p95FrameMs": 42.4,
+      "activeMeshes": 61,
+      "renderWidth": 260
+    }
+  ]
+}
