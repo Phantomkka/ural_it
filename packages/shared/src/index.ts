@@ -114,6 +114,7 @@ export interface ActionResult {
   inspected?: boolean;
 }
 export interface PlayerView {
+  cablePath?:string;
   heldItem?:string;
   nickname: string;
   x: number;
@@ -143,3 +144,4 @@ export * from "./progression.js";
 export * from "./officeNetwork.js";
 export * from "./company.js";
 export * from "./clientCases.js";
+export * from './cable.js';

@@ -24,6 +24,7 @@ function decode(row: Record<string, any>): ProfileData {
     version: row.version,
     diagnostics: row.diagnostics ?? [],
     service: row.service ?? {cases:[],completed:0},
+    cable: row.cable??undefined,
   };
 }
 export class PostgresProgressStore implements ProgressStore {
@@ -76,6 +77,10 @@ export class PostgresProgressStore implements ProgressStore {
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=4")).rowCount) {
         await client.query(await readFile(new URL("../../migrations/004_accounts.sql", import.meta.url), "utf8"));
         await client.query("INSERT INTO schema_migrations(version) VALUES(4)");
+      }
+      if (!(await client.query("SELECT version FROM schema_migrations WHERE version=5")).rowCount) {
+        await client.query(await readFile(new URL("../../migrations/005_cable.sql", import.meta.url), "utf8"));
+        await client.query("INSERT INTO schema_migrations(version) VALUES(5)");
       }
       await client.query("COMMIT");
     } catch (error) {
@@ -171,7 +176,7 @@ export class PostgresProgressStore implements ProgressStore {
   }
   private async save(client: PoolClient, d: ProfileData) {
     await client.query(
-      "UPDATE profiles SET credits=$2,xp=$3,inventory=$4::jsonb,jobs=$5::jsonb,tutorial_completed=$6,version=$7,diagnostics=$8::jsonb,service=$9::jsonb WHERE id=$1",
+      "UPDATE profiles SET credits=$2,xp=$3,inventory=$4::jsonb,jobs=$5::jsonb,tutorial_completed=$6,version=$7,diagnostics=$8::jsonb,service=$9::jsonb,cable=$10::jsonb WHERE id=$1",
       [
         d.id,
         d.credits,
@@ -182,11 +187,12 @@ export class PostgresProgressStore implements ProgressStore {
         d.version,
         JSON.stringify(d.diagnostics ?? []),
         JSON.stringify(d.service ?? {cases:[],completed:0}),
+        d.cable?JSON.stringify(d.cable):null,
       ],
     );
   }
   async health() {
-    await this.pool.query("SELECT id FROM profiles LIMIT 0");
+    await this.pool.query("SELECT id,cable FROM profiles LIMIT 0");
     await this.pool.query("SELECT id FROM accounts LIMIT 0");
   }
   async close() {

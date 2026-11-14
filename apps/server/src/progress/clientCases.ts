@@ -69,6 +69,7 @@ export class ClientCaseService {
           tx.data.inventory.cleaner--;tx.data.credits+=10;return good("Баллон возвращён за 10 NET. Место освобождено.");
         }
         if(a.action==="take") {
+          if(tx.data.cable?.carrier)return bad('Сначала положите бухту: руки заняты.');
           if(c.stage!=="DIAGNOSED" || c.carrying)return bad("Сейчас нельзя взять деталь.");
           if(c.droppedAt) {if(!near(c.droppedAt))return bad("Подойдите к своей оставленной детали.");c.droppedAt=null;}
           else {if(tx.data.inventory.patch_cord<1)return bad("В рюкзаке нет патч-корда.");tx.data.inventory.patch_cord--;}

@@ -22,6 +22,7 @@ import {
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
+  declare cablePath:string;
   declare heldItem:string;
   declare jobs: MapSchema<JobProgress>;
   declare nickname: string;
@@ -32,6 +33,7 @@ export class Player extends Schema {
   declare yaw: number;
   constructor() {
     super();
+    this.cablePath='';
     this.jobs = createJobs();
     this.nickname = "";
     this.heldItem="";
@@ -43,6 +45,7 @@ export class Player extends Schema {
   }
 }
 defineTypes(Player, {
+  cablePath:'string',
   heldItem:"string",
   jobs: { map: JobProgress },
   nickname: "string",
@@ -119,6 +122,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       this.work.progress(client, value),
     );
     this.onMessage("case",(client,value:unknown)=>this.work.clientCase(client,value));
+    this.onMessage('cable',(client,value:unknown)=>this.work.cable(client,value));
     this.onMessage("interaction",(client,value:unknown)=>this.work.interaction(client,value));
     this.onMessage("computer", (client, value: unknown) => {
       const now = performance.now();
@@ -145,7 +149,8 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       this.state.players.forEach((player, id) => {
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
-        Object.assign(player, advance(player, input, 1 / TICK_RATE,this.state.equipment.officeDoorOpen));
+        const carrying=player.heldItem==='cable_roll',movement=carrying?{...input,sprint:false}:input;
+        Object.assign(player,this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen)));
         if (player.x > 5 && Math.abs(player.z) < 3)
           player.ticketStep = Math.max(player.ticketStep, 2);
         if (player.x > 13.5 && player.x < 20 && Math.abs(player.z) < 5.5)

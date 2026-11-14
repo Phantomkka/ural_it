@@ -35,6 +35,8 @@ import { TicketJournal } from "./TicketJournal";
 import { MissionHud } from "./MissionHud";
 import {Tablet,type TabletApp} from "./Tablet";
 import {CaseDesk} from "./CaseDesk";
+import {CablePanel} from "./CablePanel";
+import type {CableAction} from "@netcity/shared";
 import {AccountPanel} from './AccountPanel';
 import {accountExpected} from './auth';
 import {DistrictMap} from "./DistrictMap";
@@ -43,6 +45,10 @@ import "./style.css";
 function App() {
   const [tablet,setTablet]=useState(false),[tabletApp,setTabletApp]=useState<TabletApp>("calls");
   const tabletRef=useRef(false);
+  const [cablePending,setCablePending]=useState(false),[cableMessage,setCableMessage]=useState("");
+  const cableRequest=useRef<CableAction|null>(null);
+  const cableAct=(action:CableAction["action"])=>{if(!roomRef.current||cableRequest.current)return;const value={action,requestId:operationId()};cableRequest.current=value;setCablePending(true);try{roomRef.current.send("cable",value);}catch{setCableMessage('Связь потеряна. Переподключитесь и проверьте состояние бухты.');}};
+  const retryCable=()=>{if(cableRequest.current&&roomRef.current?.connection.isOpen)roomRef.current.send("cable",cableRequest.current);};
   const [caseMessage,setCaseMessage]=useState(""),[casePending,setCasePending]=useState(false);
   const casePendingRef=useRef(false);
   const pendingCaseId=useRef<string|null>(null);
@@ -106,7 +112,7 @@ function App() {
   const [economy, setEconomy] = useState(false);
   const [profile, setProfile] = useState<PrivateProfile | null>(null);
   const latestProfile=useRef(profile);latestProfile.current=profile;
-  useEffect(()=>{worldRef.current?.setClientCase(profile?.service?.cases.at(-1));},[profile]);
+  useEffect(()=>{worldRef.current?.setCable(profile?.cable);worldRef.current?.setClientCase(profile?.service?.cases.at(-1));},[profile]);
   useEffect(()=>{if(profile?.service?.cases.at(-1)?.stage!=="RINGING")return;const ring=()=>{if(!document.hidden)playFeedback(true,settingsRef.current.volume);};window.addEventListener("pointerdown",ring,{once:true});const t=setInterval(ring,7000);return()=>{clearInterval(t);window.removeEventListener("pointerdown",ring);};},[profile?.service?.cases.at(-1)?.id,profile?.service?.cases.at(-1)?.stage]);
   const previousProfile=useRef<PrivateProfile|null>(null);
   const [reward,setReward]=useState<{credits:number;xp:number}|null>(null);
@@ -205,7 +211,7 @@ function App() {
       if(e.repeat||isEditing(e.target))return;
       const b=settingsRef.current.bindings;
       if(e.code===b.tablet && (!tabletRef.current || b.tablet!=="Tab")){e.preventDefault();e.stopPropagation();if(tabletRef.current)closeTablet();else openTablet();}
-      if(e.code===b.drop && !touch.current.modal){const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
+      if(e.code===b.drop && !touch.current.modal){if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
     };
     window.addEventListener("keydown",keyboard,true);return()=>window.removeEventListener("keydown",keyboard,true);
   },[]);
@@ -252,6 +258,9 @@ function App() {
           return;
         }
         roomRef.current = room;
+        setCablePending(false);cableRequest.current=null;
+        room.onMessage("cableResult",(r:ProgressResult)=>{setCableMessage(r.message);if(!r.requestId||r.requestId===cableRequest.current?.requestId){setCablePending(false);cableRequest.current=null;}});
+        room.onMessage("cableHint",(r:ProgressResult)=>{setMessage(r.message);setMessageOk(false);});
         casePendingRef.current=false;setCasePending(false);
         room.onMessage("interactionResult",(r:ProgressResult)=>{setMessage(r.message);setMessageOk(r.ok);});
         room.onMessage("caseResult",(result:ProgressResult)=>{
@@ -289,6 +298,7 @@ function App() {
           setView,
           id=>{
             if(id==="case-hardware"){openTablet("tickets");return;}
+            if(id==="cable"){openTablet("tools");return;}
             if(id==="case-dropped"){const c=latestProfile.current?.service?.cases.at(-1);if(c)caseAct({action:"take",caseId:c.id});return;}
             if(id==="client"){openTablet("tickets");return;}
             if(id==="supplier"){openTablet("bag");return;}
@@ -727,7 +737,7 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {CASE.address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {CASE.address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
       {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
