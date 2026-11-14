@@ -12,6 +12,7 @@ x-server: &server
   user: "${NETCITY_UID:-1000}:${NETCITY_GID:-1000}"
   environment:
     NODE_ENV: production
+    AUTH_PROXY_HOPS: "1"
     DB_HOST: db
     DB_USER: ${POSTGRES_USER:-netcity}
     DB_NAME: ${POSTGRES_DB:-netcity}

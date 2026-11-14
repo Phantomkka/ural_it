@@ -1,5 +1,7 @@
 import { Client, type Room } from "@colyseus/sdk";
 import { acquireIdentity, replaceExpiredIdentity } from "./identity";
+import {gameEndpoint} from './endpoint';
+import {accountSession,accountExpected} from './auth';
 import {
   ROOM_NAME,
   type PlayerView,
@@ -17,9 +19,13 @@ export interface NetworkState {
   devices: Map<string, DeviceView>;
 }
 export async function connect() {
-  const endpoint =
-    import.meta.env.VITE_SERVER_URL ||
-    `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/game`;
+  const endpoint=gameEndpoint();
+  const account=await accountSession();
+  if(account.login){
+    const room=await new Client(endpoint).joinOrCreate<NetworkState>(ROOM_NAME,{account:true});
+    room.reconnection.enabled=false;return room;
+  }
+  if(accountExpected())throw Object.assign(Error('Сессия завершена. Войдите в аккаунт; прогресс не заменён гостем.'),{code:'ACCOUNT_REQUIRED'});
   const createGuest = async () => {
     const response = await fetch(
       endpoint.replace(/^ws/, "http").replace(/\/$/, "") + "/guest",

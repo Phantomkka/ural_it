@@ -2,6 +2,14 @@ const SESSION_KEY="netcity-guest-token";
 const DEVICE_KEY="netcity-saved-guest-token";
 let memory:string|null=null;
 let notice="";
+let accountLogin:string|null=null;
+export const setAccountIdentity=(login:string|null)=>{accountLogin=login;};
+export const guestIdentity=()=>current();
+export function forgetGuestIdentity(token:string){
+  try{if(session()===token)sessionStorage.removeItem(SESSION_KEY);}catch{}
+  try{if(saved()===token)localStorage.removeItem(DEVICE_KEY);}catch{}
+  if(memory===token)memory=null;
+}
 const valid=(token:string|null):token is string=>typeof token==="string"&&/^[a-f0-9]{64}$/.test(token);
 const session=()=>{try{return sessionStorage.getItem(SESSION_KEY);}catch{return null;}};
 const saved=()=>{try{return localStorage.getItem(DEVICE_KEY);}catch{return null;}};
@@ -41,6 +49,7 @@ export async function replaceExpiredIdentity(token:string,create:()=>Promise<str
   return next;
 }
 export function identityStatus() {
+  if(accountLogin)return {mode:"account" as const,notice:"",conflict:false};
   const token=memory??current();
   const mode=token && saved()===token ? "device" : token && session()===token ? "tab" : "memory";
   const conflict=valid(saved()) && saved()!==token;

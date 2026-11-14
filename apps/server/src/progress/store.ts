@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID, createHash } from "node:crypto";
+import {MemoryAccountStore,AuthConflict,type AccountStore} from "../auth/store.js";
 import {
   ITEMS,
   JOBS,
@@ -38,6 +39,7 @@ export interface Transaction {
   saveOperation?: Operation;
 }
 export interface ProgressStore {
+  readonly accounts:AccountStore;
   mode: PrivateProfile["persistence"];
   register(): Promise<{ token: string; profileId: string }>;
   identify(token: string): Promise<string | null>;
@@ -114,6 +116,12 @@ export class MemoryProgressStore implements ProgressStore {
   private operations = new Map<string, Operation>();
   private rewards = new Set<string>();
   private tail: Promise<unknown> = Promise.resolve();
+  readonly accounts=new MemoryAccountStore((token)=>{
+    const task=this.tail.then(()=>{
+      if(token){const hash=hashToken(token),id=this.identities.get(hash);if(!id)throw new AuthConflict('Логин занят или гостевой профиль уже привязан.');this.identities.delete(hash);return {profileId:id,guestHash:hash};}
+      const data=newProfile();this.profiles.set(data.id,data);return {profileId:data.id,guestHash:null};
+    });this.tail=task.catch(()=>{});return task;
+  });
   async register() {
     const token = randomBytes(32).toString("hex"),
       data = newProfile();

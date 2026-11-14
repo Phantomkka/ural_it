@@ -114,7 +114,7 @@ export class WorkController {
       .then(async () => {
         this.expire();
         const id = this.actors.get(client.sessionId);
-        if (id) await task(id);
+        if (id) {if(await this.room.authorize(client))await task(id);else client.leave(4001);}
       })
       .catch(() => {
         this.send(client, channel, {

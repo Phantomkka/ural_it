@@ -1,6 +1,7 @@
 import { Pool, type PoolClient } from "pg";
 import { randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
+import {PostgresAccountStore} from "../auth/postgres.js";
 import {
   hashToken,
   validToken,
@@ -28,6 +29,7 @@ function decode(row: Record<string, any>): ProfileData {
 export class PostgresProgressStore implements ProgressStore {
   mode = "postgres" as const;
   readonly pool: Pool;
+  readonly accounts:PostgresAccountStore;
   constructor(url: string) {
     this.pool = new Pool({
       connectionString: url,
@@ -38,6 +40,7 @@ export class PostgresProgressStore implements ProgressStore {
     this.pool.on("error", () =>
       console.error("PostgreSQL: ошибка фонового подключения."),
     );
+    this.accounts=new PostgresAccountStore(this.pool);
   }
   async migrate() {
     const client = await this.pool.connect();
@@ -69,6 +72,10 @@ export class PostgresProgressStore implements ProgressStore {
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=3")).rowCount) {
         await client.query(await readFile(new URL("../../migrations/003_client_cases.sql", import.meta.url), "utf8"));
         await client.query("INSERT INTO schema_migrations(version) VALUES(3)");
+      }
+      if (!(await client.query("SELECT version FROM schema_migrations WHERE version=4")).rowCount) {
+        await client.query(await readFile(new URL("../../migrations/004_accounts.sql", import.meta.url), "utf8"));
+        await client.query("INSERT INTO schema_migrations(version) VALUES(4)");
       }
       await client.query("COMMIT");
     } catch (error) {
@@ -180,6 +187,7 @@ export class PostgresProgressStore implements ProgressStore {
   }
   async health() {
     await this.pool.query("SELECT id FROM profiles LIMIT 0");
+    await this.pool.query("SELECT id FROM accounts LIMIT 0");
   }
   async close() {
     await this.pool.end();

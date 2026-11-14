@@ -1014,3 +1014,16 @@ aside .open-progress {
 .tablet-frame .tutorial-card {position:static;max-width:none;width:100%;margin:0 0 20px;}
 .tablet-top .profile-summary {font-size:12px;max-width:50%;line-height:1.5;}
 @media(max-width:500px){.tablet-top {gap:6px;}.tablet-top b {font-size:11px;}.tablet-top small {font-size:7px;letter-spacing:0;}.tablet-top .profile-summary {font-size:10px;}.tablet-top button {min-width:44px;}}
+
+.account-panel {max-width:760px;margin:auto;}
+.account-panel p {line-height:1.65;color:#bcd1dc;}
+.account-panel form {display:grid;gap:18px;margin:22px 0;}
+.account-panel label {display:grid;gap:8px;font-size:14px;}
+.account-panel input:not([type=checkbox]),.account-panel textarea {width:100%;min-height:48px;background:#071b28;color:#eef9fc;border:1px solid #5f8e9d;border-radius:8px;padding:12px;font:inherit;}
+.account-panel textarea {min-height:100px;overflow-wrap:anywhere;resize:vertical;}
+.account-panel .account-check {display:flex;align-items:center;gap:12px;line-height:1.6;}
+.account-check input {width:22px;height:22px;flex-shrink:0;}
+.account-tabs {display:flex;gap:8px;flex-wrap:wrap;}
+.account-tabs [aria-pressed=true] {border-color:#62e3bd;background:#27594e;}
+.account-migration {border:1px solid #5c8498;border-radius:10px;padding:16px;}
+.account-message:not(:empty),.account-warning {padding:12px;border-left:3px solid #e3b36d;background:#273a40;}
