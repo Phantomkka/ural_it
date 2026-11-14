@@ -7,8 +7,9 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:5173",
     headless: true,
+    trace: "retain-on-failure",
     launchOptions: {
-      executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium",
+      executablePath: process.env.CHROMIUM_PATH || (process.platform === "win32" ? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe" : "/usr/bin/chromium"),
       args: ["--no-sandbox", "--enable-unsafe-swiftshader"],
     },
   },

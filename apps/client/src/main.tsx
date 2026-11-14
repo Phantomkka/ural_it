@@ -21,7 +21,11 @@ import {
 } from "./network";
 import { MODEL_COUNT, type GraphicsProgress } from "./assets";
 import { defaultQuality, type Quality } from "./quality";
-import { createWorld } from "./world";
+import { createWorld, type WorldView } from "./world";
+import { GameMenu, type Menu } from "./GameMenu";
+import { Tutorial } from "./Tutorial";
+import { isEditing, keyLabel, readSettings, saveSettings, type Settings } from "./settings";
+import { playFeedback } from "./sound";
 import { MobileControls, type TouchInput } from "./controls";
 import { ProgressPanel } from "./ProgressPanel";
 import { pendingProgress, savePending, operationId } from "./pendingProgress";
@@ -29,6 +33,14 @@ import { VirtualComputer, type ComputerSnapshot } from "./VirtualComputer";
 import { TicketJournal } from "./TicketJournal";
 import "./style.css";
 function App() {
+  const [settings, setSettings] = useState(readSettings);
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+  const changeSettings = (next: Settings) => { setSettings(next); saveSettings(next); };
+  const [menu, setMenu] = useState<Menu | null>(null);
+  const [view, setView] = useState<WorldView>({x:0,z:-10,yaw:0,moved:false,looked:false,locked:false});
+  const [tutorial, setTutorial] = useState(() => {try {return localStorage.getItem("netcity-tutorial-v2")!=="done";} catch {return true;}});
+  const dismissTutorial = () => { setTutorial(false); try {localStorage.setItem("netcity-tutorial-v2","done");} catch { /* optional */ } };
   const [quality, setQuality] = useState<Quality>(defaultQuality);
   const qualityRef = useRef(quality);
   qualityRef.current = quality;
@@ -75,12 +87,10 @@ function App() {
   const [message, setMessage] = useState("");
   const [messageOk, setMessageOk] = useState(true);
   const [nickname, setNickname] = useState("");
-  const [expanded, setExpanded] = useState(
-    () => !matchMedia("(pointer: coarse)").matches,
-  );
+  const [expanded, setExpanded] = useState(false);
   const dialogRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (!panel && !economy && !pcId) return;
+    if (!panel && !economy && !pcId && !menu) return;
     const dialog = dialogRef.current!;
     const buttons = Array.from(
       dialog.querySelectorAll<HTMLElement>(
@@ -94,6 +104,7 @@ function App() {
         setEconomy(false);
         setPcId(null);
         setPanel(false);
+        setMenu(null);
         touch.current.modal = false;
         canvas.current?.focus();
       }
@@ -116,7 +127,31 @@ function App() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [panel, economy, pcId]);
+  }, [panel, economy, pcId, menu]);
+  const openMenu = (next: Menu) => {
+    touch.current.modal = true;
+    setPanel(false); setEconomy(false); setPcId(null); setMenu(next);
+    if (document.pointerLockElement) document.exitPointerLock();
+  };
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || isEditing(event.target)) return;
+      if (event.code === "Escape") {
+        if (!touch.current.modal) {event.preventDefault(); openMenu("settings");}
+        return;
+      }
+      if (touch.current.modal) return;
+      const b=settingsRef.current.bindings;
+      if (event.code===b.help || event.key==="?") {event.preventDefault(); openMenu("help");}
+      if (event.code===b.map) {event.preventDefault(); openMenu("map");}
+      if (event.code===b.inventory || event.code===b.journal) {
+        event.preventDefault(); touch.current.modal=true; setEconomy(true);
+        if(document.pointerLockElement) document.exitPointerLock();
+      }
+    };
+    window.addEventListener("keydown",handler);
+    return ()=>window.removeEventListener("keydown",handler);
+  }, []);
   useEffect(() => {
     let cancelled = false;
     let cleanup: (() => void) | undefined;
@@ -176,6 +211,8 @@ function App() {
             if (!cancelled) setGraphics(progress);
           },
           qualityRef.current,
+          () => settingsRef.current,
+          setView,
         );
         worldRef.current = world;
         room.onMessage("profile", (value: PrivateProfile) => {
@@ -272,6 +309,7 @@ function App() {
           if (cancelled) return;
           setMessage(result.message);
           setMessageOk(result.ok);
+          playFeedback(result.ok, settingsRef.current.volume);
           if (result.ok && result.inspected) {
             setPcId(null);
             setEconomy(false);
@@ -325,6 +363,7 @@ function App() {
     setEconomy(false);
     setPcId(null);
     setPanel(false);
+    setMenu(null);
     touch.current.modal = false;
     canvas.current?.focus();
   };
@@ -383,6 +422,10 @@ function App() {
         <button onClick={() => setAttempt((v) => v + 1)}>
           Переподключиться
         </button>
+        <button onClick={()=>openMenu("settings")}>Настройки</button>
+        <button onClick={()=>openMenu("map")}>Карта</button>
+        <button onClick={()=>openMenu("help")} aria-label="Помощь и управление">?</button>
+        <details className="diagnostics"><summary>Графика и загрузка</summary>
         <label className="quality-setting">
           Качество графики
           <select
@@ -425,6 +468,7 @@ function App() {
             </details>
           )}
         </div>
+        </details>
       </aside>
       <section className="ticket" aria-label="Заявка №001">
         <div className="eyebrow">SERVICE DESK / #001</div>
@@ -465,8 +509,8 @@ function App() {
               </li>
             ))}
           </ol>
-          <small>Награды за заявку: {step === 6 ? 1 : 0}/1</small>
         </details>
+        <small>Награды за заявку: {step === 6 ? 1 : 0}/1</small>
         {step === 6 && (
           <strong role="status">
             ✅ Заявка выполнена! Сеть восстановлена.
@@ -483,10 +527,10 @@ function App() {
         />
       </section>
       <div className="crosshair">+</div>
-      {target && !panel && !economy && !pcId && (
-        <div className="interaction-hint">[E] {targetLabel}</div>
+      {target && !panel && !economy && !pcId && !menu && (
+        <div className="interaction-hint"><span>[{keyLabel(settings.bindings.interact)}] {targetLabel}</span><small>Дистанция действия: до 2,5 м</small></div>
       )}
-      {!panel && !economy && !pcId && (
+      {!panel && !economy && !pcId && !menu && (
         <MobileControls
           key={attempt}
           enabled={target}
@@ -494,6 +538,13 @@ function App() {
           interact={() => worldRef.current?.interact()}
         />
       )}
+      {tutorial && !panel && !economy && !pcId && !menu && status === "В сети" && <Tutorial
+        journey={{moved:view.moved,looked:view.looked,inspected:step>=4}} completed={profile?.tutorialCompleted??false}
+        settings={settings} dismiss={dismissTutorial}/>}
+      {!view.locked && !matchMedia("(pointer: coarse)").matches && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}
+      {menu && <GameMenu menu={menu} settings={settings} change={changeSettings} quality={quality}
+        setQuality={q=>{setQuality(q);worldRef.current?.setQuality(q);}} close={closePanel}
+        repeat={()=>{setTutorial(true);closePanel();}} dialogRef={dialogRef} position={view}/>}
       {economy && (
         <ProgressPanel
           profile={profile}
@@ -597,7 +648,7 @@ function App() {
           </section>
         </div>
       )}
-      {!panel && !economy && !pcId && message && (
+      {!panel && !economy && !pcId && !menu && message && (
         <div
           className={`action-message notification ${messageOk ? "success" : "error"}`}
           role="status"
@@ -607,7 +658,7 @@ function App() {
       )}
       <footer>
         <small>
-          WASD — движение · мышь — обзор · E — осмотр · Esc — курсор
+          {Object.values(settings.bindings).slice(0,4).map(keyLabel).join("/")} — движение · {keyLabel(settings.bindings.sprint)} — бег · {keyLabel(settings.bindings.interact)} — осмотр · Esc — меню
           <br />
           На смартфоне: джойстик слева, обзор свайпом справа.
         </small>
