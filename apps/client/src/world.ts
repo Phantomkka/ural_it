@@ -1,3 +1,4 @@
+import {buildCableObjects,createCableRoll} from "./cableObjects";
 import {
   Engine,
   Scene,
@@ -85,8 +86,9 @@ export function createWorld(
     const computers = buildComputers(scene, material);
     buildDistrict(scene,material);
     const caseObjects=buildCaseObjects(scene,material);
+    const cableObjects=buildCableObjects(scene,material);
     for (const mesh of scene.meshes)
-      if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
+      if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && !mesh.metadata?.cableDynamic && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
     const pickEquipment = () => {
       const hit = scene.pickWithRay(
         camera.getForwardRay(INTERACTION_RANGE),
@@ -94,6 +96,7 @@ export function createWorld(
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
       const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(hit?.pickedMesh?.metadata?.cableTarget)return {id:"contact:cable",label:"Бухта кабеля · инструменты"};
       if(hit?.pickedMesh?.metadata?.entryDoor)return {id:"entry-door",label:"Открыть / закрыть дверь"};
       if(hit?.pickedMesh?.metadata?.caseTarget)return {id:"contact:case-"+hit.pickedMesh.metadata.caseTarget,label:hit.pickedMesh.metadata.caseTarget==="dropped"?"Подобрать свою деталь":"Осмотреть CLIENT-PC04"};
       if(npcId) return {id:`contact:${npcId}`,label:`Поговорить: ${CONTACTS.find(n=>n.id===npcId)?.name??"инженер"}`};
@@ -120,6 +123,7 @@ export function createWorld(
       else sendComputer(room, { type: "open", pcId: target.id });
     };
     const avatars = new Map<string, ReturnType<typeof createAvatar>>();
+    const roll=createCableRoll(scene,material,"held-roll");roll.parent=camera;roll.position.set(0.35,-0.45,0.85);roll.getChildMeshes().forEach(m=>m.isPickable=false);roll.setEnabled(false);
     const carried=MeshBuilder.CreateBox("held-cable",{width:0.25,height:0.12,depth:0.2},scene);carried.material=material("held-cable","#64dec1");carried.parent=camera;carried.position.set(0.3,-0.4,0.8);carried.isPickable=false;carried.setEnabled(false);
     const keys = new Set<string>();
     let yaw = 0,
@@ -253,7 +257,7 @@ export function createWorld(
       touch.lookY = 0;
       camera.rotation.set(pitch, yaw, 0);
       const me = room.state.players?.get(room.sessionId);
-      carried.setEnabled(me?.heldItem==="patch_cord");
+      carried.setEnabled(me?.heldItem==="patch_cord");roll.setEnabled(me?.heldItem==="cable_roll");
       if (me) {
         origin ??= {x:me.x,z:me.z};
         moved ||= Math.hypot(me.x-origin.x,me.z-origin.z)>1;
@@ -312,6 +316,7 @@ export function createWorld(
         room.state.equipment?.port3Connected ?? false,
       );
       if (performance.now() - lastPick > 100) {
+        if(room.state.players)cableObjects.update(room.state.players);
         const next = active && !touch.modal ? pickEquipment() : null;
         if ((next?.id ?? "") !== lastTarget) {
           onTarget(!!next, next?.label);
@@ -352,7 +357,7 @@ export function createWorld(
       engine.dispose();
     };
     room.onLeave(dispose);
-    return { interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync };
+    return { interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync,setCable:cableObjects.setTask };
   } catch (error) {
     engine.dispose();
     throw error;

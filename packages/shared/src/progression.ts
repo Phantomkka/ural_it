@@ -36,6 +36,7 @@ export interface WorkOrder {
   completedAt: number | null;
 }
 export interface PrivateProfile {
+  cable?:import('./cable.js').CableTask;
   service?: ServiceProgress;
   company?: CompanyView;
   /** Paid computer diagnostics, once per profile. Older clients ignore this additive field. */

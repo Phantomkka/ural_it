@@ -12,6 +12,7 @@ import {
   type ServiceProgress,
 } from "@netcity/shared";
 export interface ProfileData {
+  cable?:import('@netcity/shared').CableTask;
   service?: ServiceProgress;
   diagnostics?: string[];
   id: string;
@@ -92,6 +93,7 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.cable!==undefined && (data.cable.points.length<1||data.cable.points.length>12||![...data.cable.points,data.cable.endpoint].every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<=45&&Math.abs(p.z)<=45))) ||
     (data.service!==undefined && (!Number.isSafeInteger(data.service.completed)||data.service.completed<0||!Array.isArray(data.service.cases)||data.service.cases.length>20||new Set(data.service.cases.map(c=>c.id)).size!==data.service.cases.length)) ||
     (data.diagnostics !== undefined && (!Array.isArray(data.diagnostics) || new Set(data.diagnostics).size !== data.diagnostics.length || data.diagnostics.some(id=>!JOBS.some(job=>job.id===id)))) ||
     ![

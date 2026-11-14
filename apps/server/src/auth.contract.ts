@@ -8,6 +8,7 @@ export async function authContract(store: ProgressStore) {
     const auth = new AuthService(store, () => now), name = 'user_' + randomUUID().slice(0, 8), password = 'Correct horse battery 27!';
     const guest = await store.register();
     await store.transaction(guest.profileId, null, tx => { tx.data.credits = 321; tx.data.xp = 160; tx.data.inventory.patch_cord = 3; tx.data.inventory.cleaner = 2; tx.data.tutorialCompleted = true; tx.data.diagnostics = ['003']; refreshCases(tx.data, now); const c = tx.data.service!.cases[0]; c.stage = 'COMPLETED'; c.completedAt = now; c.availableAt = now + 60000; tx.data.service!.completed = 1; return { ok: true, message: '' }; });
+    await store.transaction(guest.profileId,null,tx=>{tx.data.cable={id:randomUUID(),stage:'TESTED',points:[{x:11,z:4.8},{x:11,z:0},{x:16,z:0},{x:18,z:0}],endpoint:{x:18,z:0}};return {ok:true,message:''};});
     const before = await store.read(guest.profileId);
     const created = await auth.register({ login: name.toUpperCase(), password, guestToken: guest.token, confirm: true }, 'contract');
     assert.equal(created.login, name);
