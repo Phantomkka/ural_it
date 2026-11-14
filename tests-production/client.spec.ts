@@ -14,7 +14,10 @@ test("production client loads local models and connects two browser guests throu
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
   await a.goto("/");
-  await expect(a.locator(".profile-summary")).toContainText("PostgreSQL");
+  const health=await (await a.request.get("/game/health")).json();
+  expect(health).toMatchObject({status:"ok",persistence:"postgres"});
+  expect(await (await a.request.get("/version.json")).json()).toEqual({revision:health.revision});
+  await expect(a.locator(".profile-summary")).toContainText("Прогресс сохраняется");
   await b.goto("/");
   await expect(a.locator("aside")).toContainText("Игроков: 2");
   await expect(b.locator("aside")).toContainText("Игроков: 2");
@@ -33,6 +36,7 @@ test("production client loads local models and connects two browser guests throu
   await a.evaluate(() => {
     if (document.pointerLockElement) document.exitPointerLock();
   });
+  await a.getByRole("button",{name:"Продолжить",exact:true}).click();
   await a
     .getByRole("button", { name: "Работа и снабжение", exact: true })
     .click();
@@ -46,7 +50,7 @@ test("production client loads local models and connects two browser guests throu
   await dialog
     .getByRole("button", { name: "Закрыть профиль", exact: true })
     .click();
-  await a.screenshot({ path: "/tmp/netcity-production-client.png" });
+  await a.screenshot({ path: test.info().outputPath("netcity-production-client.png") });
   expect(errors).toEqual([]);
   await context.close();
 });

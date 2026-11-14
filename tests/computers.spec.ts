@@ -300,4 +300,6 @@ test("diagnose and repair all office faults through the real virtual desktop, in
   await expect(page.locator(".profile-summary")).toContainText("280 NET");
   await page.getByRole("button",{name:"Работа и снабжение",exact:true}).click();
   await expect(page.locator(".diagnostic-board")).toContainText("Выполнено и оплачено");
+  await expect(page.getByLabel("Моя IT-бригада")).toContainText("Контракт выполнен");
+  await expect(page.getByTestId("reputation")).toHaveText("1");
 });

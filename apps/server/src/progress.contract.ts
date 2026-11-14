@@ -38,6 +38,22 @@ export async function progressContract(t: TestContext, store: ProgressStore) {
     };
   };
   await t.test(
+    "the first outsourcing contract derives one reputation point from paid work, never a client claim",
+    async()=>{
+      const f=await fixture();
+      assert.equal(snapshot(await f.data(),store.mode).company!.reputation,0);
+      assert.equal((await f.command({type:"completeContract",reputation:999})).result.ok,false);
+      await f.tutorial();
+      for(const id of ["002","003","004"]) await f.service.finishDiagnostic(f.guest.profileId,id,()=>null);
+      const profile=snapshot(await f.data(),store.mode);
+      assert.equal(profile.credits,280);assert.equal(profile.xp,180);
+      assert.equal(profile.company!.contract.completed,true);assert.equal(profile.company!.reputation,1);
+      await f.service.finishDiagnostic(f.guest.profileId,"003",()=>null);
+      assert.equal(snapshot(await f.data(),store.mode).company!.reputation,1);
+      assert.equal((await f.data()).credits,280);
+    },
+  );
+  await t.test(
     "paid diagnostics survive retries, preserve privacy and cannot be completed through progress commands",
     async () => {
       const f=await fixture();

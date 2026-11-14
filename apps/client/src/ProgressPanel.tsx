@@ -1,4 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
+import { CompanyPanel } from "./CompanyPanel";
 import {
   ITEMS,
   JOBS,
@@ -82,6 +83,7 @@ export function ProgressPanel({
                 : "✓ PostgreSQL — прогресс сохраняется между перезапусками сервера."}
             </p>
             <h3>Доска заявок</h3>
+            {profile.company && <details className="company-details"><summary>Моя IT-бригада · контракт офиса</summary><CompanyPanel company={profile.company} track={track}/></details>}
             <p>
               Одновременно можно взять одну работу. Техника общая: чужую заявку
               завершить нельзя. Первый осмотр коммутатора принимает вводную

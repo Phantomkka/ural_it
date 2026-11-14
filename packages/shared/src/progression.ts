@@ -1,4 +1,5 @@
 /** Rules for virtual NET credits only. The server is the authority. */
+import type { CompanyView } from "./company.js";
 export const LEVELS = [0, 60, 180, 360] as const;
 export const REPEAT_DELAY_MS = 30_000;
 export const ITEMS = {
@@ -34,6 +35,7 @@ export interface WorkOrder {
   completedAt: number | null;
 }
 export interface PrivateProfile {
+  company?: CompanyView;
   /** Paid computer diagnostics, once per profile. Older clients ignore this additive field. */
   diagnostics?: string[];
   nickname: string;
