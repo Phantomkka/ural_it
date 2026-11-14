@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { Client } from "@colyseus/core";
 import {
   canReachSwitch,
+  canReachComputer,
+  JOBS,
+  type ComputerId,
   type WorkKind,
   type WorkOrder,
   type ActionResult,
@@ -9,6 +12,7 @@ import {
 import type { StreetRoom } from "../StreetRoom.js";
 import { ProgressService } from "./service.js";
 import { snapshot, type ProfileData } from "./store.js";
+import { handleComputer } from "../computerActions.js";
 interface Lease {
   sessionId: string;
   profileId: string;
@@ -141,6 +145,29 @@ export class WorkController {
       });
     });
   }
+  computer(client: Client, value: unknown) {
+    this.enqueue(client, "computerResult", async id => {
+      const player=this.room.state.players.get(client.sessionId)!;
+      const action=value as {type?:string;pcId?:ComputerId} | null;
+      const job=JOBS.find(j=>j.pcId===action?.pcId);
+      const progress=job && player.jobs.get(job.id);
+      const prior=progress && {stage:progress.stage,status:progress.status,rewards:player.rewards};
+      const result=handleComputer(player,this.room.state.devices,this.room.state.equipment,value);
+      if (result.ok && action?.type==="closeTicket" && job && progress && prior) {
+        // Keep the session task retryable until the transaction commits.
+        progress.stage=prior.stage; progress.status=prior.status; player.rewards=prior.rewards;
+        const revision=this.room.state.devices.get(job.pcId)!.revision;
+        const outcome=await this.service.finishDiagnostic(id,job.id,()=> {
+          if(!this.room.state.players.has(client.sessionId) || !canReachComputer(player,job.pcId)) return "Подойдите к компьютеру для завершения работы.";
+          if(this.room.state.devices.get(job.pcId)!.revision!==revision) return "Настройки изменились. Повторите диагностику.";
+          return null;
+        });
+        if(outcome.result.ok) {progress.stage=job.steps.length;progress.status="COMPLETED";player.rewards=prior.rewards+1;}
+        this.profile(client,outcome.data);
+        this.send(client,"computerResult",{...result,...outcome.result,pcId:job.pcId});
+      } else this.send(client,"computerResult",result);
+    });
+  }
   equipment(client: Client, value: unknown) {
     this.enqueue(client, "actionResult", async (id) => {
       const player = this.room.state.players.get(client.sessionId)!;
@@ -239,7 +266,7 @@ export class WorkController {
         this.release(kind);
         if (kind === "patch") {
           player.ticketStep = 6;
-          player.rewards = outcome.data.tutorialCompleted ? 1 : 0;
+          player.rewards = Number(outcome.data.tutorialCompleted) + (outcome.data.diagnostics?.length ?? 0);
         }
       }
       if (

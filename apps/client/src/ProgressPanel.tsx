@@ -1,6 +1,8 @@
 import { useEffect, useState, type RefObject } from "react";
 import {
   ITEMS,
+  JOBS,
+  DIAGNOSTIC_REWARD,
   WORK,
   type PrivateProfile,
   type ProgressIntent,
@@ -16,6 +18,7 @@ export function ProgressPanel({
   retry,
   close,
   dialogRef,
+  track,
 }: {
   profile: PrivateProfile | null;
   pending: ProgressAction | null;
@@ -24,6 +27,7 @@ export function ProgressPanel({
   retry: () => void;
   close: () => void;
   dialogRef: RefObject<HTMLElement | null>;
+  track: (id:string)=>void;
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -151,6 +155,13 @@ export function ProgressPanel({
                   </small>
                 </p>
               ))}
+            <h3>Диагностика рабочих мест</h3>
+            <p>Вначале восстановите общую сеть. Затем осмотрите ПК, выполните диагностику, исправьте причину и проверьте результат. Нужен набор инструментов. За каждый ПК платим один раз на профиль; повторная практика не приносит деньги.</p>
+            <div className="work-board diagnostic-board">{JOBS.map(job=><article key={job.id}>
+              <b>№{job.id} · {job.title}</b><p>{job.description}</p>
+              <p>{profile.diagnostics?.includes(job.id)?"✓ Выполнено и оплачено":`Награда: ${DIAGNOSTIC_REWARD.credits} NET · ${DIAGNOSTIC_REWARD.xp} XP`}</p>
+              <button onClick={()=>track(job.id)}>Отслеживать №{job.id}</button>
+            </article>)}</div>
             <h3>Снабжение · только виртуальные кредиты</h3>
             <div className="supply-list">
               {(Object.keys(ITEMS) as ItemId[]).map((id) => (

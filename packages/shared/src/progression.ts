@@ -34,6 +34,8 @@ export interface WorkOrder {
   completedAt: number | null;
 }
 export interface PrivateProfile {
+  /** Paid computer diagnostics, once per profile. Older clients ignore this additive field. */
+  diagnostics?: string[];
   nickname: string;
   credits: number;
   xp: number;
@@ -46,6 +48,7 @@ export interface PrivateProfile {
   version: number;
   persistence: "temporary" | "postgres";
 }
+export const DIAGNOSTIC_REWARD = { credits: 60, xp: 40 } as const;
 export type ProgressIntent =
   | { type: "buy"; itemId: ItemId }
   | { type: "accept" | "cancel"; jobId: string };

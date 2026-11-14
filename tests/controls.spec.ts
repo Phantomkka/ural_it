@@ -28,7 +28,7 @@ test("new player learns, rebinds controls, pauses safely, and keeps settings", a
   await expect(page.getByLabel("Инверсия Y")).toBeChecked();
   await page.getByRole("button",{name:"Повторить обучение"}).click();
   await expect(page.getByLabel("Обучение новичка")).toBeVisible();
-  await page.screenshot({path:"docs/screenshots/2-controls-desktop.png"});
+  await page.screenshot({path:test.info().outputPath("2-controls-desktop.png")});
 });
 test("portrait mobile has reachable training and menus without horizontal scroll",async({browser})=>{
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -41,5 +41,5 @@ test("portrait mobile has reachable training and menus without horizontal scroll
   await expect(page.getByRole("dialog")).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole("button",{name:"Продолжить",exact:true}).tap();
-  await page.screenshot({path:"docs/screenshots/2-controls-mobile.png"}); await context.close();
+  await page.screenshot({path:test.info().outputPath("2-controls-mobile.png")}); await context.close();
 });

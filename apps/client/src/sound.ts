@@ -1,6 +1,6 @@
 let context: AudioContext | undefined;
 export function playFeedback(ok: boolean, volume: number) {
-  if (!volume || !navigator.userActivation.hasBeenActive) return;
+  if (!volume || !navigator.userActivation?.hasBeenActive) return;
   try {
     context ??= new AudioContext();
     void context.resume().catch(()=>{});

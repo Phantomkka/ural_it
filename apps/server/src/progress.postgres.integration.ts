@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { Pool } from "pg";
 import { Client } from "@colyseus/sdk";
 import { matchMaker } from "@colyseus/core";
@@ -8,7 +9,7 @@ import { ROOM_NAME } from "@netcity/shared";
 import { PostgresProgressStore } from "./progress/postgres.js";
 import { progressContract } from "./progress.contract.js";
 import { ProgressService } from "./progress/service.js";
-import { hashToken } from "./progress/store.js";
+import { hashToken, newProfile } from "./progress/store.js";
 import { createGameServer } from "./server.js";
 import type { StreetRoom, StreetState } from "./StreetRoom.js";
 const until = async (check: () => boolean) => {
@@ -33,6 +34,27 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
   try {
     await store.migrate();
     await store.migrate();
+    await t.test("additive upgrade preserves legacy profiles and older writers preserve diagnostics", async()=>{
+      const legacy=schema+"_legacy";
+      await admin.query(`CREATE SCHEMA ${legacy}`);
+      const legacyUrl=new URL(base);legacyUrl.searchParams.set("options",`-c search_path=${legacy}`);
+      const old=new Pool({connectionString:legacyUrl.toString()});
+      const upgraded=new PostgresProgressStore(legacyUrl.toString());
+      try {
+        await old.query(await readFile(new URL("../migrations/001_progress.sql",import.meta.url),"utf8"));
+        await old.query("CREATE TABLE schema_migrations(version integer PRIMARY KEY); INSERT INTO schema_migrations VALUES(1)");
+        const d=newProfile();
+        await old.query("INSERT INTO profiles(id,token_hash,nickname,credits,xp,inventory,jobs) VALUES($1,$2,$3,123,87,$4::jsonb,$5::jsonb)",[d.id,hashToken("a".repeat(64)),d.nickname,JSON.stringify(d.inventory),JSON.stringify(d.jobs)]);
+        await upgraded.migrate(); await upgraded.migrate();
+        const after=await upgraded.read(d.id);
+        assert.equal(after.credits,123);assert.equal(after.xp,87);assert.deepEqual(after.jobs,d.jobs);assert.deepEqual(after.diagnostics,[]);
+        const service=new ProgressService(upgraded);
+        await service.finishDiagnostic(d.id,"003",()=>null);
+        // Same statement used by the previous release: the new column survives rollback of application code.
+        await old.query("UPDATE profiles SET credits=credits+1 WHERE id=$1",[d.id]);
+        assert.deepEqual((await upgraded.read(d.id)).diagnostics,["003"]);
+      } finally {await upgraded.close();await old.end();await admin.query(`DROP SCHEMA ${legacy} CASCADE`);}
+    });
     await progressContract(t, store);
     await t.test(
       "hash-only storage and persistence across a real server and pool restart",
@@ -52,6 +74,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
           itemId: "patch_cord",
           requestId: randomUUID(),
         });
+        await service.finishDiagnostic(guest.profileId,"003",()=>null);
         const row = (
           await store.pool.query(
             "SELECT token_hash FROM profiles WHERE id=$1",
@@ -80,8 +103,9 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
           b.onMessage("progressResult", () => {});
           b.send("progress", { type: "refresh" });
           await until(() => profiles.length > 0);
-          assert.equal(profiles[0].credits, 70);
-          assert.equal(profiles[0].xp, 60);
+          assert.equal(profiles[0].credits, 130);
+          assert.equal(profiles[0].xp, 100);
+          assert.deepEqual(profiles[0].diagnostics,["003"]);
           assert.equal(profiles[0].inventory.patch_cord, 1);
           assert.equal(profiles[0].tutorialCompleted, true);
           assert.equal(profiles[0].persistence, "postgres");
@@ -92,7 +116,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
                 [guest.profileId],
               )
             ).rows[0].n,
-            1,
+            2,
           );
           await b.leave();
         } finally {

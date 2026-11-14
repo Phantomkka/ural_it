@@ -38,6 +38,21 @@ export async function progressContract(t: TestContext, store: ProgressStore) {
     };
   };
   await t.test(
+    "paid diagnostics survive retries, preserve privacy and cannot be completed through progress commands",
+    async () => {
+      const f=await fixture();
+      await f.tutorial();
+      assert.equal((await f.service.finishDiagnostic(f.guest.profileId,"003",()=>"Too far")).result.ok,false);
+      const results=await Promise.all(Array.from({length:8},()=>f.service.finishDiagnostic(f.guest.profileId,"003",()=>null)));
+      assert.equal(results.filter(r=>r.result.ok&&!r.result.replayed).length,1);
+      assert.equal((await f.data()).credits,160); assert.equal((await f.data()).xp,100);
+      assert.deepEqual((await f.data()).diagnostics,["003"]);
+      assert.equal((await f.command({type:"finishDiagnostic",jobId:"004"})).result.ok,false);
+      const other=await fixture(); assert.deepEqual((await other.data()).diagnostics,[]);
+      assert.equal((await f.service.finishDiagnostic(f.guest.profileId,"999",()=>null)).result.ok,false);
+    },
+  );
+  await t.test(
     "concurrent completion grants NET/XP exactly once per instance",
     async () => {
       const f = await fixture(),

@@ -279,6 +279,8 @@ test("diagnose and repair all office faults through the real virtual desktop, in
     .getByRole("button", { name: "Закрыть заявку №004", exact: true })
     .click();
   await expect(os).toContainText("Заявка №004 выполнена");
+  await expect(page.locator(".profile-summary")).toContainText("280 NET");
+  await expect(page.getByLabel("Получена награда")).toContainText("+60 NET");
   expect((await os.boundingBox())!.width).toBeLessThanOrEqual(390);
   expect(
     await page.evaluate(
@@ -294,4 +296,8 @@ test("diagnose and repair all office faults through the real virtual desktop, in
     await expect(page.locator(`[data-job="${id}"]`)).toContainText("COMPLETED");
   }
   expect(errors).toEqual([]);
+  await page.reload();
+  await expect(page.locator(".profile-summary")).toContainText("280 NET");
+  await page.getByRole("button",{name:"Работа и снабжение",exact:true}).click();
+  await expect(page.locator(".diagnostic-board")).toContainText("Выполнено и оплачено");
 });
