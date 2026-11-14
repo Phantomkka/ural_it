@@ -2,6 +2,7 @@ import { randomBytes, randomUUID, createHash } from "node:crypto";
 import {
   ITEMS,
   JOBS,
+  companyFromProgress,
   levelFor,
   type ItemId,
   type WorkOrder,
@@ -82,7 +83,7 @@ export function snapshot(
   mode: ProgressStore["mode"],
 ): PrivateProfile {
   const { id: _id, ...privateData } = structuredClone(data);
-  return { ...privateData, ...levelFor(data.xp), persistence: mode };
+  return { ...privateData, ...levelFor(data.xp), persistence: mode, company:companyFromProgress(data) };
 }
 export function assertProfile(data: ProfileData) {
   if (
