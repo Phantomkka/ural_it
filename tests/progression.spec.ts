@@ -149,6 +149,9 @@ test("earn NET and XP, buy consumables, service rack and perform a fresh repeat 
     await page.evaluate(() => sessionStorage.getItem("netcity-guest-token")),
   ).toBe(token);
   expect(errors).toEqual([]);
+  const context=page.context();await page.close();const nextTab=await context.newPage();
+  await nextTab.goto("/");await expect(nextTab.locator(".profile-summary")).toContainText("230 NET");
+  await expect(nextTab.locator(".identity-status")).toHaveAttribute("data-mode","device");
 });
 test("mobile profile and supply UI fits portrait and landscape and does not cover controls", async ({
   browser,
