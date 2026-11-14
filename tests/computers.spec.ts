@@ -80,7 +80,7 @@ async function openPC(page: Page, id: string, x: number, z: number) {
   try {
     await expect(page.locator(".interaction-hint")).toContainText(id);
   } catch (error) {
-    await page.screenshot({ path: "/tmp/netcity-pc-target-failure.png" });
+    await page.screenshot({ path: test.info().outputPath("netcity-pc-target-failure.png") });
     console.info(
       "Target diagnostic",
       await page.evaluate(async () => {
@@ -196,7 +196,7 @@ test("diagnose and repair all office faults through the real virtual desktop, in
     .getByRole("button", { name: "Закрыть заявку №002", exact: true })
     .click();
   await expect(os).toContainText("Заявка №002 выполнена");
-  await page.screenshot({ path: "/tmp/netcity-os-terminal.png" });
+  await page.screenshot({ path: test.info().outputPath("netcity-os-terminal.png") });
   await page.keyboard.press("Escape");
   await lock(page);
   await walk(page, "z", 0.15);
@@ -285,7 +285,7 @@ test("diagnose and repair all office faults through the real virtual desktop, in
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  await page.screenshot({ path: "/tmp/netcity-os-mobile.png" });
+  await page.screenshot({ path: test.info().outputPath("netcity-os-mobile.png") });
   await page.keyboard.press("Escape");
   await page.locator(".journal summary").click();
   await expect(page.locator(".journal")).toContainText("награды: 4/4");
