@@ -13,14 +13,17 @@ import type { StreetRoom } from "../StreetRoom.js";
 import { ProgressService } from "./service.js";
 import { snapshot, type ProfileData } from "./store.js";
 import { handleComputer } from "../computerActions.js";
+import { ClientCaseService } from "./clientCases.js";
 interface Lease {
   sessionId: string;
   profileId: string;
   jobId: string;
   expires: number;
 }
+const liveSessions=new Set<string>();
 /** Serializes world transactions without blocking authoritative movement ticks. */
 export class WorkController {
+  private lastDoorAction=0;
   private actors = new Map<string, string>();
   private subscribers = new Set<string>();
   private leases = new Map<WorkKind, Lease>();
@@ -33,13 +36,21 @@ export class WorkController {
   ) {}
   attach(client: Client, id: string) {
     this.actors.set(client.sessionId, id);
+    liveSessions.add(client.sessionId);
+    this.tail=this.tail.then(()=>this.service.store.transaction(id,null,tx=>{
+      for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier&&!liveSessions.has(c.carrier)){c.carrying=false;c.carrier=undefined;c.droppedAt=c.carryOrigin??null;c.carryOrigin=undefined;}
+      return {ok:true,message:""};
+    })).catch(()=>{});
   }
   detach(client: Client) {
+    const id=this.actors.get(client.sessionId),p=this.room.state.players.get(client.sessionId),position=p?{x:p.x,z:p.z}:undefined;
+    liveSessions.delete(client.sessionId);
     this.actors.delete(client.sessionId);
     this.subscribers.delete(client.sessionId);
     this.budgets.delete(client.sessionId);
     this.tail = this.tail
-      .then(() => {
+      .then(async () => {
+        if(id)await this.service.store.transaction(id,null,tx=>{for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier===client.sessionId){c.carrying=false;c.carrier=undefined;c.droppedAt=position??c.carryOrigin??null;c.carryOrigin=undefined;}return {ok:true,message:""};});
         for (const [kind, lease] of this.leases)
           if (lease.sessionId === client.sessionId) this.release(kind);
       })
@@ -143,6 +154,30 @@ export class WorkController {
             ? (value as { requestId: string }).requestId.slice(0, 36)
             : undefined,
       });
+    });
+  }
+  clientCase(client:Client,value:unknown) {
+    this.subscribers.add(client.sessionId);
+    this.enqueue(client,"caseResult",async id=>{
+      const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId}:null;});
+      if(outcome.data) {
+        this.profile(client,outcome.data);
+        const player=this.room.state.players.get(client.sessionId);
+        if(player)player.heldItem=outcome.data.service?.cases.some(c=>c.carrying&&c.carrier===client.sessionId)?"patch_cord":"";
+      }
+      this.send(client,"caseResult",{...outcome.result,requestId:typeof (value as any)?.requestId==="string"?(value as any).requestId.slice(0,36):undefined});
+    });
+  }
+  interaction(client:Client,value:unknown) {
+    this.enqueue(client,"interactionResult",async()=>{
+      const action=(value as {kind?:string})?.kind,player=this.room.state.players.get(client.sessionId);
+      const fail=(message:string)=>this.send(client,"interactionResult",{ok:false,message});
+      if(action==="liftHeavy")return fail("Автомобиль и серверная стойка слишком тяжёлые. Переносите небольшие детали.");
+      if(action!=="door"||!player||Math.hypot(player.x-8,player.z)>2.5)return fail("Подойдите к входной двери.");
+      if(Date.now()-this.lastDoorAction<800)return fail("Дождитесь движения двери.");
+      if(this.room.state.equipment.officeDoorOpen && [...this.room.state.players.values()].some(p=>Math.abs(p.x-8)<0.7&&Math.abs(p.z)<1.65))return fail("В проёме человек — дверь не закрывается.");
+      this.lastDoorAction=Date.now();this.room.state.equipment.officeDoorOpen=!this.room.state.equipment.officeDoorOpen;
+      this.send(client,"interactionResult",{ok:true,message:this.room.state.equipment.officeDoorOpen?"Дверь открыта":"Дверь закрыта"});
     });
   }
   computer(client: Client, value: unknown) {

@@ -1,11 +1,13 @@
 import { test, expect } from "@playwright/test";
-import { snapshot } from "./navigation";
+import { snapshot, tabletApp } from "./navigation";
 test("new player learns, rebinds controls, pauses safely, and keeps settings", async ({page})=>{
   await page.addInitScript(()=>localStorage.setItem("netcity-quality","low"));
   await page.goto("/");
-  await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".connection-status")).toContainText("В сети");
+  await tabletApp(page,"Обзор");
   await expect(page.getByLabel("Обучение новичка")).toContainText("Освойтесь");
   await page.getByRole("button",{name:"Пропустить обучение"}).click();
+  await page.keyboard.press("Escape");
   await page.locator("canvas").click({position:{x:450,y:350}});
   const before=await snapshot(page);
   await page.keyboard.down("KeyW"); await page.waitForTimeout(600);
@@ -21,9 +23,9 @@ test("new player learns, rebinds controls, pauses safely, and keeps settings", a
   await page.getByRole("button",{name:"Продолжить",exact:true}).click();
   await page.keyboard.press("KeyM"); await expect(page.getByRole("img",{name:"Карта Новолинска"})).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.reload(); await expect(page.locator("aside")).toContainText("В сети");
+  await page.reload(); await expect(page.locator(".connection-status")).toContainText("В сети");
   await expect(page.getByLabel("Обучение новичка")).toHaveCount(0);
-  await page.getByRole("button",{name:"Настройки",exact:true}).click();
+  await tabletApp(page,"Настройки");
   await expect(page.getByRole("button",{name:"Клавиша: Вперёд",exact:true})).toHaveText("Z");
   await expect(page.getByLabel("Инверсия Y")).toBeChecked();
   await page.getByRole("button",{name:"Повторить обучение"}).click();
@@ -33,11 +35,12 @@ test("new player learns, rebinds controls, pauses safely, and keeps settings", a
 test("portrait mobile has reachable training and menus without horizontal scroll",async({browser})=>{
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const page=await context.newPage(); await page.goto("/");
-  await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".connection-status")).toContainText("В сети");
   await expect(page.getByLabel("Джойстик движения")).toBeVisible();
+  await tabletApp(page,"Обзор");
   await expect(page.getByLabel("Обучение новичка")).toBeVisible();
   await page.getByRole("button",{name:"Пропустить обучение"}).tap();
-  await page.getByRole("button",{name:"Настройки",exact:true}).tap();
+  await tabletApp(page,"Настройки");
   await expect(page.getByRole("dialog")).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole("button",{name:"Продолжить",exact:true}).tap();

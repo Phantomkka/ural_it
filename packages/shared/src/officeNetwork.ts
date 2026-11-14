@@ -125,6 +125,10 @@ export interface ComputerResult {
   output?: string;
   clear?: boolean;
 }
+export function inOfficeRoom(player:{x:number;z:number},roomX:number) {
+  return Number.isFinite(player.x) && Number.isFinite(player.z) && Math.abs(player.z)<5.45 &&
+    (roomX<13 ? player.x>8.55 && player.x<12.45 : player.x>13.55 && player.x<19.45);
+}
 export function canReachComputer(
   player: { x: number; z: number },
   id: ComputerId,
@@ -132,13 +136,8 @@ export function canReachComputer(
   const pc = COMPUTERS.find((p) => p.id === id);
   if (!pc || !Number.isFinite(player.x) || !Number.isFinite(player.z))
     return false;
-  const sameRoom =
-    pc.x < 13
-      ? player.x > 8.55 && player.x < 12.45
-      : player.x > 13.55 && player.x < 19.45;
   return (
-    sameRoom &&
-    Math.abs(player.z) < 5.45 &&
+    inOfficeRoom(player,pc.x) &&
     Math.hypot(player.x - pc.x, player.z - pc.z) <= 2.5
   );
 }

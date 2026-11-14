@@ -1,4 +1,15 @@
 import { expect, type Page } from "@playwright/test";
+export async function tabletApp(page:Page,name:string) {
+  if(!await page.locator('.tablet-frame').count()) {
+    if(await page.evaluate(()=>!!document.pointerLockElement))await page.keyboard.press('Tab');
+    else await page.getByRole('button',{name:'Открыть планшет',exact:true}).click();
+  }
+  await page.getByRole('navigation',{name:'Приложения планшета'}).getByRole('button',{name,exact:true}).click();
+}
+export async function legacyWork(page:Page) {
+  await tabletApp(page,'Рюкзак и магазин');
+  await page.getByRole('button',{name:'Каталог и старые работы',exact:true}).click();
+}
 export async function snapshot(page: Page) {
   return page.evaluate(async () => {
     const modulePath = "/src/world.ts";

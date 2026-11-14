@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import {tabletApp} from "./navigation";
 async function resources(page: Page) {
   return page.evaluate(async () => {
     const modulePath = "/src/world.ts";
@@ -50,9 +51,9 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
   const errors: string[] = [];
   a.on("pageerror", (e) => errors.push(e.message));
   await b.goto("/");
-  await expect(b.locator("aside")).toContainText("В сети");
+  await expect(b.locator(".connection-status")).toContainText("В сети");
   await a.goto("/");
-  await expect(a.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
   await expect
     .poll(async () => (await resources(a)).textures)
     .toBeGreaterThan(3);
@@ -85,11 +86,12 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
         if (socket.readyState === WebSocket.OPEN)
           socket.close(4000, "test disconnect");
     });
-    await expect(a.locator("aside")).toContainText("Соединение закрыто");
-    await expect(b.locator("aside")).toContainText("Игроков: 1");
+    await expect(a.locator(".connection-status")).toContainText("Соединение закрыто");
+    await expect(b.locator(".connection-status")).toContainText("Игроков: 1");
     await expect.poll(async () => (await resources(a)).engines).toBe(0);
+    await tabletApp(a,"Обзор");
     await a.getByRole("button", { name: "Переподключиться" }).click();
-    await expect(a.locator("aside")).toContainText("Игроков: 2");
+    await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
     await expect(a.locator(".asset-status")).toHaveAttribute(
       "data-state",
       "ready",
@@ -104,11 +106,12 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
   }
   // Rapid retries can resolve out of order: cancelled connections must leave again.
   for (let i = 0; i < 3; i++) {
+    await tabletApp(a,"Обзор");
     await a.getByRole("button", { name: "Переподключиться" }).click();
     await a.waitForTimeout(50);
   }
-  await expect(a.locator("aside")).toContainText("Игроков: 2");
-  await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
+  await expect(b.locator(".connection-status")).toContainText("Игроков: 2");
   await expect(a.locator(".asset-status")).toHaveAttribute(
     "data-state",
     "ready",
@@ -116,7 +119,7 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
   );
   await expect.poll(() => resources(a)).toEqual(baseline);
   await b.close();
-  await expect(a.locator("aside")).toContainText("Игроков: 1");
+  await expect(a.locator(".connection-status")).toContainText("Игроков: 1");
   await expect.poll(async () => (await resources(a)).nicknameTextures).toBe(0);
 
   expect(errors).toEqual([]);

@@ -1,4 +1,5 @@
 export const DEFAULT_BINDINGS = {
+  tablet:"Tab",drop:"KeyG",
   forward: "KeyW", back: "KeyS", left: "KeyA", right: "KeyD",
   sprint: "ShiftLeft", interact: "KeyE", inventory: "KeyI",
   journal: "KeyJ", map: "KeyM", help: "KeyH",
@@ -18,9 +19,10 @@ export function readSettings(): Settings {
     const value = JSON.parse(localStorage.getItem("netcity-settings-v2") ?? "null");
     if (!value) return structuredClone(DEFAULT_SETTINGS);
     const bindings = { ...DEFAULT_BINDINGS } as Record<Binding, string>;
-    const candidate = value.bindings;
+    const candidate = value.bindings ? {...value.bindings} : null;
+    if(candidate){candidate.tablet??="Tab";candidate.drop??=["KeyG","KeyV","KeyB","KeyN","KeyX"].find(k=>!Object.values(candidate).includes(k));}
     if (candidate && Object.keys(bindings).every(k =>
-      /^(Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(candidate[k])) &&
+      /^(Tab|Key[A-Z]|Digit[0-9]|Arrow(Up|Down|Left|Right)|Shift(Left|Right))$/.test(candidate[k])) &&
       new Set(Object.keys(bindings).map(k => candidate[k])).size === Object.keys(bindings).length)
       Object.assign(bindings, candidate);
     return {

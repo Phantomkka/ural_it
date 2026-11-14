@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { drive, alignDoor } from "./navigation";
+import { drive, alignDoor, tabletApp, legacyWork } from "./navigation";
 test.use({ viewport: { width: 844, height: 650 }, actionTimeout: 15000 });
 test("earn NET and XP, buy consumables, service rack and perform a fresh repeat order; guest survives reload", async ({
   page,
@@ -11,11 +11,10 @@ test("earn NET and XP, buy consumables, service rack and perform a fresh repeat 
     localStorage.setItem("netcity-quality", "low"),
   );
   await page.goto("/");
+  await tabletApp(page,"Обзор");
   await expect(page.locator(".profile-summary")).toContainText("0 NET");
   const openProfile = async () => {
-    await page
-      .getByRole("button", { name: "Работа и снабжение", exact: true })
-      .click();
+    await legacyWork(page);
     await expect(page.getByRole("dialog")).toBeVisible();
   };
   await openProfile();
@@ -144,13 +143,14 @@ test("earn NET and XP, buy consumables, service rack and perform a fresh repeat 
     sessionStorage.getItem("netcity-guest-token"),
   );
   await page.reload();
+  await tabletApp(page,"Обзор");
   await expect(page.locator(".profile-summary")).toContainText("230 NET");
   expect(
     await page.evaluate(() => sessionStorage.getItem("netcity-guest-token")),
   ).toBe(token);
   expect(errors).toEqual([]);
   const context=page.context();await page.close();const nextTab=await context.newPage();
-  await nextTab.goto("/");await expect(nextTab.locator(".profile-summary")).toContainText("230 NET");
+  await nextTab.goto("/");await tabletApp(nextTab,"Обзор");await expect(nextTab.locator(".profile-summary")).toContainText("230 NET");
   await expect(nextTab.locator(".identity-status")).toHaveAttribute("data-mode","device");
 });
 test("mobile profile and supply UI fits portrait and landscape and does not cover controls", async ({
@@ -166,10 +166,9 @@ test("mobile profile and supply UI fits portrait and landscape and does not cove
     localStorage.setItem("netcity-quality", "low"),
   );
   await page.goto("/");
+  await tabletApp(page,"Обзор");
   await expect(page.locator(".profile-summary")).toContainText("0 NET");
-  await page
-    .getByRole("button", { name: "Работа и снабжение", exact: true })
-    .tap();
+  await legacyWork(page);
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog
@@ -193,7 +192,7 @@ test("mobile profile and supply UI fits portrait and landscape and does not cove
   ]) {
     await page.setViewportSize(size);
     const button = (await page
-      .getByRole("button", { name: "Работа и снабжение", exact: true })
+      .getByRole("button", { name: "Открыть планшет", exact: true })
       .boundingBox())!;
     const stick = (await page.getByLabel("Джойстик движения").boundingBox())!;
     const interact = (await page

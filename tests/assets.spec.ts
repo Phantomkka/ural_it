@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import {tabletApp} from "./navigation";
 async function assetScene(page: import("@playwright/test").Page) {
   return page.evaluate(async () => {
     const path = "/src/world.ts";
@@ -63,6 +64,7 @@ test("local models load with real skins and instanced architecture; quality swit
   expect(scene.office).toBe(true);
   expect(scene.fallbackBuilding).toBe(false);
   const widths: Record<string, number> = {};
+  await tabletApp(a,"Обзор");
   await a.getByText("Графика и загрузка", {exact:true}).click();
   for (const quality of ["low", "high", "medium"]) {
     await a.getByLabel("Качество графики").selectOption(quality);
@@ -82,6 +84,7 @@ test("local models load with real skins and instanced architecture; quality swit
   );
   await b.keyboard.press("Escape");
   await a.bringToFront();
+  await a.keyboard.press("Escape");
   await a.locator("canvas").click({ position: { x: 450, y: 350 } });
   await a.keyboard.down("KeyS");
   await a.waitForTimeout(450);
@@ -110,7 +113,7 @@ test("failed assets report degraded graphics while fallback city and multiplayer
     "degraded",
     { timeout: 45000 },
   );
-  await expect(a.locator("aside")).toContainText("Игроков: 2");
+  await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
   await expect
     .poll(async () => (await assetScene(a)).character?.fallback)
     .toBe(true);

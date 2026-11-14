@@ -13,9 +13,9 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   a.on("pageerror", (e) => errors.push(e.message));
   b.on("pageerror", (e) => errors.push(e.message));
   await a.goto("/");
-  await expect(a.locator("aside")).toContainText("В сети");
+  await expect(a.locator(".connection-status")).toContainText("В сети");
   await b.goto("/");
-  await expect(b.locator("aside")).toContainText("Игроков: 2");
+  await expect(b.locator(".connection-status")).toContainText("Игроков: 2");
   await expect(a.locator(".asset-status")).toHaveAttribute(
     "data-state",
     "ready",
@@ -74,16 +74,14 @@ test("complete ticket in browser with server replicated port and no duplicate aw
   await expect(dialog.locator('[data-port="3"]')).toContainText("Отключён");
   await dialog.locator('[data-port="2"]').click();
   await expect(dialog).toContainText("Нужен порт №3");
-  await expect(a.getByText("Награды за заявку: 0/1")).toBeVisible();
+  await expect(a.locator(".profile-summary")).toContainText("0 NET");
   await dialog.locator('[data-port="3"]').click();
-  await expect(a.locator(".ticket")).toContainText(
-    "✅ Заявка выполнена! Сеть восстановлена.",
-  );
+  await expect(a.locator(".profile-summary")).toContainText("100 NET");
   await expect.poll(async () => (await snapshot(b)).port).toBe("port-online");
   await expect.poll(async () => (await snapshot(b)).cable).toBe(false);
   await dialog.locator('[data-port="3"]').click();
   await expect(dialog).toContainText("Повторная награда недоступна");
-  await expect(a.getByText("Награды за заявку: 1/1")).toBeVisible();
+  await expect(a.locator(".profile-summary")).toContainText("100 NET");
   await a.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await a.locator("canvas").click({ position: { x: 450, y: 350 } });
@@ -106,7 +104,7 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
   );
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".connection-status")).toContainText("В сети");
   await expect(page.locator(".asset-status")).toHaveAttribute(
     "data-state",
     "ready",
@@ -160,7 +158,7 @@ test("mobile joystick, swipe camera, interaction button and responsive equipment
   const bounds = await dialog.boundingBox();
   expect(bounds!.width).toBeLessThanOrEqual(844);
   await dialog.locator('[data-port="3"]').tap();
-  await expect(page.locator(".ticket")).toContainText("✅ Заявка выполнена!");
+  await expect(page.locator(".profile-summary")).toContainText("100 NET");
   await page.screenshot({ path: test.info().outputPath("netcity-002-mobile.png") });
   await page.setViewportSize({ width: 390, height: 844 });
   const portrait = await dialog.boundingBox();
@@ -186,7 +184,7 @@ test("mobile multitouch and blur stop movement without leaving the joystick stuc
   );
   const page = await context.newPage();
   await page.goto("/");
-  await expect(page.locator("aside")).toContainText("В сети");
+  await expect(page.locator(".connection-status")).toContainText("В сети");
   await expect(page.locator(".asset-status")).toHaveAttribute(
     "data-state",
     "ready",
