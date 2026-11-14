@@ -5,6 +5,9 @@ export const CONTACTS = [
   {id:"client",name:"Елена · бухгалтерия",...CLIENT_CASE_TEMPLATE.client,color:"#799fd4"},
   {id:"dispatcher",name:"Алина · диспетчер",x:4,z:-5,color:"#e2b46b"},
   {id:"supplier",name:"Марат · снабжение",x:-6,z:2,color:"#62cdb3"},
+  {id:"alex",name:"Алексей · рабочие места",x:10.7,z:-3.35,color:"#7a9dbb",seated:true},
+  {id:"olga",name:"Ольга · печать",x:10.7,z:4.65,color:"#b6a783",seated:true},
+  {id:"igor",name:"Игорь · серверы",x:15.7,z:4.65,color:"#75919f",seated:true},
 ] as const;
 export const LANDMARKS = [
   {name:"IT-офис",x:14,z:0}, {name:"Снабжение",x:-14,z:0},
@@ -13,6 +16,7 @@ export const LANDMARKS = [
 /** Friendly authored district contacts. Dialogues never award money or change server state. */
 export function buildDistrict(scene: Scene, palette: Palette) {
   for(const contact of CONTACTS) {
+    if("seated" in contact)continue;
     const jacket=palette(`npc-${contact.id}`,contact.color), skin=palette("npc-skin","#cb9573"), trousers=palette("npc-trousers","#203849");
     const body=MeshBuilder.CreateCylinder(`contact-${contact.id}`,{height:0.85,diameterTop:0.42,diameterBottom:0.5,tessellation:8},scene);
     body.position.set(contact.x,1.05,contact.z);body.material=jacket;body.metadata={npcId:contact.id};body.isPickable=true;

@@ -1,3 +1,4 @@
+import {handleProp} from "../propsState.js";
 import { randomUUID } from "node:crypto";
 import type { Client } from "@colyseus/core";
 import {
@@ -15,6 +16,7 @@ import { snapshot, type ProfileData } from "./store.js";
 import { handleComputer } from "../computerActions.js";
 import { ClientCaseService } from "./clientCases.js";
 import {CableService} from './cable.js';
+import {BusinessService} from './business.js';
 import {CableRoomController} from '../cableRoom.js';
 interface Lease {
   sessionId: string;
@@ -53,6 +55,7 @@ export class WorkController {
     this.subscribers.delete(client.sessionId);
     this.budgets.delete(client.sessionId);
     this.cableRoom.forget(client.sessionId);
+    for(const prop of this.room.state.props.values())if(prop.holder===client.sessionId){prop.holder="";if(position){prop.x=position.x;prop.z=position.z;}}
     this.tail = this.tail
       .then(async () => {
         if(id)await this.service.store.transaction(id,null,tx=>{for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier===client.sessionId){c.carrying=false;c.carrier=undefined;c.droppedAt=position??c.carryOrigin??null;c.carryOrigin=undefined;}const cable=tx.data.cable;if(cable?.carrier===client.sessionId){cable.carrier=undefined;cable.endpoint=position??{...cable.points.at(-1)!};}return {ok:true,message:""};});
@@ -165,6 +168,7 @@ export class WorkController {
   clientCase(client:Client,value:unknown) {
     this.subscribers.add(client.sessionId);
     this.enqueue(client,"caseResult",async id=>{
+      if(this.room.state.players.get(client.sessionId)?.heldItem.startsWith("prop:"))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId}:null;});
       if(outcome.data) {
         this.profile(client,outcome.data);
@@ -175,9 +179,11 @@ export class WorkController {
     });
   }
   constrainMove(id:string,from:{x:number;z:number},next:{x:number;z:number}){return this.cableRoom.constrain(id,from,next);}
+  business(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'businessResult',async id=>{const outcome=await new BusinessService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return !!p&&Math.hypot(p.x+6,p.z-2)<=2.5;});if(outcome.data)this.profile(client,outcome.data);this.send(client,'businessResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId:undefined});});}
   cable(client:Client,value:unknown){
     this.subscribers.add(client.sessionId);
     this.enqueue(client,'cableResult',async id=>{
+      if(this.room.state.players.get(client.sessionId)?.heldItem.startsWith("prop:"))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new CableService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId,entryOpen:this.room.state.equipment.officeDoorOpen}:null;});
       if(outcome.data){this.profile(client,outcome.data);this.cableRoom.sync(client,outcome.data);}
       this.send(client,'cableResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});
@@ -187,10 +193,12 @@ export class WorkController {
     this.enqueue(client,"interactionResult",async()=>{
       const action=(value as {kind?:string})?.kind,player=this.room.state.players.get(client.sessionId);
       const fail=(message:string)=>this.send(client,"interactionResult",{ok:false,message});
+      if(player&&["takeProp","dropProp"].includes(action??"")){this.send(client,"interactionResult",handleProp(this.room.state.props,player,client.sessionId,value,this.room.state.equipment.officeDoorOpen,this.room.state.cars.values()));return;}
       if(action==="liftHeavy")return fail("Автомобиль и серверная стойка слишком тяжёлые. Переносите небольшие детали.");
       if(action!=="door"||!player||Math.hypot(player.x-8,player.z)>2.5)return fail("Подойдите к входной двери.");
       if(Date.now()-this.lastDoorAction<800)return fail("Дождитесь движения двери.");
       if(this.room.state.equipment.officeDoorOpen && [...this.room.state.players.values()].some(p=>Math.abs(p.x-8)<0.7&&Math.abs(p.z)<1.65))return fail("В проёме человек — дверь не закрывается.");
+      if(this.room.state.equipment.officeDoorOpen&&[...this.room.state.props.values()].some(p=>!p.holder&&Math.abs(p.x-8)<.7&&Math.abs(p.z)<1.65))return fail("В проёме предмет — дверь не закрывается.");
       if(this.room.state.equipment.officeDoorOpen&&this.cableRoom.blocksDoor())return fail('В проёме проложен кабель. Сначала уберите линию.');
       this.lastDoorAction=Date.now();this.room.state.equipment.officeDoorOpen=!this.room.state.equipment.officeDoorOpen;
       this.send(client,"interactionResult",{ok:true,message:this.room.state.equipment.officeDoorOpen?"Дверь открыта":"Дверь закрыта"});

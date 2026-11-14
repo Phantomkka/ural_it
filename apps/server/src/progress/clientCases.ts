@@ -1,14 +1,18 @@
 import {randomUUID,createHash} from "node:crypto";
 import {CLIENT_CASE_TEMPLATE as T, BAG_LIMIT,bagUsage,inOfficeRoom,type ProgressResult} from "@netcity/shared";
 import type {ProfileData,ProgressStore} from "./store.js";
+import {CASE_CATALOG} from '@netcity/shared';
+import {performCase} from './caseEngine.js';
+import {initBusiness} from './business.js';
 const bad=(message:string):ProgressResult=>({ok:false,message});
 const good=(message:string):ProgressResult=>({ok:true,message});
 export function refreshCases(data:ProfileData,now:number) {
   data.service??={cases:[],completed:0};
+  initBusiness(data);
   const last=data.service.cases.at(-1);
   if(!last || last.stage==="COMPLETED" && now>=last.availableAt) {
     data.service.cases=data.service.cases.slice(-19);
-    data.service.cases.push({id:randomUUID(),templateId:T.id,stage:"RINGING",clues:[],carrying:false,droppedAt:null,satisfaction:3,availableAt:0,completedAt:null});
+    data.service.cases.push({id:randomUUID(),templateId:CASE_CATALOG[data.service.completed%CASE_CATALOG.length].id,stage:"RINGING",clues:[],carrying:false,droppedAt:null,satisfaction:3,availableAt:0,completedAt:null});
   } else if(last.stage==="DECLINED" && now>=last.availableAt) last.stage="RINGING";
 }
 /** Purely private case state; actor position is supplied by the authoritative room. */
@@ -19,7 +23,7 @@ export class ClientCaseService {
     if(!a || typeof a!=="object" || typeof a.requestId!=="string" || !/^[a-f0-9-]{36}$/.test(a.requestId) || typeof a.caseId!=="string" || !/^[a-f0-9-]{36}$/.test(a.caseId) ||
       (a.choice!==undefined && (typeof a.choice!=="string" || a.choice.length>64)) || (a.port!==undefined && (!Number.isInteger(a.port)||Number(a.port)<1||Number(a.port)>8)) ||
       Object.keys(a).some(k=>!["requestId","caseId","action","choice","port"].includes(k)) ||
-      !["accept","decline","talk","diagnose","buyPart","returnCleaner","take","drop","install","verify","signoff"].includes(String(a.action)))
+      !["accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
       return Promise.resolve({result:bad("Некорректное действие заявки."),data:null});
     const fingerprint=createHash("sha256").update(JSON.stringify(["case",a.action,a.caseId,a.choice,a.port])).digest("hex");
     return this.store.transaction(id,a.requestId,tx=>{
@@ -30,6 +34,7 @@ export class ClientCaseService {
       const near=(point:{x:number;z:number},indoors=false)=>!!position && Number.isFinite(position.x)&&Number.isFinite(position.z)&&(!indoors||inOfficeRoom(position,point.x))&&Math.hypot(position.x-point.x,position.z-point.z)<=2.5;
       let result:ProgressResult;
       const perform=():ProgressResult=>{
+        if(c&&(c.templateId!=='moved-desks'||a.action==='returnPart'))return performCase(tx,c,a,position,this.now());
         if(!position || !Number.isFinite(position.x) || !Number.isFinite(position.z))return bad("Сеанс закрыт. Переподключитесь.");
         if(!c)return bad("Эта заявка не принадлежит вашему профилю.");
         if(a.action==="accept") {
@@ -87,8 +92,9 @@ export class ClientCaseService {
           if(!near(T.client,true))return bad("Сдать работу можно только рядом с клиентом.");
           if(c.stage!=="VERIFIED")return bad("Клиент просит сначала проверить результат ремонта.");
           c.stage="COMPLETED";c.completedAt=this.now();c.availableAt=this.now()+60000;tx.data.service!.completed++;
-          tx.data.credits+=T.payment;tx.data.xp+=T.xp;tx.reward={jobId:c.id,credits:T.payment,xp:T.xp};
-          return good(`Елена: «Работает! Спасибо». Работа подписана: +${T.payment} NET, +${T.xp} XP.`);
+          const business=initBusiness(tx.data);business.workCounts[T.id]=(business.workCounts[T.id]??0)+1;const payment=Math.round(T.payment*(business.upgrades.includes('workbench')?1.1:1));
+          tx.data.credits+=payment;tx.data.xp+=T.xp;tx.reward={jobId:c.id,credits:payment,xp:T.xp};
+          return good(`Елена: «Работает! Спасибо». Работа подписана: +${payment} NET, +${T.xp} XP.`);
         }
         return bad("Недопустимое действие.");
       };

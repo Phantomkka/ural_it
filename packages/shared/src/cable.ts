@@ -4,6 +4,7 @@ export interface CablePoint {
     z: number;
 }
 export interface CableTask {
+    kind?:'camera';caseId?:string;
     id: string;
     stage: 'PULLING' | 'TERMINATED' | 'TESTED';
     points: CablePoint[];
@@ -11,11 +12,12 @@ export interface CableTask {
     carrier?: string;
 }
 export type CableAction = {
-    action: 'take' | 'anchor' | 'drop' | 'terminate' | 'test' | 'reset';
+    action: 'take' | 'anchor' | 'drop' | 'terminate' | 'test' | 'reset' | 'mission';
     requestId: string;
 };
 export const CABLE_SOURCE = { x: 11, z: 4.8 }, CABLE_TARGET = { x: 18, z: 0 };
 export const CABLE_BUDGET = 18, CABLE_MAX_ANCHORS = 12;
+export function cableSpec(c?:Pick<CableTask,'kind'>){return c?.kind==='camera'?{source:{x:-6,z:2},target:{x:-6,z:22},budget:26,indoor:false}:{source:CABLE_SOURCE,target:CABLE_TARGET,budget:CABLE_BUDGET,indoor:true};}
 /** Deduplicate one physical line when the same profile is open on two devices. */
 export function visibleCablePaths(players: Iterable<{
     x: number;
@@ -64,8 +66,8 @@ export function segmentHitsBox(a: CablePoint, b: CablePoint, box: {
     return true;
 }
 export function cableLength(points: CablePoint[]) { return points.slice(1).reduce((n, p, i) => n + Math.hypot(p.x - points[i].x, p.z - points[i].z), 0); }
-export function cableRouteValid(points: CablePoint[], entryOpen = true) {
-    if (points.length < 1 || points.length > CABLE_MAX_ANCHORS + 1 || points.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.z) || Math.abs(p.x) > 45 || Math.abs(p.z) > 45) || cableLength(points) > CABLE_BUDGET + 1e-6)
+export function cableRouteValid(points: CablePoint[], entryOpen = true,budget=CABLE_BUDGET) {
+    if (points.length < 1 || points.length > CABLE_MAX_ANCHORS + 1 || points.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.z) || Math.abs(p.x) > 45 || Math.abs(p.z) > 45) || cableLength(points) > budget + 1e-6)
         return false;
     for (let i = 1; i < points.length; i++) {
         for (const box of WORLD_COLLIDERS) {

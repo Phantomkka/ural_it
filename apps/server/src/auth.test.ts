@@ -31,6 +31,10 @@ test('HTTP CSRF, cookie flags and real WebSocket authority survive login, bindin
         const cross = await fetch(base + '/auth/session', { headers: { Origin: 'https://evil.example' } });
         assert.equal(cross.headers.get('access-control-allow-origin'), null);
         const post = (path: string, body: unknown, cookie = preCookie, token = pre.csrf, origin = base) => fetch(base + '/auth/' + path, { method: 'POST', headers: { Cookie: cookie, Origin: origin, 'X-Netcity-CSRF': token, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const migrate=await store.register();
+        assert.equal((await post('transfer',{guestToken:migrate.token},preCookie,pre.csrf,'https://evil.example')).status,403);
+        assert.equal((await post('transfer',{guestToken:migrate.token,preferences:{password:'secret'}})).status,400);
+        const transferred=await post('transfer',{guestToken:migrate.token,preferences:{quality:'low'}});assert.equal(transferred.status,200);assert.equal(transferred.headers.get('cache-control'),'no-store');const transfer=await transferred.json() as any;assert.match(transfer.code,/^[a-f0-9]{64}$/);assert.equal(transfer.expiresIn,300);
         const credentials = { login: 'http_' + randomUUID().slice(0, 8), password: 'Long test password 123!', guestToken: guest.token, confirm: true };
         assert.equal((await post('register', credentials, preCookie, 'wrong')).status, 403);
         assert.equal(equal('я'.repeat(64), pre.csrf), false);

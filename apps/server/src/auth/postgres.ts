@@ -2,16 +2,26 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { hashToken, newProfile } from '../progress/store.js';
 import { AuthConflict, type Account, type AccountStore, type Session } from './store.js';
-const account = (r: any): Account => ({ id: r.id, login: r.login, profileId: r.profile_id, passwordHash: r.password_hash, recoveryHash: r.recovery_hash, guestHash: r.guest_hash });
+const account = (r: any): Account => ({ id: r.id, login: r.login, profileId: r.profile_id, passwordHash: r.password_hash, recoveryHash: r.recovery_hash, guestHash: r.guest_hash,preferences:r.preferences??{} });
 export class PostgresAccountStore implements AccountStore {
     constructor(private pool: Pool) { }
-    async create(login: string, passwordHash: string, recoveryHash: string, guestToken?: string) {
+    async create(login: string, passwordHash: string, recoveryHash: string, guestToken?: string,transferCode?:string,prefs:Record<string,unknown>={}) {
         const c = await this.pool.connect();
         try {
             await c.query('BEGIN');
             let profileId: string, guestHash: string | null = null;
-            if (guestToken) {
-                guestHash = hashToken(guestToken);
+            // Always lock the profile before a transfer row, matching issueTransfer.
+            // Recheck the code after locking: a second redemption must never create a profile.
+            if(transferCode){
+                const preview=await c.query('SELECT profile_id FROM guest_transfers WHERE token_hash=$1',[hashToken(transferCode)]);
+                if(!preview.rowCount)throw new AuthConflict('Код переноса истёк или уже использован.');
+                await c.query('SELECT id FROM profiles WHERE id=$1 FOR UPDATE',[preview.rows[0].profile_id]);
+                const transfer=await c.query('SELECT * FROM guest_transfers WHERE token_hash=$1 AND expires_at>$2 FOR UPDATE',[hashToken(transferCode),Date.now()]);
+                if(!transfer.rowCount)throw new AuthConflict('Код переноса истёк или уже использован.');
+                guestHash=transfer.rows[0].guest_hash;prefs=transfer.rows[0].preferences;
+            }
+            if (guestToken||guestHash) {
+                guestHash = guestHash??hashToken(guestToken!);
                 const r = await c.query('SELECT id FROM profiles WHERE token_hash=$1 FOR UPDATE', [guestHash]);
                 if (!r.rowCount)
                     throw new AuthConflict('Логин занят или гостевой профиль уже привязан.');
@@ -23,7 +33,8 @@ export class PostgresAccountStore implements AccountStore {
                 profileId = p.id;
                 await c.query('INSERT INTO profiles(id,token_hash,nickname,inventory,jobs) VALUES($1,$2,$3,$4::jsonb,$5::jsonb)', [p.id, hashToken(randomBytes(32).toString('hex')), p.nickname, JSON.stringify(p.inventory), JSON.stringify(p.jobs)]);
             }
-            const r = await c.query('INSERT INTO accounts(id,login,profile_id,password_hash,recovery_hash,guest_hash) VALUES($1,$2,$3,$4,$5,$6) RETURNING *', [randomUUID(), login, profileId, passwordHash, recoveryHash, guestHash]);
+            const r = await c.query('INSERT INTO accounts(id,login,profile_id,password_hash,recovery_hash,guest_hash,preferences) VALUES($1,$2,$3,$4,$5,$6,$7::jsonb) RETURNING *', [randomUUID(), login, profileId, passwordHash, recoveryHash, guestHash,JSON.stringify(prefs)]);
+            if(guestHash)await c.query("DELETE FROM guest_transfers WHERE guest_hash=$1",[guestHash]);
             await c.query('COMMIT');
             return account(r.rows[0]);
         }
@@ -39,6 +50,7 @@ export class PostgresAccountStore implements AccountStore {
             c.release();
         }
     }
+    async issueTransfer(token:string,prefs:Record<string,unknown>){const c=await this.pool.connect();try{await c.query('BEGIN');const rows=await c.query('SELECT id FROM profiles WHERE token_hash=$1 FOR UPDATE',[hashToken(token)]);if(!rows.rowCount)throw new AuthConflict('Гость уже привязан или не найден.');const code=randomBytes(32).toString('hex');await c.query('DELETE FROM guest_transfers WHERE profile_id=$1 OR expires_at<=$2',[rows.rows[0].id,Date.now()]);await c.query('INSERT INTO guest_transfers(token_hash,guest_hash,profile_id,preferences,expires_at) VALUES($1,$2,$3,$4::jsonb,$5)',[hashToken(code),hashToken(token),rows.rows[0].id,JSON.stringify(prefs),Date.now()+300000]);await c.query('COMMIT');return code;}catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}}
     async find(login: string) { const r = await this.pool.query('SELECT * FROM accounts WHERE login=$1', [login]); return r.rowCount ? account(r.rows[0]) : null; }
     async wasGuest(hash: string) { return !!(await this.pool.query('SELECT 1 FROM accounts WHERE guest_hash=$1', [hash])).rowCount; }
     async addSession(s: Session, passwordHash: string) { const c = await this.pool.connect(); try {

@@ -9,11 +9,11 @@ export interface TouchInput {
 }
 export function MobileControls({
   input,
-  interact,
+  interact,drop,
   enabled,
 }: {
   input: TouchInput;
-  interact: () => void;
+  interact: () => void;drop:()=>void;
   enabled: boolean;
 }) {
   const joystick = useRef<number | null>(null);
@@ -106,6 +106,7 @@ export function MobileControls({
       <button className="touch-interact" disabled={!enabled} onClick={interact}>
         Осмотреть
       </button>
+      <button className="touch-drop" onClick={drop}>Положить</button>
       <button className="touch-sprint" aria-pressed={input.sprint === true}
         onPointerDown={e=>{ e.currentTarget.setPointerCapture(e.pointerId); input.sprint=true; }}
         onPointerUp={()=>{input.sprint=false;}} onPointerCancel={()=>{input.sprint=false;}}

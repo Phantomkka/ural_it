@@ -13,6 +13,8 @@ x-server: &server
   environment:
     NODE_ENV: production
     AUTH_PROXY_HOPS: "1"
+    NETCITY_ORIGIN: ${NETCITY_ORIGIN:-}
+    NETCITY_LEGACY_ORIGINS: ${NETCITY_LEGACY_ORIGINS:-}
     DB_HOST: db
     DB_USER: ${POSTGRES_USER:-netcity}
     DB_NAME: ${POSTGRES_DB:-netcity}

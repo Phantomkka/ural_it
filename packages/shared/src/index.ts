@@ -145,3 +145,8 @@ export * from "./officeNetwork.js";
 export * from "./company.js";
 export * from "./clientCases.js";
 export * from './cable.js';
+export * from './city.js';
+export * from './caseCatalog.js';
+export * from './business.js';
+
+export * from "./props.js";

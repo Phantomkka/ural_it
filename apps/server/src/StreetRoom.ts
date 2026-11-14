@@ -1,3 +1,7 @@
+import {CarryObject,createProps} from "./propsState.js";
+import {propBlocks} from "@netcity/shared";
+import {Vehicle,createCars,advanceCity} from "./cityState.js";
+import {carBlocksPoint} from "@netcity/shared";
 import { Room, type Client } from "@colyseus/core";
 import { Schema, MapSchema, defineTypes } from "@colyseus/schema";
 import { ServerError } from "@colyseus/core";
@@ -78,17 +82,20 @@ defineTypes(Equipment, {
   rackWorkId: "string",
 });
 export class StreetState extends Schema {
+  declare props:MapSchema<CarryObject>;
+  declare cars:MapSchema<Vehicle>;declare worldClock:number;declare trafficPhase:string;
   declare devices: MapSchema<NetworkDevice>;
   declare equipment: Equipment;
   declare players: MapSchema<Player>;
   constructor() {
     super();
+    this.props=createProps();this.cars=createCars();this.worldClock=Date.now();this.trafficPhase="DRIVE";
     this.devices = createDevices();
     this.players = new MapSchema<Player>();
     this.equipment = new Equipment();
   }
 }
-defineTypes(StreetState, {
+defineTypes(StreetState, {props:{map:CarryObject},cars:{map:Vehicle},worldClock:"number",trafficPhase:"string",
   players: { map: Player },
   equipment: Equipment,
   devices: { map: NetworkDevice },
@@ -123,6 +130,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     );
     this.onMessage("case",(client,value:unknown)=>this.work.clientCase(client,value));
     this.onMessage('cable',(client,value:unknown)=>this.work.cable(client,value));
+    this.onMessage('business',(client,value:unknown)=>this.work.business(client,value));
     this.onMessage("interaction",(client,value:unknown)=>this.work.interaction(client,value));
     this.onMessage("computer", (client, value: unknown) => {
       const now = performance.now();
@@ -144,19 +152,23 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       if (this.state.players.has(client.sessionId)) this.work.computer(client,value);
     });
     // Messages only replace intent. Only this fixed-rate loop can move players.
+    let cityTick=0;
     this.setSimulationInterval(() => {
       const now = performance.now();
       this.state.players.forEach((player, id) => {
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
-        const carrying=player.heldItem==='cable_roll',movement=carrying?{...input,sprint:false}:input;
-        Object.assign(player,this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen)));
+        const carrying=player.heldItem==='cable_roll'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
+        const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen));
+        if(![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocks(next,prop)))Object.assign(player,next);
         if (player.x > 5 && Math.abs(player.z) < 3)
           player.ticketStep = Math.max(player.ticketStep, 2);
         if (player.x > 13.5 && player.x < 20 && Math.abs(player.z) < 5.5)
           player.ticketStep = Math.max(player.ticketStep, 3);
         if (entry) player.yaw = entry.input.yaw;
       });
+    if(++cityTick%3===0){this.state.trafficPhase=advanceCity(this.state.cars,this.state.players.values(),Date.now());}
+      if(cityTick%30===0)this.state.worldClock=Date.now();
     }, 1000 / TICK_RATE);
   }
   async onAuth(_client: Client, options: { guestToken?: unknown }, _context?:unknown) {

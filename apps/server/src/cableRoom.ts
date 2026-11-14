@@ -1,5 +1,5 @@
 import type { Client } from '@colyseus/core';
-import { cableRouteValid, segmentHitsBox, ENTRY_DOOR_CLOSED, visibleCablePaths, type CableTask, type CablePoint } from '@netcity/shared';
+import { cableRouteValid, segmentHitsBox, ENTRY_DOOR_CLOSED, visibleCablePaths,cableSpec, type CableTask, type CablePoint } from '@netcity/shared';
 import type { ProfileData } from './progress/store.js';
 import type { StreetRoom } from './StreetRoom.js';
 export class CableRoomController {
@@ -16,7 +16,7 @@ export class CableRoomController {
         const c = data.cable, held = c?.stage === 'PULLING' && c.carrier === client.sessionId;
         if (held) {
             // A delayed commit cannot strand the endpoint on the far side of a wall.
-            if (!cableRouteValid([...c.points, player], this.room.state.equipment.officeDoorOpen)) {
+            if (!cableRouteValid([...c.points, player], this.room.state.equipment.officeDoorOpen,cableSpec(c).budget)) {
                 player.x = c.endpoint.x;
                 player.z = c.endpoint.z;
             }
@@ -25,12 +25,12 @@ export class CableRoomController {
         else
             this.active.delete(client.sessionId);
         player.cablePath = c && (!c.carrier || held) ? JSON.stringify({ id: c.id, revision: data.version, points: held ? c.points : [...c.points, c.endpoint] }) : '';
-        player.heldItem = data.service?.cases.some(c => c.carrying && c.carrier === client.sessionId) ? 'patch_cord' : held ? 'cable_roll' : '';
+        player.heldItem = player.heldItem.startsWith('prop:')?player.heldItem:data.service?.cases.some(c => c.carrying && c.carrier === client.sessionId) ? 'patch_cord' : held ? 'cable_roll' : '';
     }
     forget(id: string) { this.active.delete(id); }
     constrain(id: string, from: CablePoint, next: CablePoint) {
         const active = this.active.get(id);
-        if (!active || cableRouteValid([...active.task.points, next], this.room.state.equipment.officeDoorOpen))
+        if (!active || cableRouteValid([...active.task.points, next], this.room.state.equipment.officeDoorOpen,cableSpec(active.task).budget))
             return next;
         if (Date.now() - active.hintAt > 1200) {
             active.hintAt = Date.now();

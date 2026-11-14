@@ -1,6 +1,9 @@
 import express, { type Application, type Request, type Response } from 'express';
 import { AuthService, AuthError, csrf, nonce, equal } from './service.js';
 import { validToken } from '../progress/store.js';
+import {hashToken} from '../progress/store.js';
+import {preferences} from './preferences.js';
+import {AuthConflict} from './store.js';
 export function mountAuth(app: Application, auth: AuthService) {
     const cookieOptions = { httpOnly: true, secure: auth.production, sameSite: 'strict' as const, path: '/' };
     app.use('/auth', (_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); res.setHeader('Pragma', 'no-cache'); res.removeHeader('Access-Control-Allow-Origin'); res.removeHeader('Access-Control-Allow-Credentials'); next(); }, express.json({ limit: '4kb', strict: true }));
@@ -8,18 +11,27 @@ export function mountAuth(app: Application, auth: AuthService) {
         try {
             const cookies = auth.cookies(req.headers.cookie), token = cookies[auth.cookie], session = await auth.current(token);
             if (session) {
-                res.json({ login: session.account.login, csrf: csrf(token), expiresAt: session.session.expiresAt, persistence: auth.store.mode });
+                res.json({ login: session.account.login, csrf: csrf(token), expiresAt: session.session.expiresAt, persistence: auth.store.mode,preferences:session.account.preferences??{},publicOrigin:process.env.NETCITY_ORIGIN });
                 return;
             }
             if (token)
                 res.clearCookie(auth.cookie, cookieOptions);
             const gate = validToken(cookies[auth.gate]) ? cookies[auth.gate] : nonce();
             res.cookie(auth.gate, gate, { ...cookieOptions, maxAge: 3600000 });
-            res.json({ login: null, csrf: csrf(gate), persistence: auth.store.mode });
+            res.json({ login: null, csrf: csrf(gate), persistence: auth.store.mode,publicOrigin:process.env.NETCITY_ORIGIN });
         }
         catch {
             res.status(503).json({ message: 'Хранилище аккаунтов недоступно.' });
         }
+    });
+    app.post('/auth/transfer',async(req,res)=>{
+      try{
+        const origin=req.get('Origin'),allowed=(process.env.NETCITY_LEGACY_ORIGINS??'').split(',').filter(Boolean);
+        if(!origin||!(allowed.includes(origin)||!auth.production&&auth.origin(origin,req.get('Host'))))throw new AuthError(403,'Недопустимый источник переноса.');
+        const value=req.body;if(!req.is('application/json')||!value||Object.keys(value).some(k=>!['guestToken','preferences'].includes(k))||!validToken(value.guestToken))throw new AuthError(400,'Нужен действующий гостевой ключ.');
+        await auth.throttle(req.ip??'unknown','transfer:'+hashToken(value.guestToken));
+        const code=await auth.store.accounts.issueTransfer(value.guestToken,preferences(value.preferences));res.json({code,expiresIn:300,publicOrigin:process.env.NETCITY_ORIGIN});
+      }catch(e){res.status(e instanceof AuthError?e.status:e instanceof AuthConflict?401:503).json({message:e instanceof AuthError||e instanceof AuthConflict?e.message:'Перенос временно недоступен.'});}
     });
     const post = (path: string, run: (req: Request, res: Response) => Promise<void>) => app.post('/auth/' + path, async (req, res) => {
         try {
