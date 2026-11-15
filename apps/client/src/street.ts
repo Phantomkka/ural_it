@@ -59,19 +59,19 @@ export function buildStreet(scene: Scene, mat: Palette) {
     const mesh = box(
       `building-${i}`,
       b.x,
-      b.height / 2,
+      3.6 + (b.height-3.6) / 2,
       b.z,
       b.width,
-      b.height,
+      b.height-3.6,
       b.depth,
       ["#c3b09a", "#a6b8b7", "#a6b0c5"][i % 3],
       `facade-${i % 3}`,
     );
     details.pop();
     mesh.freezeWorldMatrix();
-    box("foundation", b.x, 0.3, b.z, 12.2, 0.6, 12.2, "#73858d");
+    box("foundation", b.x, -0.03, b.z, 12.2, 0.06, 12.2, "#73858d");
     box("cornice", b.x, b.height - 0.15, b.z, 12.3, 0.35, 12.3, "#e1dac5");
-    for (let y = 2; y < b.height; y += 3)
+    for (let y = 4.8; y < b.height; y += 3)
       for (let z = -3; z <= 3; z += 3) {
         box(
           "window-frame",
@@ -95,16 +95,7 @@ export function buildStreet(scene: Scene, mat: Palette) {
           "#476b7d",
         );
       }
-    box(
-      "front-door",
-      b.x - Math.sign(b.x) * 6.08,
-      1.1,
-      b.z,
-      0.06,
-      2.2,
-      1.2,
-      "#314f60",
-    );
+
   });
   for (const p of STREET_DETAILS) {
     const pole = MeshBuilder.CreateCylinder(

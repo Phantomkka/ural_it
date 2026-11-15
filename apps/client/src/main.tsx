@@ -1,3 +1,4 @@
+import {MissionBoard} from "./MissionBoard";
 import {CompanyPanel} from "./CompanyPanel";
 import { useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -216,7 +217,7 @@ function App() {
       if(e.repeat||isEditing(e.target))return;
       const b=settingsRef.current.bindings;
       if(e.code===b.tablet && (!tabletRef.current || b.tablet!=="Tab")){e.preventDefault();e.stopPropagation();if(tabletRef.current)closeTablet();else openTablet();}
-      if(e.code===b.drop && !touch.current.modal){if(roomRef.current?.state.players?.get(roomRef.current.sessionId)?.heldItem?.startsWith("prop:")){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});return;}if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}}
+      if(e.code===b.drop && !touch.current.modal){if(roomRef.current?.state.players?.get(roomRef.current.sessionId)?.heldItem?.startsWith("prop:")){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});return;}if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}else if(roomRef.current){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});}}
     };
     window.addEventListener("keydown",keyboard,true);return()=>window.removeEventListener("keydown",keyboard,true);
   },[]);
@@ -306,6 +307,7 @@ function App() {
           () => settingsRef.current,
           setView,
           id=>{
+            if(id.startsWith("tenant:")){const c=latestProfile.current?.service?.cases.at(-1);openTablet(caseTemplate(c).buildingId===id.slice(7)?"tickets":"missions");return;}
             if(id==="case-hardware"){openTablet("tickets");return;}
             if(id==="cable"){openTablet("tools");return;}
             if(id==="case-dropped"){const c=latestProfile.current?.service?.cases.at(-1);if(c)caseAct({action:"take",caseId:c.id});return;}
@@ -483,6 +485,7 @@ function App() {
     sendProgress(roomRef.current, action);
   };
   const homeView=(<>
+      <section className="beta-welcome"><h2>NETCITY 3.1 · Бета</h2><p>44 миссии, 12 направлений и доступные первые этажи всех зданий района.</p><button onClick={()=>openTablet("missions")}>Выбрать работу в районе</button></section>
       {tutorial && status === "В сети" && <Tutorial
         journey={{moved:view.moved,looked:view.looked,inspected:step>=4}} completed={profile?.tutorialCompleted??false}
         settings={settings} dismiss={dismissTutorial}/>}
@@ -748,7 +751,7 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
       {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
@@ -772,7 +775,7 @@ function App() {
           enabled={target}
           input={touch.current}
           interact={() => worldRef.current?.interact()}
-          drop={()=>{const room=roomRef.current;if(room?.state.players?.get(room.sessionId)?.heldItem?.startsWith("prop:"))room.send("interaction",{kind:"dropProp"});else if(latestProfile.current?.cable?.carrier===room?.sessionId)cableAct("drop");else{const c=latestProfile.current?.service?.cases.at(-1);if(c?.carrying)caseAct({action:"drop",caseId:c.id});}}}
+          drop={()=>{const room=roomRef.current;if(room?.state.players?.get(room.sessionId)?.heldItem?.startsWith("prop:"))room.send("interaction",{kind:"dropProp"});else if(latestProfile.current?.cable?.carrier===room?.sessionId)cableAct("drop");else{const c=latestProfile.current?.service?.cases.at(-1);if(c?.carrying)caseAct({action:"drop",caseId:c.id});else room?.send("interaction",{kind:"dropProp"});}}}
         />
       )}
       {!view.locked && !matchMedia("(pointer: coarse)").matches && !tablet && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}

@@ -23,15 +23,23 @@ export class ClientCaseService {
     if(!a || typeof a!=="object" || typeof a.requestId!=="string" || !/^[a-f0-9-]{36}$/.test(a.requestId) || typeof a.caseId!=="string" || !/^[a-f0-9-]{36}$/.test(a.caseId) ||
       (a.choice!==undefined && (typeof a.choice!=="string" || a.choice.length>64)) || (a.port!==undefined && (!Number.isInteger(a.port)||Number(a.port)<1||Number(a.port)>8)) ||
       Object.keys(a).some(k=>!["requestId","caseId","action","choice","port"].includes(k)) ||
-      !["accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
+      !["select","accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
       return Promise.resolve({result:bad("Некорректное действие заявки."),data:null});
     const fingerprint=createHash("sha256").update(JSON.stringify(["case",a.action,a.caseId,a.choice,a.port])).digest("hex");
     return this.store.transaction(id,a.requestId,tx=>{
       if(tx.operation) return tx.operation.fingerprint===fingerprint?{...tx.operation.result,replayed:true}:bad("Ключ операции уже использован.");
-      refreshCases(tx.data,this.now());
+      if(a.action==='select'&&tx.data.service?.cases.length)initBusiness(tx.data);else refreshCases(tx.data,this.now());
       const c=tx.data.service!.cases.find(c=>c.id===a.caseId);
       const position=actor();
       const near=(point:{x:number;z:number},indoors=false)=>!!position && Number.isFinite(position.x)&&Number.isFinite(position.z)&&(!indoors||inOfficeRoom(position,point.x))&&Math.hypot(position.x-point.x,position.z-point.z)<=2.5;
+      if(a.action==='select'){
+        let result:ProgressResult;const last=tx.data.service!.cases.at(-1),t=CASE_CATALOG.find(t=>t.id===a.choice);
+        if(!t||!last||last.id!==a.caseId||!['RINGING','DECLINED','COMPLETED'].includes(last.stage)||tx.data.jobs.some(j=>j.status==='ACTIVE'))result=bad('Сначала завершите активную работу.');
+        else if(last.stage==='COMPLETED'&&this.now()<last.availableAt)result=bad('Клиент ещё оформляет документы. Дождитесь следующего звонка.');
+        else if(t.upgrade&&!tx.data.business!.upgrades.includes(t.upgrade))result=bad('Для этого заказа нужен соответствующий комплект компании.');
+        else {tx.data.service!.cases=tx.data.service!.cases.filter(c=>!['RINGING','DECLINED'].includes(c.stage)).slice(-19);tx.data.service!.cases.push({id:randomUUID(),templateId:t.id,stage:'RINGING',clues:[],carrying:false,droppedAt:null,satisfaction:3,availableAt:0,completedAt:null});result=good('Заказ выбран. Ответьте на звонок клиента.');}
+        tx.saveOperation={fingerprint,result};return result;
+      }
       let result:ProgressResult;
       const perform=():ProgressResult=>{
         if(c&&(c.templateId!=='moved-desks'||a.action==='returnPart'))return performCase(tx,c,a,position,this.now());

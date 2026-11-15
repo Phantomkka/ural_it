@@ -50,29 +50,14 @@ export function buildAssetDistrict(
       `architecture-${i}`,
       b.x,
       b.z,
-      b.height,
+      Math.max(2.5,b.height-3.6),
       b.width,
       b.depth,
       (Math.sign(b.x) * Math.PI) / 2,
+      3.6,
     );
     if (!pivot) return;
     scene.getMeshByName(`building-${i}`)?.setEnabled(false);
-    const label = sign(
-      scene,
-      `shop-sign-${i}`,
-      [
-        "NETCITY / WORKSPACE",
-        "COFFEE & CODE",
-        "DATA / OFFICE",
-        "CITY SERVICES",
-      ][i % 4],
-      3.2,
-      0.55,
-    );
-    label.mesh.position.set(b.x - Math.sign(b.x) * 6.08, 2.7, b.z);
-    label.mesh.rotation.y = (Math.sign(b.x) * Math.PI) / 2;
-    label.mesh.isPickable = false;
-    label.mesh.freezeWorldMatrix();
     const glass = mat("architectural-glass", "#a5c9d3");
     glass.unfreeze();
     glass.metallic = 0.15;
@@ -84,7 +69,7 @@ export function buildAssetDistrict(
       { width: 0.025, height: 1.8, depth: 2.4 },
       scene,
     );
-    pane.position.set(b.x - Math.sign(b.x) * 6.04, 1.25, b.z);
+    pane.position.set(b.x - Math.sign(b.x) * 6.04, 1.25, b.z+3);
     pane.material = glass;
     pane.isPickable = false;
     pane.freezeWorldMatrix();

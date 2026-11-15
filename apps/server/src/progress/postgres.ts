@@ -18,7 +18,7 @@ function decode(row: Record<string, any>): ProfileData {
     nickname: row.nickname,
     credits: row.credits,
     xp: row.xp,
-    inventory: {power_supply:0,toner:0,...row.inventory},
+    inventory: {power_supply:0,toner:0,ups_battery:0,ssd:0,...row.inventory},
     jobs: row.jobs,
     tutorialCompleted: row.tutorial_completed,
     version: row.version,
@@ -88,6 +88,7 @@ export class PostgresProgressStore implements ProgressStore {
         await client.query("INSERT INTO schema_migrations(version) VALUES(6)");
       }
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=7")).rowCount) {await client.query(await readFile(new URL("../../migrations/007_guest_transfer.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(7)");}
+      if (!(await client.query("SELECT version FROM schema_migrations WHERE version=8")).rowCount) {await client.query(await readFile(new URL("../../migrations/008_beta_inventory.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(8)");}
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -199,6 +200,7 @@ export class PostgresProgressStore implements ProgressStore {
     );
   }
   async health() {
+    if(!(await this.pool.query('SELECT version FROM schema_migrations WHERE version=8')).rowCount)throw Error('Beta inventory migration required');
     await this.pool.query("SELECT id,cable,business FROM profiles LIMIT 0");
     await this.pool.query("SELECT id,preferences FROM accounts LIMIT 0");
   }

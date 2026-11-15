@@ -51,6 +51,7 @@ export function buildOffice(scene: Scene, mat: Palette) {
   let entryDoor:ReturnType<typeof MeshBuilder.CreateBox>|undefined;
   for (const [i,door] of OFFICE_DOORS.entries()) {
     const leaf=box("open-door",door.x,1.3,door.z,door.width,2.6,door.depth,dark);
+    if(i===1)leaf.metadata={cityDoor:"hq-server",cityDynamic:true};
     if(i===0){entryDoor=leaf;leaf.setPivotPoint(new Vector3(-door.width/2,0,0));leaf.metadata={entryDoor:true};}
   }
   const accents = [];

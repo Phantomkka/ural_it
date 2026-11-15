@@ -89,3 +89,7 @@ PostgreSQL-проверки используют отдельный тестов
 - [Руководство развёртывания](docs/deployment.md)
 
 [Диагностический замер](benchmarks/netcity-2-local.json): принудительный SwiftShader — 7,9 FPS desktop/low и 33,9 FPS эмуляция телефона/low. Это программный рендерер, не типовой игровой ПК. 60 FPS и физические смартфоны ещё требуют проверки. Сохраняется предупреждение Vite о крупном основном чанке. Безопасный чат остаётся отдельной задачей.
+
+## NETCITY 3.1 beta
+
+The tablet's **Работы района** catalog offers 44 missions across twelve repair families. All ten district buildings have accessible ground floors and shared doors. New DHCP, DNS, UPS and storage workflows, company laboratories and contracts extend the existing game. Account, money and active-case compatibility are retained through additive migration 008. See [beta release notes](docs/beta-3.1.md) for play and rollout instructions.

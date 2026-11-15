@@ -1,3 +1,4 @@
+import {toggleDoor} from "../doorsState.js";
 import {handleProp} from "../propsState.js";
 import { randomUUID } from "node:crypto";
 import type { Client } from "@colyseus/core";
@@ -28,6 +29,7 @@ const liveSessions=new Set<string>();
 /** Serializes world transactions without blocking authoritative movement ticks. */
 export class WorkController {
   private lastDoorAction=0;
+  private doorActions=new Map<string,number>();
   private actors = new Map<string, string>();
   private subscribers = new Set<string>();
   private leases = new Map<WorkKind, Lease>();
@@ -53,7 +55,7 @@ export class WorkController {
     liveSessions.delete(client.sessionId);
     this.actors.delete(client.sessionId);
     this.subscribers.delete(client.sessionId);
-    this.budgets.delete(client.sessionId);
+    this.budgets.delete(client.sessionId);this.doorActions.delete(client.sessionId);
     this.cableRoom.forget(client.sessionId);
     for(const prop of this.room.state.props.values())if(prop.holder===client.sessionId){prop.holder="";if(position){prop.x=position.x;prop.z=position.z;}}
     this.tail = this.tail
@@ -193,6 +195,7 @@ export class WorkController {
     this.enqueue(client,"interactionResult",async()=>{
       const action=(value as {kind?:string})?.kind,player=this.room.state.players.get(client.sessionId);
       const fail=(message:string)=>this.send(client,"interactionResult",{ok:false,message});
+      if(action==="cityDoor"){const last=this.doorActions.get(client.sessionId)??0;if(Date.now()-last<800)return fail("Дождитесь движения двери.");this.doorActions.set(client.sessionId,Date.now());this.send(client,"interactionResult",toggleDoor(this.room,client.sessionId,value));return;}
       if(player&&["takeProp","dropProp"].includes(action??"")){this.send(client,"interactionResult",handleProp(this.room.state.props,player,client.sessionId,value,this.room.state.equipment.officeDoorOpen,this.room.state.cars.values(),this.room.state.players.values()));return;}
       if(action==="liftHeavy")return fail("Автомобиль и серверная стойка слишком тяжёлые. Переносите небольшие детали.");
       if(action!=="door"||!player||Math.hypot(player.x-8,player.z)>2.5)return fail("Подойдите к входной двери.");

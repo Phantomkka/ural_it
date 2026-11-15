@@ -7,6 +7,8 @@ export const ITEMS = {
   patch_cord: { name: "Патч-корд", price: 30, consumable: true },
   cleaner: { name: "Баллон для очистки", price: 20, consumable: true },
   toolkit: { name: "Набор инструментов", price: 50, consumable: false },
+  ups_battery:{name:'Батарея ИБП',price:90,consumable:true},
+  ssd:{name:'Сервисный SSD',price:100,consumable:true},
   power_supply:{name:'Блок питания ПК',price:45,consumable:true},
   toner:{name:'Картридж с тонером',price:55,consumable:true},
 } as const;

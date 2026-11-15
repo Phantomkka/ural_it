@@ -1,3 +1,4 @@
+import {DoorState,createDoors} from "./doorsState.js";
 import {CarryObject,createProps} from "./propsState.js";
 import {propBlocksMove} from "@netcity/shared";
 import {Vehicle,createCars,advanceCity} from "./cityState.js";
@@ -82,6 +83,7 @@ defineTypes(Equipment, {
   rackWorkId: "string",
 });
 export class StreetState extends Schema {
+  declare doors:MapSchema<DoorState>;
   declare props:MapSchema<CarryObject>;
   declare cars:MapSchema<Vehicle>;declare worldClock:number;declare trafficPhase:string;
   declare devices: MapSchema<NetworkDevice>;
@@ -89,13 +91,13 @@ export class StreetState extends Schema {
   declare players: MapSchema<Player>;
   constructor() {
     super();
-    this.props=createProps();this.cars=createCars();this.worldClock=Date.now();this.trafficPhase="DRIVE";
+    this.doors=createDoors();this.props=createProps();this.cars=createCars();this.worldClock=Date.now();this.trafficPhase="DRIVE";
     this.devices = createDevices();
     this.players = new MapSchema<Player>();
     this.equipment = new Equipment();
   }
 }
-defineTypes(StreetState, {props:{map:CarryObject},cars:{map:Vehicle},worldClock:"number",trafficPhase:"string",
+defineTypes(StreetState, {doors:{map:DoorState},props:{map:CarryObject},cars:{map:Vehicle},worldClock:"number",trafficPhase:"string",
   players: { map: Player },
   equipment: Equipment,
   devices: { map: NetworkDevice },
@@ -159,7 +161,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
         const carrying=player.heldItem==='cable_roll'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
-        const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen));
+        const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen,this.state.doors));
         if(![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocksMove(player,next,prop)))Object.assign(player,next);
         if (player.x > 5 && Math.abs(player.z) < 3)
           player.ticketStep = Math.max(player.ticketStep, 2);
