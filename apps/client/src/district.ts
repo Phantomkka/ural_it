@@ -1,9 +1,9 @@
 import { MeshBuilder, Mesh, type Scene } from "./babylon";
 import { sign, type Palette } from "./visuals";
-import {CLIENT_CASE_TEMPLATE} from "@netcity/shared";
+import {CLIENT_CASE_TEMPLATE,DISPATCHER_POINT} from "@netcity/shared";
 export const CONTACTS = [
   {id:"client",name:"Елена · бухгалтерия",...CLIENT_CASE_TEMPLATE.client,color:"#799fd4"},
-  {id:"dispatcher",name:"Алина · диспетчер",x:4,z:-5,color:"#e2b46b"},
+  {id:"dispatcher",name:"Алина · диспетчер",...DISPATCHER_POINT,color:"#e2b46b"},
   {id:"supplier",name:"Марат · снабжение",x:-6,z:2,color:"#62cdb3"},
   {id:"alex",name:"Алексей · рабочие места",x:10.7,z:-3.35,color:"#7a9dbb",seated:true},
   {id:"olga",name:"Ольга · печать",x:10.7,z:4.65,color:"#b6a783",seated:true},

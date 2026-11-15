@@ -1,3 +1,5 @@
+import {SERVICE_FURNITURE,PARKED_CARS} from './furniture.js';
+export * from './furniture.js';
 export const ROOM_NAME = "street";
 export const TICK_RATE = 30;
 export const MOVE_SPEED = 5;
@@ -88,6 +90,8 @@ export const STREET_DETAILS = [-1, 1].flatMap((side) =>
   [-28, -12, 12, 28].map((z) => ({ x: side * 6.8, z })),
 );
 export const WORLD_COLLIDERS = [
+  ...SERVICE_FURNITURE,
+  ...PARKED_CARS,
   ...BUILDINGS.filter((b) => b !== OFFICE),
   ...OFFICE_WALLS,
   ...OFFICE_DOORS,

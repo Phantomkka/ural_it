@@ -193,7 +193,7 @@ export class WorkController {
     this.enqueue(client,"interactionResult",async()=>{
       const action=(value as {kind?:string})?.kind,player=this.room.state.players.get(client.sessionId);
       const fail=(message:string)=>this.send(client,"interactionResult",{ok:false,message});
-      if(player&&["takeProp","dropProp"].includes(action??"")){this.send(client,"interactionResult",handleProp(this.room.state.props,player,client.sessionId,value,this.room.state.equipment.officeDoorOpen,this.room.state.cars.values()));return;}
+      if(player&&["takeProp","dropProp"].includes(action??"")){this.send(client,"interactionResult",handleProp(this.room.state.props,player,client.sessionId,value,this.room.state.equipment.officeDoorOpen,this.room.state.cars.values(),this.room.state.players.values()));return;}
       if(action==="liftHeavy")return fail("Автомобиль и серверная стойка слишком тяжёлые. Переносите небольшие детали.");
       if(action!=="door"||!player||Math.hypot(player.x-8,player.z)>2.5)return fail("Подойдите к входной двери.");
       if(Date.now()-this.lastDoorAction<800)return fail("Дождитесь движения двери.");

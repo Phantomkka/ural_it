@@ -1,7 +1,8 @@
 export type TrafficPhase='DRIVE'|'AMBER'|'CROSS';
 export interface CityCar {id:string;x:number;z:number;direction:number;speed:number}
+export const DISPATCHER_POINT={x:6,z:-6};
 export function trafficPhase(now:number):TrafficPhase {const t=((now/1000)%32+32)%32;return t<20?'DRIVE':t<23?'AMBER':'CROSS';}
-export function initialCars():CityCar[]{return [-1,1].flatMap(direction=>[-30,-8,18].map((z,i)=>({id:`car-${direction}-${i}`,x:direction*2.4,z,direction,speed:0})));}
+export function initialCars():CityCar[]{return [-1,1].flatMap(direction=>[-30,-8,18].map((z,i)=>({id:`car-${direction}-${i}`,x:direction*1.8,z,direction,speed:0})));}
 export function carBlocksPoint(p:{x:number;z:number},car:CityCar){return Math.abs(p.x-car.x)<1.25&&Math.abs(p.z-car.z)<2.15;}
 export function stepCars(cars:CityCar[],players:Iterable<{x:number;z:number}>,now:number,dt:number){
   const people=[...players],phase=trafficPhase(now),step=Math.min(Math.max(dt,0),0.1);
@@ -12,7 +13,7 @@ export function stepCars(cars:CityCar[],players:Iterable<{x:number;z:number}>,no
     if(cars.some(other=>other!==c&&other.direction===c.direction&&(other.z-c.z)*c.direction>0&&(other.z-c.z)*c.direction<7))speed=0;
     let z=c.z+speed*c.direction*step;
     if(people.some(p=>Math.abs(p.x-c.x)<1.24&&Math.abs(p.z-z)<2.1)){z=c.z;speed=0;}
-    if(Math.abs(z)>44){const candidate=-44*c.direction;if(!people.some(p=>Math.abs(p.x-c.x)<1.25&&Math.abs(p.z-candidate)<4))z=candidate;else{z=c.z;speed=0;}}
+    if(Math.abs(z)>44){const candidate=-44*c.direction;if(!people.some(p=>Math.abs(p.x-c.x)<1.25&&Math.abs(p.z-candidate)<4)&&!cars.some(other=>other!==c&&other.direction===c.direction&&Math.abs(other.z-candidate)<7))z=candidate;else{z=c.z;speed=0;}}
     return {...c,z,speed};
   });
 }
