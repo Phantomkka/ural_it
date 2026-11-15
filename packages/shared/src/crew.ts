@@ -1,0 +1,31 @@
+import {CITY_BUILDINGS,buildingClient,missionStation} from './buildings.js';
+export const CREW_SHOP={x:-17,z:1.5};
+export const CREW_ROLES=['Универсал','Снабженец','Курьер','Кабельщик','Монтажник'] as const;
+export const CREW_GOODS={camera:{name:'IP-камера PoE',price:180},switch:{name:'Коммутатор PoE',price:240},cable:{name:'Монтажный комплект UTP · 30 м',price:120},router:{name:'Маршрутизатор',price:210},ups:{name:'ИБП с батареей',price:260},disk:{name:'Диск резервирования',price:150},printer:{name:'Сетевой принтер',price:230}} as const;
+export type CrewGood=keyof typeof CREW_GOODS;
+export type CrewKind='security'|'network'|'renewal';
+export const CREW_KINDS:Record<CrewKind,string>={security:'Видеонаблюдение под ключ',network:'Новая сеть и рабочие места',renewal:'Замена техники и резервирование'};
+export const CREW_CATALOG=CITY_BUILDINGS.filter(b=>b.id!=='hq').flatMap(b=>(Object.keys(CREW_KINDS) as CrewKind[]).map(kind=>({id:b.id+'-'+kind,buildingId:b.id,kind,title:CREW_KINDS[kind]+' · '+b.name,credits:kind==='security'?1800:kind==='network'?1600:2000,xp:kind==='renewal'?900:750})));
+export interface CrewPoint {x:number;z:number}
+export interface CrewStep {label:string;point:CrewPoint;wait?:number;choice?:string;options?:string[]}
+export interface CrewTask {id:string;kind:'survey'|'delivery'|'cable'|'camera'|'replace'|'test';title:string;good?:CrewGood;requires:string[];steps:CrewStep[];step:number;readyAt:number;carrier?:string;carrierSession?:string;parcel?:CrewPoint;orderedAt?:number;done:boolean}
+export interface CrewMember {name:string;role:string;contributions:number;claimed:boolean}
+/** Private persisted aggregate. Profile identifiers never enter room Schema or crew views. */
+export interface CrewProject {id:string;code:string;templateId:string;owner:string;members:Record<string,CrewMember>;status:'LOBBY'|'ACTIVE'|'COMPLETE';budget:number;spent:number;tasks:CrewTask[];createdAt:number;completedAt:number|null;revision:number}
+export interface CrewView {code:string;templateId:string;status:CrewProject['status'];budget:number;spent:number;revision:number;serverNow:number;members:(CrewMember&{self:boolean;leader:boolean})[];tasks:(Omit<CrewTask,'carrier'|'carrierSession'>&{carriedBy?:string;mine:boolean})[];leader:boolean;claimed:boolean;payout:number;xp:number}
+export interface CrewIntent {action:'create'|'join'|'refresh'|'role'|'leave'|'launch'|'order'|'pickup'|'drop'|'work'|'signoff'|'claim';code?:string;templateId?:string;role?:string;taskId?:string;step?:number;choice?:string}
+export type CrewAction=CrewIntent&{requestId:string};
+export interface CrewObject {id:string;kind:'parcel'|'camera'|'cabinet'|'cable'|'depot';x:number;z:number;done:boolean;step:number;points?:CrewPoint[];holder?:string}
+export function crewTasks(templateId:string):CrewTask[]{
+ const c=CREW_CATALOG.find(c=>c.id===templateId);if(!c)throw Error('Unknown crew template');const b=CITY_BUILDINGS.find(b=>b.id===c.buildingId)!,contact=buildingClient(b),a=missionStation(b,0),d=missionStation(b,3);
+ const task=(id:string,kind:CrewTask['kind'],title:string,requires:string[],steps:CrewStep[],good?:CrewGood):CrewTask=>({id,kind,title,requires,steps,good,step:0,readyAt:0,done:false});
+ const deliveries:CrewGood[]=c.kind==='security'?['camera','camera','switch','cable']:c.kind==='network'?['router','switch','cable']:['ups','disk','printer','cable'];
+ const result=[task('survey','survey','Обследование и согласование с клиентом',[],[{label:'Снять размеры и проверить питание',point:contact},{label:'Согласовать план работ',point:contact,choice:'safe',options:['safe','skip'],wait:1500}])];
+ deliveries.forEach((good,i)=>result.push(task('delivery-'+i,'delivery','Доставка: '+CREW_GOODS[good].name,['survey'],[{label:'Сдать комплект в монтажную зону',point:i%2?a:d}],good)));
+ const route=[a,{x:b.x,z:a.z},{x:b.x,z:b.z},{x:d.x,z:b.z},d];
+ result.push(task('cable','cable','Новая кабельная трасса · 30 м',deliveries.map((_,i)=>'delivery-'+i),[{label:'Осмотреть трассу и проверить безопасный маршрут',point:a,choice:'tray',options:['tray','floor']},...route.map((point,i)=>({label:'Закрепить кабель · точка '+(i+1),point})),{label:'Обжать разъёмы по T568B',point:d,choice:'T568B',options:['T568B','split']},{label:'Тестер: все пары, длина и линк',point:d,wait:3000}]));
+ if(c.kind==='security')for(let i=0;i<2;i++){const point={x:b.x+(i?5.5:-5.5),z:b.z-4.5};result.push(task('camera-'+i,'camera','Монтаж камеры №'+(i+1),deliveries.map((_,i)=>'delivery-'+i),[{label:'Разметить и закрепить кронштейн',point},{label:'Подключить PoE при снятом питании',point,choice:'off',options:['off','live']},{label:'Настроить обзор входа',point,choice:'entrance',options:['entrance','wall']},{label:'Проверить запись и питание',point,wait:2500}]));}
+ else for(let i=0;i<2;i++){const point=i?a:d;result.push(task('replace-'+i,'replace',(c.kind==='renewal'?['Замена ИБП и проверка нагрузки','Замена принтера и диска']:['Установка маршрутизатора','Замена коммутатора'])[i],deliveries.map((_,i)=>'delivery-'+i),[{label:'Диагностика и сохранение конфигурации',point,wait:1500},{label:'Отключить питание и промаркировать порты',point,choice:'off',options:['off','live']},{label:'Снять старый узел и установить новый',point},{label:'Восстановить настройки и включить питание',point},{label:'Нагрузочный тест и контрольный отчёт',point,wait:3000}]));}
+ result.push(task('acceptance','test','Пусконаладка и акт испытаний',result.filter(t=>t.kind!=='survey').map(t=>t.id),[{label:'Проверить всю систему под нагрузкой',point:d,wait:5000},{label:'Передать схему и инструкцию клиенту',point:contact}]));return result;
+}
+export function crewView(p:CrewProject,id:string):CrewView{const c=CREW_CATALOG.find(c=>c.id===p.templateId)!;return {serverNow:Date.now(),code:p.code,templateId:p.templateId,status:p.status,budget:p.budget,spent:p.spent,revision:p.revision,leader:p.owner===id,claimed:p.members[id].claimed,payout:Math.floor(c.credits/Object.keys(p.members).length),xp:Math.floor(c.xp/Object.keys(p.members).length),members:Object.entries(p.members).map(([key,m])=>({...m,self:key===id,leader:p.owner===key})),tasks:p.tasks.map(({carrier,carrierSession,...t})=>({...t,mine:carrier===id,carriedBy:carrier?p.members[carrier]?.name:undefined}))};}

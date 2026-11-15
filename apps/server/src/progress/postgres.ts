@@ -14,6 +14,7 @@ import {
 import type { ProgressResult } from "@netcity/shared";
 function decode(row: Record<string, any>): ProfileData {
   return {
+    projects:row.projects??[],
     id: row.id,
     nickname: row.nickname,
     credits: row.credits,
@@ -89,6 +90,7 @@ export class PostgresProgressStore implements ProgressStore {
       }
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=7")).rowCount) {await client.query(await readFile(new URL("../../migrations/007_guest_transfer.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(7)");}
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=8")).rowCount) {await client.query(await readFile(new URL("../../migrations/008_beta_inventory.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(8)");}
+      if (!(await client.query("SELECT version FROM schema_migrations WHERE version=9")).rowCount) {await client.query(await readFile(new URL("../../migrations/009_crew_projects.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(9)");}
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -131,10 +133,14 @@ export class PostgresProgressStore implements ProgressStore {
     id: string,
     key: string | null,
     work: (tx: Transaction) => ProgressResult,
+    projectCode?:string,
   ) {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      // All project mutations acquire this lock BEFORE a profile row: joining from
+      // another server process cannot overfill a crew or duplicate stock/rewards.
+      if(projectCode)await client.query('SELECT pg_advisory_xact_lock(731009)');
       const rows = await client.query(
         "SELECT * FROM profiles WHERE id=$1 FOR UPDATE",
         [id],
@@ -150,7 +156,8 @@ export class PostgresProgressStore implements ProgressStore {
             )
           ).rows[0]
         : undefined;
-      const tx: Transaction = { data, operation: prior };
+      const project=projectCode?(await client.query('SELECT data FROM crew_projects WHERE code=$1 FOR UPDATE',[projectCode])).rows[0]?.data:undefined;
+      const tx: Transaction = { data, operation: prior,project };
       const result = work(tx);
       assertProfile(data);
       if (tx.reward)
@@ -172,6 +179,7 @@ export class PostgresProgressStore implements ProgressStore {
             JSON.stringify(tx.saveOperation.result),
           ],
         );
+      if(projectCode&&tx.project)await client.query('INSERT INTO crew_projects(code,data) VALUES($1,$2::jsonb) ON CONFLICT(code) DO UPDATE SET data=EXCLUDED.data',[projectCode,JSON.stringify(tx.project)]);
       await client.query("COMMIT");
       return { result, data };
     } catch (error) {
@@ -183,7 +191,7 @@ export class PostgresProgressStore implements ProgressStore {
   }
   private async save(client: PoolClient, d: ProfileData) {
     await client.query(
-      "UPDATE profiles SET credits=$2,xp=$3,inventory=$4::jsonb,jobs=$5::jsonb,tutorial_completed=$6,version=$7,diagnostics=$8::jsonb,service=$9::jsonb,cable=$10::jsonb,business=$11::jsonb WHERE id=$1",
+      "UPDATE profiles SET credits=$2,xp=$3,inventory=$4::jsonb,jobs=$5::jsonb,tutorial_completed=$6,version=$7,diagnostics=$8::jsonb,service=$9::jsonb,cable=$10::jsonb,business=$11::jsonb,projects=$12::jsonb WHERE id=$1",
       [
         d.id,
         d.credits,
@@ -196,15 +204,18 @@ export class PostgresProgressStore implements ProgressStore {
         JSON.stringify(d.service ?? {cases:[],completed:0}),
         d.cable?JSON.stringify(d.cable):null,
         d.business?JSON.stringify(d.business):null,
+        JSON.stringify(d.projects??[]),
       ],
     );
   }
   async health() {
-    if(!(await this.pool.query('SELECT version FROM schema_migrations WHERE version=8')).rowCount)throw Error('Beta inventory migration required');
+    if(!(await this.pool.query('SELECT version FROM schema_migrations WHERE version=9')).rowCount)throw Error('Crew project migration required');
     await this.pool.query("SELECT id,cable,business FROM profiles LIMIT 0");
     await this.pool.query("SELECT id,preferences FROM accounts LIMIT 0");
+    await this.pool.query("SELECT code FROM crew_projects LIMIT 0");
   }
   async close() {
     await this.pool.end();
   }
+  async readProject(code:string):Promise<import('@netcity/shared').CrewProject|null>{return (await this.pool.query('SELECT data FROM crew_projects WHERE code=$1',[code])).rows[0]?.data??null;}
 }

@@ -56,7 +56,7 @@ export function createAvatar(
     asset: file,
     loaded: true,
     update(next: PlayerView, dt: number, distance: number) {
-      held.setEnabled(!!next.heldItem&&!next.heldItem.startsWith("prop:")&&next.heldItem!=="cable_roll");roll.setEnabled(next.heldItem==="cable_roll");
+      held.scaling.setAll(next.heldItem==="crew_parcel"?2:1);held.setEnabled(!!next.heldItem&&!next.heldItem.startsWith("prop:")&&next.heldItem!=="cable_roll");roll.setEnabled(next.heldItem==="cable_roll");
       const moving =
         Math.hypot(next.x - root.position.x, next.z - root.position.z) > 0.025;
       blend += (Number(moving) - blend) * Math.min(1, dt * 8);

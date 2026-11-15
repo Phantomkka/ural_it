@@ -12,6 +12,7 @@ import {
   type ServiceProgress,
 } from "@netcity/shared";
 export interface ProfileData {
+  projects?:string[];
   business?:import('@netcity/shared').BusinessProgress;
   cable?:import('@netcity/shared').CableTask;
   service?: ServiceProgress;
@@ -35,12 +36,14 @@ export interface Reward {
   xp: number;
 }
 export interface Transaction {
+  project?:import('@netcity/shared').CrewProject;
   data: ProfileData;
   operation?: Operation;
   reward?: Reward;
   saveOperation?: Operation;
 }
 export interface ProgressStore {
+  readProject(code:string):Promise<import('@netcity/shared').CrewProject|null>;
   readonly accounts:AccountStore;
   mode: PrivateProfile["persistence"];
   register(): Promise<{ token: string; profileId: string }>;
@@ -50,6 +53,7 @@ export interface ProgressStore {
     id: string,
     key: string | null,
     work: (tx: Transaction) => ProgressResult,
+    projectCode?:string,
   ): Promise<{ result: ProgressResult; data: ProfileData }>;
   health(): Promise<void>;
   close(): Promise<void>;
@@ -73,6 +77,7 @@ export const newJob = (
 export function newProfile(): ProfileData {
   const id = randomUUID();
   return {
+    projects:[],
     id,
     nickname: `Инженер ${id.slice(0, 6)}`,
     credits: 0,
@@ -94,6 +99,7 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.projects!==undefined&&(!Array.isArray(data.projects)||data.projects.length>20||new Set(data.projects).size!==data.projects.length||data.projects.some(c=>!/^[A-F0-9]{12}$/.test(c)))) ||
     (data.business!==undefined&&(!Array.isArray(data.business.upgrades)||new Set(data.business.upgrades).size!==data.business.upgrades.length||data.business.upgrades.some(x=>!['field-kit','workbench','service-van','network-lab','infra-lab'].includes(x))||!Array.isArray(data.business.claimed)||new Set(data.business.claimed).size!==data.business.claimed.length||Object.keys(data.business.workCounts).length>128||Object.values(data.business.workCounts).some(n=>!Number.isSafeInteger(n)||n<0||n>2147483647))) ||
     (data.cable!==undefined && (data.cable.points.length<1||data.cable.points.length>12||![...data.cable.points,data.cable.endpoint].every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<=45&&Math.abs(p.z)<=45))) ||
     (data.service!==undefined && (!Number.isSafeInteger(data.service.completed)||data.service.completed<0||!Array.isArray(data.service.cases)||data.service.cases.length>20||new Set(data.service.cases.map(c=>c.id)).size!==data.service.cases.length)) ||
@@ -114,6 +120,8 @@ export function assertProfile(data: ProfileData) {
 }
 /** In-memory adapter obeys the same transaction and uniqueness contract as PostgreSQL. */
 export class MemoryProgressStore implements ProgressStore {
+  private projects=new Map<string,import('@netcity/shared').CrewProject>();
+  async readProject(code:string){await this.tail;return structuredClone(this.projects.get(code)??null);}
   mode = "temporary" as const;
   private profiles = new Map<string, ProfileData>();
   private identities = new Map<string, string>();
@@ -148,6 +156,7 @@ export class MemoryProgressStore implements ProgressStore {
     id: string,
     key: string | null,
     work: (tx: Transaction) => ProgressResult,
+    projectCode?:string,
   ) {
     const task = this.tail.then(() => {
       const original = this.profiles.get(id);
@@ -155,6 +164,7 @@ export class MemoryProgressStore implements ProgressStore {
       const data = structuredClone(original),
         opKey = `${id}:${key}`,
         tx: Transaction = {
+          project:projectCode?structuredClone(this.projects.get(projectCode)):undefined,
           data,
           operation: key ? this.operations.get(opKey) : undefined,
         };
@@ -167,6 +177,7 @@ export class MemoryProgressStore implements ProgressStore {
       if (tx.saveOperation && key)
         this.operations.set(opKey, structuredClone(tx.saveOperation));
       if (tx.reward) this.rewards.add(tx.reward.jobId);
+      if(projectCode&&tx.project)this.projects.set(projectCode,structuredClone(tx.project));
       return { result, data: structuredClone(data) };
     });
     this.tail = task.catch(() => {});
