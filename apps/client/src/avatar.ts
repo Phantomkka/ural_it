@@ -26,7 +26,7 @@ export function createAvatar(
   const root = new TransformNode(`player-${id}`, scene);
   model.root.parent = root;
   fitModel(model.root, undefined, 1.8, undefined);
-  root.position.set(player.x, 0, player.z);
+  root.position.set(player.x, (player.floor??0)*3.6, player.z);
   const held=MeshBuilder.CreateBox("remote-carried-part",{width:0.25,height:0.12,depth:0.2},scene);held.parent=root;held.position.set(0,1,0.5);held.material=mat("remote-part","#64dec1");held.isPickable=false;held.setEnabled(!!player.heldItem&&!player.heldItem.startsWith("prop:")&&player.heldItem!=="cable_roll");
   const roll=createCableRoll(scene,mat,"remote-roll");roll.parent=root;roll.position.set(0,1,0.6);roll.getChildMeshes().forEach(m=>m.isPickable=false);roll.setEnabled(player.heldItem==="cable_roll");
   const idle = model.entries.animationGroups.find((group) =>
@@ -66,7 +66,7 @@ export function createAvatar(
       root.metadata.animation = moving ? "Walk" : "Idle";
       root.position = Vector3.Lerp(
         root.position,
-        new Vector3(next.x, 0, next.z),
+        new Vector3(next.x, (next.floor??0)*3.6, next.z),
         Math.min(1, dt / 0.07),
       );
       root.rotation.y +=

@@ -1,5 +1,7 @@
 import {SERVICE_FURNITURE,PARKED_CARS} from './furniture.js';
 import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaf,doorClosed} from './buildings.js';
+import {upperColliders,OFFICE_REAR_FURNITURE,officeLiftWalls} from './officeFloors.js';
+export * from './officeFloors.js';
 export * from './buildings.js';
 export * from './furniture.js';
 export const ROOM_NAME = "street";
@@ -34,6 +36,7 @@ export function advance(
   dt: number,
   entryOpen = true,
   doors?:ReadonlyMap<string,{open:boolean}>,
+  upperBuilding?:string,
 ) {
   const magnitude = Math.max(1, Math.hypot(input.forward, input.strafe));
   const distance = MOVE_SPEED * (input.sprint === true ? SPRINT_MULTIPLIER : 1) * Math.max(0, Math.min(dt, 1 / TICK_RATE));
@@ -48,7 +51,7 @@ export function advance(
       magnitude) *
     distance;
   const blocked = (x: number, z: number) =>
-    movementColliders(entryOpen,doors).some(
+    (upperBuilding?upperColliders(upperBuilding):movementColliders(entryOpen,doors)).some(
       (b) =>
         Math.abs(x - b.x) < b.width / 2 + 0.4 &&
         Math.abs(z - b.z) < b.depth / 2 + 0.4,
@@ -66,9 +69,9 @@ export const OFFICE = BUILDINGS.find((b) => b.x === 14 && b.z === 0)!;
 export const OFFICE_WALLS = [
   { x: 8, z: -3.6, width: 0.3, depth: 4.8 },
   { x: 8, z: 3.6, width: 0.3, depth: 4.8 },
-  { x: 20, z: 0, width: 0.3, depth: 12 },
-  { x: 14, z: -6, width: 12, depth: 0.3 },
-  { x: 14, z: 6, width: 12, depth: 0.3 },
+  { x: 28, z: 0, width: 0.3, depth: 12 },
+  { x: 18, z: -6, width: 20, depth: 0.3 },
+  { x: 18, z: 6, width: 20, depth: 0.3 },
   { x: 13, z: -3.6, width: 0.3, depth: 4.8 },
   { x: 13, z: 3.6, width: 0.3, depth: 4.8 },
   { x: 18.5, z: 0, width: 0.8, depth: 1.6 },
@@ -85,6 +88,7 @@ export const STREET_DETAILS = [-1, 1].flatMap((side) =>
   [-28, -12, 12, 28].map((z) => ({ x: side * 6.8, z })),
 );
 export const WORLD_COLLIDERS = [
+  ...OFFICE_REAR_FURNITURE,...CITY_BUILDINGS.flatMap(officeLiftWalls),
   ...SERVICE_FURNITURE,
   ...PARKED_CARS,
   ...CITY_WALLS,
@@ -120,6 +124,7 @@ export interface ActionResult {
   inspected?: boolean;
 }
 export interface PlayerView {
+  floor?:number;buildingId?:string;
   cablePath?:string;
   heldItem?:string;
   nickname: string;

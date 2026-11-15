@@ -166,5 +166,93 @@
     "sha256": "4f9e7be1b035dcecf4c4f05f8b9df7cc387473e3e2af4299ffc9a49a416172e8",
     "bytes": 75852,
     "modification": "Baked scale/rotation and clipped a walkable office doorway while preserving source UVs, normals and materials"
+  },
+  {
+    "file": "office_desk.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/desk.glb",
+    "sha256": "0164fe828f028b321730fb8c74502e353583f751be74da1682d42fff7d3c5a42",
+    "bytes": 15048
+  },
+  {
+    "file": "office_chairDesk.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/chairDesk.glb",
+    "sha256": "46406619186034cbe92b19b79a5f1a8e3f442a17a70a7524ef2c0ad0f35095c6",
+    "bytes": 39016
+  },
+  {
+    "file": "office_computerScreen.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/computerScreen.glb",
+    "sha256": "5942cbad29a2d2b956619569926e81d50a4174403d592fece6556e57632dc643",
+    "bytes": 6404
+  },
+  {
+    "file": "office_computerKeyboard.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/computerKeyboard.glb",
+    "sha256": "9d9135789de2120e9f41ce3f0a56dd1b15f40adcc7888739bb842a2d820da322",
+    "bytes": 3476
+  },
+  {
+    "file": "office_computerMouse.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/computerMouse.glb",
+    "sha256": "d3ad1a923f0f7707ef367bb969eb94c9076e211c98c830ba52e133fadc5cdfc0",
+    "bytes": 5868
+  },
+  {
+    "file": "office_laptop.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/laptop.glb",
+    "sha256": "5fa8a1f4a71ab8d82ef64da77a6973ffd350c6d4557516069a4ffd4bb8d808af",
+    "bytes": 5540
+  },
+  {
+    "file": "office_lampRoundFloor.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/lampRoundFloor.glb",
+    "sha256": "50fe1b5b588edf15bfa9cc880f71a02a4fda6036350b24733d0ef4de5cc5e908",
+    "bytes": 6600
+  },
+  {
+    "file": "office_pottedPlant.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/pottedPlant.glb",
+    "sha256": "5b760eda2766f75fda36b2c5df652a1662f82981ef64cd8fa7fe7bcd386b3a15",
+    "bytes": 7576
+  },
+  {
+    "file": "office_plantSmall1.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/plantSmall1.glb",
+    "sha256": "2b9c022feb47be857b2c4fdc29f36522766ba9b70c578c31d7c05d71b4377d15",
+    "bytes": 8224
+  },
+  {
+    "file": "office_bookcaseOpen.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/bookcaseOpen.glb",
+    "sha256": "750702218d68c062b15dfef6ab06a4014d1cfa8bd05f02e57c53b7e13bec157c",
+    "bytes": 18020
+  },
+  {
+    "file": "office_loungeChair.glb",
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "source": "https://raw.githubusercontent.com/shorepine/kenney/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture/loungeChair.glb",
+    "sha256": "ddfe6bc4b3451bca61666d7b614552d6ed2a03d82fc76244b72ae3155874dc6c",
+    "bytes": 9648
   }
 ]

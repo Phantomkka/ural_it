@@ -1,3 +1,4 @@
+import {buildOfficeRemaster} from "./officeRemaster";
 import {buildCrewObjects} from "./crewObjects";
 import {buildInteriors} from "./interiors";
 import {CARRY_PROPS,CITY_BUILDINGS,buildingAt} from "@netcity/shared";
@@ -34,7 +35,7 @@ import { buildDistrict, CONTACTS } from "./district";
 import { playFootstep,playCityAmbience } from "./sound";
 import {buildCaseObjects} from "./caseObjects";
 import type {ClientCase} from "@netcity/shared";
-export interface WorldView { x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
+export interface WorldView { floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
 import { sendComputer, sendEquipment, type NetworkState } from "./network";
@@ -93,6 +94,7 @@ export function createWorld(
     const cableObjects=buildCableObjects(scene,material);
     const city=buildLivingCity(scene,material);
     const interiors=buildInteriors(scene,material);
+    const officeRemaster=buildOfficeRemaster(scene,material);
     const crewObjects=buildCrewObjects(scene,material);
     const props=new Map(CARRY_PROPS.map(p=>{const mesh=MeshBuilder.CreateBox("carry-prop-"+p.id,{width:.5,height:p.id==="spare-pc"?.65:.35,depth:.5},scene);mesh.position.set(p.x,.3,p.z);mesh.material=material("prop-"+p.id,p.id==="toolbox"?"#497a93":"#b69570");mesh.metadata={propId:p.id,cityDynamic:true};return [p.id,mesh] as const;}));
     for (const mesh of scene.meshes)
@@ -104,6 +106,7 @@ export function createWorld(
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
       const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(hit?.pickedMesh?.metadata?.officeLift)return {id:"contact:lift:"+hit.pickedMesh.metadata.officeLift,label:"Лифт · выбрать этаж"};
       if(hit?.pickedMesh?.metadata?.crewTarget)return {id:"contact:crew",label:"Бригада · склад / монтаж"};
       if(hit?.pickedMesh?.metadata?.propId){const id=hit.pickedMesh.metadata.propId;return {id:"prop:"+id,label:"Поднять: "+CARRY_PROPS.find(p=>p.id===id)?.name};}
       if(hit?.pickedMesh?.metadata?.heavy)return {id:"heavy",label:"Транспорт слишком тяжёлый"};
@@ -232,7 +235,7 @@ export function createWorld(
         if (!graphics.environmentLoaded)
           library.failed.push("potsdamer_platz_128.env");
         buildAssetDistrict(scene, library, material);
-        interiors.hydrate(library);
+        interiors.hydrate(library);officeRemaster.hydrate(library);
         graphics.refreshCasters();
         graphics.activate();
         const progress = {
@@ -287,7 +290,7 @@ export function createWorld(
         const blend = Math.hypot(me.x-camera.position.x,me.z-camera.position.z)>3 ? 1 : 1-Math.exp(-25*Math.min(engine.getDeltaTime()/1000,0.1));
         camera.position.x += (me.x-camera.position.x)*blend;
         camera.position.z += (me.z-camera.position.z)*blend;
-        camera.position.y = EYE_HEIGHT;
+        camera.position.y = EYE_HEIGHT+(me.floor??0)*3.6;
       }
       const present = new Set<string>();
       room.state.players?.forEach((player, id) => {
@@ -324,7 +327,7 @@ export function createWorld(
           avatars.delete(id);
           graphics.refreshCasters();
         }
-      interiors.sync(room.state.doors,camera.position);
+      interiors.sync(room.state.doors,camera.position);officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices);
       const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==="hq-server");if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
       office.sync(
         room.state.equipment?.port3Connected ?? false,
@@ -348,7 +351,7 @@ export function createWorld(
           lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
-        onView({x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
+        onView({floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
       }
       scene.render();
     });

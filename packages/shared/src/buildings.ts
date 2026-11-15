@@ -8,10 +8,10 @@ export const doorLeaf=(d:CityDoor)=>({x:d.x+d.side*.8,z:d.z-1.15,width:1.6,depth
 export const doorClosed=(d:CityDoor)=>({x:d.x,z:d.z-.35,width:.12,depth:1.6});
 export function buildingWalls(b:CityBuilding){const side=Math.sign(b.x);return [
  {x:side*8,z:b.z-3.6,width:.3,depth:4.8},{x:side*8,z:b.z+3.6,width:.3,depth:4.8},
- {x:side*20,z:b.z,width:.3,depth:12},{x:b.x,z:b.z-6,width:12,depth:.3},{x:b.x,z:b.z+6,width:12,depth:.3},
+ {x:side*28,z:b.z,width:.3,depth:12},{x:side*18,z:b.z-6,width:20,depth:.3},{x:side*18,z:b.z+6,width:20,depth:.3},
 ];}
 export const CITY_WALLS=CITY_BUILDINGS.filter(b=>b.id!=='hq').flatMap(buildingWalls);
-export function insideBuilding(p:{x:number;z:number},id:string){const b=CITY_BUILDINGS.find(b=>b.id===id);return !!b&&Math.abs(p.x-b.x)<5.45&&Math.abs(p.z-b.z)<5.45;}
+export function insideBuilding(p:{x:number;z:number},id:string){const b=CITY_BUILDINGS.find(b=>b.id===id);return !!b&&Math.abs(p.x-Math.sign(b.x)*18)<9.45&&Math.abs(p.z-b.z)<5.45;}
 export function buildingAt(p:{x:number;z:number}){return CITY_BUILDINGS.find(b=>insideBuilding(p,b.id));}
 export function missionStation(b:CityBuilding,slot:number){return {x:b.x+(slot%2===0?-1:2.5)*Math.sign(b.x),z:b.z+(slot<2?-3.2:3.2)};}
 export function buildingClient(b:CityBuilding){return {x:b.x-Math.sign(b.x)*3,z:b.z-3.7};}

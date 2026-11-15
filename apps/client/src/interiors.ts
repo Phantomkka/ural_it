@@ -1,15 +1,19 @@
 import {AssetLibrary,CHARACTER_FILES,appearanceVariant,fitModel} from './assets';
 import {MeshBuilder,TransformNode,Vector3,type Scene,type Mesh} from './babylon';
-import {CASE_CATALOG,CASE_KIND_NAMES,CITY_BUILDINGS,CITY_DOORS,buildingWalls,buildingClient,missionStation,doorLeaf} from '@netcity/shared';
+import {officeEnvelope,CASE_CATALOG,CASE_KIND_NAMES,CITY_BUILDINGS,CITY_DOORS,buildingWalls,buildingClient,missionStation,doorLeaf} from '@netcity/shared';
 import {batchStatic,sign,type Palette} from './visuals';
 export function buildInteriors(scene:Scene,mat:Palette){
  const tenants:{fallback:TransformNode;point:{x:number;z:number};id:string;model?:ReturnType<AssetLibrary["instantiate"]>}[]=[];
  const fixed:Mesh[]=[],doors=new Map<string,Mesh>(),dynamic:Mesh[]=[];
  const box=(name:string,x:number,y:number,z:number,w:number,h:number,d:number,color:string,key:string,pick=false)=>{const m=MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=mat(key,color);m.isPickable=pick;if(!pick)fixed.push(m);return m;};
  for(const b of CITY_BUILDINGS.filter(b=>b.id!=='hq')){
-  for(const [i,w]of buildingWalls(b).entries())box(`interior-wall-${b.id}-${i}`,w.x,1.8,w.z,w.width,3.6,w.depth,b.theme,'room-wall-'+b.theme);
-  box('room-floor-'+b.id,b.x,.005,b.z,11.7,.03,11.7,'#71828b','room-floor');
-  box('room-ceiling-'+b.id,b.x,3.54,b.z,11.7,.08,11.7,'#d6d9d0','room-ceiling');
+  for(const [i,w]of buildingWalls(b).entries()){
+   box('wall-sill-'+b.id+'-'+i,w.x,.45,w.z,w.width,.9,w.depth,b.theme,'room-wall-'+b.theme);box('wall-lintel-'+b.id+'-'+i,w.x,3.25,w.z,w.width,.7,w.depth,b.theme,'room-wall-'+b.theme);
+   const glass=box('office-window-'+b.id+'-'+i,w.x,1.9,w.z,w.width,2.0,w.depth*.25,'#a2c3cd','office-window');glass.material!.unfreeze();(glass.material as any).alpha=.22;glass.material!.freeze();
+   const length=Math.max(w.width,w.depth);for(let at=-length/2;at<=length/2;at+=2.8)box('window-mullion',w.x+(w.width>w.depth?at:0),1.9,w.z+(w.depth>w.width?at:0),w.width>w.depth?.08:w.width,2,w.depth>w.width?.08:w.depth,'#526878','window-frame');
+  }const e=officeEnvelope(b);
+  box('room-floor-'+b.id,e.x,.005,b.z,e.width-.3,.03,11.7,'#71828b','room-floor');
+  box('room-ceiling-'+b.id,e.x,3.54,b.z,e.width-.3,.08,11.7,'#d6d9d0','room-ceiling');
   box('entrance-lintel-'+b.id,Math.sign(b.x)*8,3,b.z,.3,.6,2.4,b.theme,'room-wall-'+b.theme);
   for(const dz of [-2.8,2.8])box('room-light',b.x,3.48,b.z+dz,5,.025,.1,'#b7eadf','room-lamp');
   const contact=buildingClient(b),body=box('tenant-'+b.id,contact.x,1.03,contact.z,.42,.85,.34,'#648ca2','tenant-shirt',true);
@@ -25,16 +29,16 @@ export function buildInteriors(scene:Scene,mat:Palette){
    box(`station-support-${b.id}-${slot}`,p.x,.4,p.z,.8,.8,.7,'#536775','station-support');
    const job=CASE_CATALOG.find(t=>t.buildingId===b.id&&t.station===slot)!,printer=job.kind==='printer',tower=['power','server','ups','storage'].includes(job.kind),height=printer?.32:tower?.65:.44,front=slot<2?1:-1,monitor=['network','dns','dhcp','voip'].includes(job.kind);
    const machine=box(`station-device-${b.id}-${slot}`,p.x,monitor?1.25:.8+height/2,p.z,printer?.7:.55,monitor?.34:height,monitor?.08:.48,'#bccbd0','station-device',true);machine.metadata={caseTarget:'hardware',deviceLabel:b.name+' · узел '+(slot+1),buildingId:b.id,station:slot};
-   if(printer){box('district-printer-lid',p.x,1.14,p.z,.71,.035,.5,'#213a4a','station-buttons');box('district-printer-paper',p.x,.89,p.z+front*.32,.3,.015,.23,'#e0e4df','room-ceiling');}
+   if(printer){box('district-printer-lid',p.x,1.14,p.z,.71,.035,.5,'#213a4a','printer-fallback');box('district-printer-paper',p.x,.89,p.z+front*.32,.3,.015,.23,'#e0e4df','printer-paper-fallback');}
    if(tower)for(const offset of [-.12,0,.12])box('district-server-vent',p.x+offset,1.05,p.z+front*.25,.04,.24,.02,'#213a4a','station-buttons');
-   box('station-display',p.x,monitor?1.25:1.06,p.z+front*(monitor?.051:.248),monitor?.48:.3,monitor?.26:.16,.02,'#4bada0','station-screen');
-   if(monitor){box('station-monitor-stand',p.x,.94,p.z,.08,.28,.08,'#213a4a','station-buttons');box('station-keyboard',p.x,.825,p.z+front*.23,.4,.035,.2,'#213a4a','station-buttons');}
+   box('station-display',p.x,monitor?1.25:1.06,p.z+front*(monitor?.051:.248),monitor?.48:.3,monitor?.26:.16,.02,'#4bada0',monitor?'monitor-fallback-screen':'station-screen');
+   if(monitor){box('station-monitor-stand',p.x,.94,p.z,.08,.28,.08,'#213a4a','monitor-fallback');box('station-keyboard',p.x,.825,p.z+front*.23,.4,.035,.2,'#213a4a','monitor-fallback');}
    box('station-panel',p.x,.4,p.z+front*.357,.66,.65,.02,'#71838a','station-panel');box('station-handle',p.x+.2,.55,p.z+front*.38,.035,.15,.025,'#213a4a','station-buttons');
    if(!printer&&!monitor)box('station-controls',p.x,.8+height+.012,p.z,.18,.015,.15,'#213a4a','station-buttons');
    const tag=sign(scene,`station-tag-${b.id}-${slot}`,`${slot+1} · ${CASE_KIND_NAMES[job.kind]}`,1.5,.18,21);tag.mesh.position.set(p.x,1.72,p.z);tag.mesh.billboardMode=7;tag.mesh.isPickable=false;
   }
   box('room-counter',b.x-Math.sign(b.x)*3,.4,b.z+3.5,1.2,.8,1,'#927b64','room-wood');
-  box('room-cupboard',b.x+Math.sign(b.x)*4.6,.8,b.z, .65,1.6,1.4,'#536775','station-support');
+  box('room-cupboard',b.x+Math.sign(b.x)*4.6,.8,b.z, .65,1.6,1.4,'#536775','room-cupboard');
  }
  for(const d of CITY_DOORS.filter(d=>d.id!=='hq-server')){
   const p=doorLeaf(d),m=box('district-door-'+d.id,p.x,1.3,p.z,p.width,2.6,p.depth,'#315766','district-door',true);m.setPivotPoint(new Vector3(-d.side*.8,0,0));m.metadata={cityDoor:d.id,cityDynamic:true};doors.set(d.id,m);

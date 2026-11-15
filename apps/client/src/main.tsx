@@ -1,3 +1,4 @@
+import {FloorPanel} from "./FloorPanel";
 import {CrewHud,crewDestination} from "./CrewHud";
 import {CrewPanel} from "./CrewPanel";
 import type {CrewView,CrewIntent,CrewAction} from "@netcity/shared";
@@ -48,6 +49,7 @@ import {DistrictMap} from "./DistrictMap";
 import {CLIENT_CASE_TEMPLATE as CASE,caseTemplate,clientCaseTarget,type CaseIntent} from "@netcity/shared";
 import "./style.css";
 function App() {
+  const [officeId,setOfficeId]=useState("");
   const [crew,setCrew]=useState<CrewView|null>(null),[crewMessage,setCrewMessage]=useState(''),[crewPending,setCrewPending]=useState(false);
   const crewRequest=useRef<CrewAction|null>(null);
   const crewRef=useRef<CrewView|null>(null);crewRef.current=crew;
@@ -326,6 +328,7 @@ function App() {
           () => settingsRef.current,
           setView,
           id=>{
+            if(id.startsWith("lift:")){setOfficeId(id.slice(5));openTablet("office");return;}
             if(id==="crew"){openTablet("crew");return;}
             if(id.startsWith("tenant:")){const c=latestProfile.current?.service?.cases.at(-1);openTablet(caseTemplate(c).buildingId===id.slice(7)?"tickets":"missions");return;}
             if(id==="case-hardware"){openTablet("tickets");return;}
@@ -771,11 +774,11 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="crew"?<CrewPanel view={crew} position={view} pending={crewPending} message={crewMessage} send={crewAct} retry={retryCrew} onTrack={setCrewFocus}/>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="office"?<FloorPanel id={officeId} position={view} message={message} send={(buildingId,floor)=>roomRef.current?.send("interaction",{kind:"floor",buildingId,floor})}/>:tabletApp==="crew"?<CrewPanel view={crew} position={view} pending={crewPending} message={crewMessage} send={crewAct} retry={retryCrew} onTrack={setCrewFocus}/>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
       {!tablet && <CrewHud crew={crew} focus={crewFocus} position={view} open={()=>openTablet("crew")}/>}
-      {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{!crew&&profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
+      {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}{view.floor?" · Этаж "+(view.floor+1):""}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{!crew&&profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
       <small hidden className="identity-status" data-mode={identity.mode}>{identity.conflict?"другой профиль":identity.mode==="tab"?"только в этой вкладке":""}</small>
       <header className="legacy-header">
         <button className="brand-link" aria-label="Главное меню" onClick={()=>openMenu("main")}><b>

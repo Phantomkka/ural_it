@@ -117,7 +117,8 @@ test("failed assets report degraded graphics while fallback city and multiplayer
   await expect
     .poll(async () => (await assetScene(a)).character?.fallback)
     .toBe(true);
-  expect((await assetScene(a)).fallbackBuilding).toBe(true);
+  expect((await assetScene(a)).fallbackBuilding).toBe(false);
+  expect(await a.evaluate(async()=>{const {EngineStore}=await import("/src/world.ts");return EngineStore.LastCreatedScene.transformNodes.filter((n:any)=>n.name.startsWith("office-furniture-")).length;})).toBe(29);
   await expect(a.locator(".asset-status")).toContainText("Резервная графика");
   await context.close();
 });
