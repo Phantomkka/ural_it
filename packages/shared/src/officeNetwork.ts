@@ -1,3 +1,5 @@
+import {insideOffice} from './officeFloors.js';
+import {CITY_BUILDINGS} from './buildings.js';
 /** Serializable game protocol. No renderer or real networking is involved. */
 export const COMPUTERS = [
   {
@@ -127,7 +129,7 @@ export interface ComputerResult {
 }
 export function inOfficeRoom(player:{x:number;z:number},roomX:number) {
   return Number.isFinite(player.x) && Number.isFinite(player.z) && Math.abs(player.z)<5.45 &&
-    (roomX<13 ? player.x>8.55 && player.x<12.45 : player.x>13.55 && player.x<19.45);
+    (roomX<13 ? player.x>8.55 && player.x<12.45 : player.x>13.55 && insideOffice(player,CITY_BUILDINGS.find(b=>b.id==='hq')!));
 }
 export function canReachComputer(
   player: { x: number; z: number },

@@ -10,6 +10,7 @@ export { FreeCamera } from "@babylonjs/core/Cameras/freeCamera.js";
 export { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight.js";
 export { DirectionalLight } from "@babylonjs/core/Lights/directionalLight.js";
 export { Mesh } from "@babylonjs/core/Meshes/mesh.js";
+export {VertexData} from '@babylonjs/core/Meshes/mesh.vertexData.js';
 export { TransformNode } from "@babylonjs/core/Meshes/transformNode.js";
 export { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial.js";
 export { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTexture.js";

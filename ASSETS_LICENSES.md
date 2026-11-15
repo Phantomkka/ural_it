@@ -1,5 +1,9 @@
 # NETCITY ONLINE — asset provenance and licenses
 
+Office remaster: `office_desk`, `office_chairDesk`, `office_computerScreen`, `office_computerKeyboard`, `office_computerMouse`, `office_laptop`, `office_lampRoundFloor`, `office_pottedPlant`, `office_plantSmall1`, `office_bookcaseOpen` and `office_loungeChair` GLBs are Kenney Furniture Kit CC0 models. The [official pack page](https://kenney.nl/assets/furniture-kit) confirms CC0; bytes are from the pinned [public distribution mirror](https://github.com/shorepine/kenney/tree/3694c6879e487c108f55677be7dd2ca75b07cc3b/3d/furniture). Each source URL and checksum is in the manifest; evidence is retained in `assets/licenses/kenney-furniture-evidence.txt`. Models retain their original geometry, embedded materials and resources.
+
+Rounded printer/telephone meshes, control panels, desktop graphics and woven carpet/oak/plaster textures are project-authored code (`officeHardware.ts`, `officeMaterials.ts`). These are distinct from downloaded models and do not introduce external runtime requests.
+
 All runtime assets live in `apps/client/public/assets`. The browser fetches only same-origin URLs; no CDN, login or paid service is required. `manifest.json` records each shipped model's filename, author, CC0 identifier, source and SHA-256. This file distinguishes downloaded artwork from project-authored geometry. The game is not endorsed by these authors.
 
 ## Downloaded models

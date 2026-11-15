@@ -27,6 +27,7 @@ import {
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
+  declare floor:number;declare buildingId:string;
   declare cablePath:string;
   declare heldItem:string;
   declare jobs: MapSchema<JobProgress>;
@@ -38,6 +39,7 @@ export class Player extends Schema {
   declare yaw: number;
   constructor() {
     super();
+    this.floor=0;this.buildingId='';
     this.cablePath='';
     this.jobs = createJobs();
     this.nickname = "";
@@ -50,6 +52,7 @@ export class Player extends Schema {
   }
 }
 defineTypes(Player, {
+  floor:'number',buildingId:'string',
   cablePath:'string',
   heldItem:"string",
   jobs: { map: JobProgress },
@@ -162,11 +165,11 @@ export class StreetRoom extends Room<{ state: StreetState }> {
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
         const carrying=player.heldItem==='cable_roll'||player.heldItem==='crew_parcel'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
-        const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen,this.state.doors));
-        if(![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocksMove(player,next,prop)))Object.assign(player,next);
-        if (player.x > 5 && Math.abs(player.z) < 3)
+        const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen,this.state.doors,player.floor?player.buildingId:undefined));
+        if(player.floor||![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocksMove(player,next,prop)))Object.assign(player,next);
+        if (!player.floor && player.x > 5 && Math.abs(player.z) < 3)
           player.ticketStep = Math.max(player.ticketStep, 2);
-        if (player.x > 13.5 && player.x < 20 && Math.abs(player.z) < 5.5)
+        if (!player.floor && player.x > 13.5 && player.x < 20 && Math.abs(player.z) < 5.5)
           player.ticketStep = Math.max(player.ticketStep, 3);
         if (entry) player.yaw = entry.input.yaw;
       });

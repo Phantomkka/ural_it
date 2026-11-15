@@ -14,7 +14,7 @@ export function createFallbackAvatar(
   mat: Palette,
 ) {
   const root = new TransformNode(`player-${id}`, scene);
-  root.position.set(player.x, 0, player.z);
+  root.position.set(player.x, (player.floor??0)*3.6, player.z);
   const part = (
     name: string,
     x: number,
@@ -65,7 +65,7 @@ export function createFallbackAvatar(
       legR.rotation.x = -swing;
       root.position = Vector3.Lerp(
         root.position,
-        new Vector3(next.x, 0, next.z),
+        new Vector3(next.x, (next.floor??0)*3.6, next.z),
         Math.min(1, dt / 0.07),
       );
       // Smooth across the -PI/PI wrap instead of rotating the long way round.

@@ -8,7 +8,9 @@ test("distance boundary, invalid actions and inspection are enforced on the serv
     equipment = { port3Connected: false };
   assert.equal(canReachSwitch({ ...p, x: 15.5 }), true);
   assert.equal(canReachSwitch({ ...p, x: 15.49 }), false);
-  assert.equal(canReachSwitch({ ...p, x: 20.3 }), false); // behind the outside wall, still within 2.5m
+  assert.equal(canReachSwitch({ ...p, x: 20.3 }), true); // the former rear wall is now an accessible office wing
+  assert.equal(canReachSwitch({ ...p, x: 20.51 }), false); // original interaction distance remains authoritative
+  assert.equal(canReachSwitch({ ...p, x: 28 }), false);
   assert.equal(
     handleEquipment({ ...p, x: 0 }, equipment, {
       type: "connect",
