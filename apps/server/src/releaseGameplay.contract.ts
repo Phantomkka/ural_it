@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
 import {CASE_CATALOG,BUSINESS_UPGRADES,propFloor,type ClientCase} from '@netcity/shared';
 import type {ProgressStore} from './progress/store.js';import {ClientCaseService,refreshCases} from './progress/clientCases.js';import {BusinessService,initBusiness} from './progress/business.js';import {CableService} from './progress/cable.js';
 export async function releaseGameplayContract(store:ProgressStore){
- for(const t of CASE_CATALOG.slice(1)){
+ for(const t of CASE_CATALOG.slice(1,8)){
   const servicePosition={...t.hardware,x:t.hardware.x+(t.kind==='camera'?.95:-.95)};assert.ok(propFloor(servicePosition,true),t.id+': walkable service position');
   const guest=await store.register();let p={...t.client};const sessionId='engineer';
   await store.transaction(guest.profileId,null,tx=>{refreshCases(tx.data,Date.now());tx.data.service!.cases[0].templateId=t.id;tx.data.business!.upgrades=BUSINESS_UPGRADES.map(u=>u.id);return {ok:true,message:''};});

@@ -1,4 +1,6 @@
 import {SERVICE_FURNITURE,PARKED_CARS} from './furniture.js';
+import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaf,doorClosed} from './buildings.js';
+export * from './buildings.js';
 export * from './furniture.js';
 export const ROOM_NAME = "street";
 export const TICK_RATE = 30;
@@ -12,15 +14,7 @@ export interface MoveInput {
   strafe: number;
   yaw: number;
 }
-export const BUILDINGS = [-1, 1].flatMap((side) =>
-  Array.from({ length: 5 }, (_, i) => ({
-    x: side * 14,
-    z: (i - 2) * 17,
-    width: 12,
-    depth: 12,
-    height: 7 + (i % 3) * 4,
-  })),
-);
+export const BUILDINGS = CITY_BUILDINGS;
 export function isMoveInput(value: unknown): value is MoveInput {
   if (!value || typeof value !== "object") return false;
   const v = value as MoveInput;
@@ -39,6 +33,7 @@ export function advance(
   input: MoveInput,
   dt: number,
   entryOpen = true,
+  doors?:ReadonlyMap<string,{open:boolean}>,
 ) {
   const magnitude = Math.max(1, Math.hypot(input.forward, input.strafe));
   const distance = MOVE_SPEED * (input.sprint === true ? SPRINT_MULTIPLIER : 1) * Math.max(0, Math.min(dt, 1 / TICK_RATE));
@@ -53,7 +48,7 @@ export function advance(
       magnitude) *
     distance;
   const blocked = (x: number, z: number) =>
-    (entryOpen?WORLD_COLLIDERS:[...WORLD_COLLIDERS.filter(c=>c!==OFFICE_DOORS[0]),ENTRY_DOOR_CLOSED]).some(
+    movementColliders(entryOpen,doors).some(
       (b) =>
         Math.abs(x - b.x) < b.width / 2 + 0.4 &&
         Math.abs(z - b.z) < b.depth / 2 + 0.4,
@@ -92,7 +87,9 @@ export const STREET_DETAILS = [-1, 1].flatMap((side) =>
 export const WORLD_COLLIDERS = [
   ...SERVICE_FURNITURE,
   ...PARKED_CARS,
-  ...BUILDINGS.filter((b) => b !== OFFICE),
+  ...CITY_WALLS,
+  ...DISTRICT_FURNITURE,
+  ...CITY_DOORS.filter(d=>d.id!=='hq-server').map(doorLeaf),
   ...OFFICE_WALLS,
   ...OFFICE_DOORS,
   ...STREET_DETAILS.map((p) => ({ ...p, width: 0.25, depth: 0.25 })),
@@ -100,6 +97,11 @@ export const WORLD_COLLIDERS = [
     [-22, 22].map((z) => ({ x: side * 7, z, width: 1.5, depth: 2 })),
   ),
 ];
+export function movementColliders(entryOpen=true,doors?:ReadonlyMap<string,{open:boolean}>){
+ const closed=CITY_DOORS.filter(d=>doors?.get(d.id)?.open===false);
+ if(entryOpen&&!closed.length)return WORLD_COLLIDERS;
+ return [...WORLD_COLLIDERS.filter(c=>!(c===OFFICE_DOORS[0]&&!entryOpen)&&!closed.some(d=>Math.abs(c.x-(d.x+d.side*.8))<.01&&Math.abs(c.z-(d.z-1.15))<.01&&c.width===1.6)),...(!entryOpen?[ENTRY_DOOR_CLOSED]:[]),...closed.map(doorClosed)];
+}
 export const TICKET_STEPS = [
   "Получить заявку",
   "Найти офис №001 (справа, вход напротив центра улицы)",
@@ -154,3 +156,5 @@ export * from './caseCatalog.js';
 export * from './business.js';
 
 export * from "./props.js";
+
+export {CASE_KIND_NAMES} from './betaCatalog.js';

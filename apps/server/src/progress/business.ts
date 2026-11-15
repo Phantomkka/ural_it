@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {BUSINESS_CONTRACTS,BUSINESS_UPGRADES,freshBusiness,companyFromProgress,type ProgressResult} from '@netcity/shared';
+import {businessStats,BUSINESS_CONTRACTS,BUSINESS_UPGRADES,freshBusiness,companyFromProgress,type ProgressResult} from '@netcity/shared';
 import type {ProfileData,ProgressStore} from './store.js';
 export function initBusiness(data:ProfileData){
   if(data.business)return data.business;
@@ -25,7 +25,7 @@ export class BusinessService {
     else if(tx.data.credits<u.price)result=fail('Недостаточно NET. Получите оплату контрактов компании.');
     else {tx.data.credits-=u.price;b.upgrades.push(u.id);result={ok:true,message:'Приобретено: '+u.name};}
    }else{
-    const c=BUSINESS_CONTRACTS.find(c=>c.id===a.id),total=Object.values(b.workCounts).reduce((n,v)=>n+v,0),distinct=Object.values(b.workCounts).filter(v=>v>0).length;
+    const c=BUSINESS_CONTRACTS.find(c=>c.id===a.id),{total,distinct}=businessStats(b);
     if(!c||b.claimed.includes(c.id)||total<c.total||distinct<c.distinct)result=fail('Контракт ещё не выполнен или уже оплачен.');
     else {const hash=createHash('sha256').update(profileId+':business:'+c.id).digest('hex').slice(0,32),jobId=[hash.slice(0,8),hash.slice(8,12),hash.slice(12,16),hash.slice(16,20),hash.slice(20)].join('-');b.claimed.push(c.id);tx.data.credits+=c.credits;tx.data.xp+=c.xp;tx.reward={jobId,credits:c.credits,xp:c.xp};result={ok:true,message:`Контракт «${c.name}» оплачен: +${c.credits} NET.`};}
    }

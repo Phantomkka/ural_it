@@ -1,19 +1,15 @@
-import { BUILDINGS, OFFICE, SWITCH, COMPUTERS } from "@netcity/shared";
-import { CONTACTS } from "./district";
-export function DistrictMap({x,z,destination=SWITCH}: {x:number;z:number;destination?:{x:number;z:number}}) {
-  return <><p>Север ↑ · Вход в офис по центру западной стены. Пройдите немного дальше открытой створки, затем поверните к приёмной слева. Серверная — прямо, за второй дверью.</p>
-    <svg className="district-map" viewBox="-46 -46 92 92" role="img" aria-label="Карта Новолинска">
-      <rect x="-46" y="-46" width="92" height="92" fill="#183b43"/>
-      <path d="M 0 -45 V 45" stroke="#45616d" strokeWidth="12"/>
-      {BUILDINGS.map((b,i)=><rect key={i} x={b.x-b.width/2} y={-b.z-b.depth/2} width={b.width} height={b.depth} rx="1" fill={b===OFFICE?"#62e3bd":"#66838b"}/>)}
-      <path d={`M ${x} ${-z} ${x>=8?"L 11 0 L 5 0":"L 5 0"} ${destination.x>=8?"L 11 0":""} L ${destination.x} ${-destination.z}`} stroke="#ffd38b" strokeWidth="0.6" strokeDasharray="1 1" fill="none"/>
-      <circle cx={destination.x} cy={-destination.z} r="2" fill="none" stroke="#ffd38b" strokeWidth="0.5"/>
-      <circle cx={SWITCH.x} cy={-SWITCH.z} r="1.2" fill="#ffb65f"/>
-      {COMPUTERS.map(pc=><circle key={pc.id} cx={pc.x} cy={-pc.z} r="0.7" fill="#153142"/>)}
-      {CONTACTS.map(n=><g key={n.id}><circle cx={n.x} cy={-n.z} r="1" fill="#e2b46b"/><text x={n.id==="supplier"?-43:5} y={n.id==="supplier"?-11:n.id==="client"?7:11} fill="white" fontSize="2.6">{n.id==="supplier"?"Снабжение · Марат":n.id==="client"?"Клиент · Елена":"Диспетчер · Алина"}</text></g>)}
-      <text x="8" y="-26" fill="white" fontSize="2.8">Офис клиента</text>
-      <circle cx={x} cy={-z} r="1.4" fill="white" stroke="#132f3d" strokeWidth="0.6"/>
-      <text x="8" y="-9" fill="white" fontSize="3">IT-офис №001</text>
-      <text x="-43" y="41" fill="white" fontSize="3">● Вы · ● Оборудование в серверной</text>
-    </svg><p>Пунктир — ориентир к входу, а не автоматическое движение. Стены и другие здания нужно обходить.</p></>;
+import {BUILDINGS,OFFICE,SWITCH,COMPUTERS,CITY_DOORS,districtRoute} from '@netcity/shared';
+import {CONTACTS} from './district';
+export function DistrictMap({x,z,destination=SWITCH}:{x:number;z:number;destination?:{x:number;z:number}}){
+ const path=districtRoute({x,z},destination).map((p,i)=>`${i?'L':'M'} ${p.x} ${-p.z}`).join(' ');
+ return <><p>Все десять зданий имеют доступный первый этаж. Входы обращены к улице; дверь открывается клавишей E или кнопкой «Осмотреть». Переход между сторонами — по центру района.</p>
+ <svg className="district-map" viewBox="-46 -46 92 92" role="img" aria-label="Карта Новолинска">
+ <rect x="-46" y="-46" width="92" height="92" fill="#183b43"/><path d="M 0 -45 V 45" stroke="#45616d" strokeWidth="10"/>
+ {BUILDINGS.map(b=><g key={b.id}><rect x={b.x-6} y={-b.z-6} width="12" height="12" rx="1" fill={b===OFFICE?'#62e3bd':'#66838b'}/><text x={b.x} y={-b.z} fill="#102b36" textAnchor="middle" fontSize="2">{b.name.split(' ')[0]}</text><circle cx={Math.sign(b.x)*8} cy={-b.z} r=".7" fill="#e9d59d"/></g>)}
+ <path d={path} stroke="#ffd38b" strokeWidth=".6" strokeDasharray="1 1" fill="none"/>
+ <circle cx={destination.x} cy={-destination.z} r="2" fill="none" stroke="#ffd38b" strokeWidth=".5"/>
+ <circle cx={SWITCH.x} cy={-SWITCH.z} r="1.1" fill="#ffb65f"/>{COMPUTERS.map(pc=><circle key={pc.id} cx={pc.x} cy={-pc.z} r=".6" fill="#153142"/>)}
+ {CONTACTS.map(n=><circle key={n.id} cx={n.x} cy={-n.z} r=".8" fill="#e2b46b"><title>{n.name}</title></circle>)}
+ <circle cx={x} cy={-z} r="1.3" fill="white" stroke="#132f3d" strokeWidth=".5"/><text x="-43" y="44" fill="white" fontSize="2.5">● Вы · ◦ Входы · ● Клиенты · пунктир — маршрут</text></svg>
+ <p>Маршрут ведёт через входы; закрытые двери нужно открыть. Клиент и номер узла указаны в заявке.</p></>;
 }

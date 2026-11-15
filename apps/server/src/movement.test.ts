@@ -12,7 +12,7 @@ test("sprint is optional, bounded, and does not bypass walls or the fixed step",
   assert.equal(isMoveInput({forward:1,strafe:0,yaw:0,sprint:true}), true);
   const next=advance({x:0,z:0},{forward:1,strafe:1,yaw:0,sprint:true},10);
   assert.ok(Math.abs(Math.hypot(next.x,next.z)-MOVE_SPEED*SPRINT_MULTIPLIER/TICK_RATE)<1e-10);
-  assert.equal(advance({x:7.5,z:17},{forward:0,strafe:1,yaw:0,sprint:true},1).x,7.5);
+  assert.equal(advance({x:7.5,z:20},{forward:0,strafe:1,yaw:0,sprint:true},1).x,7.5);
 });
 test("rejects malformed and nonfinite movement", () => {
   for (const input of [
@@ -34,7 +34,7 @@ test("world boundary and building collision block movement", () => {
     45,
   );
   assert.equal(
-    advance({ x: 7.5, z: 17 }, { forward: 0, strafe: 1, yaw: 0 }, 1).x,
+    advance({ x: 7.5, z: 20 }, { forward: 0, strafe: 1, yaw: 0 }, 1).x,
     7.5,
   );
 });

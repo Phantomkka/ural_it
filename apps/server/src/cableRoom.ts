@@ -1,5 +1,5 @@
 import type { Client } from '@colyseus/core';
-import { cableRouteValid, segmentHitsBox, ENTRY_DOOR_CLOSED, visibleCablePaths,cableSpec, type CableTask, type CablePoint } from '@netcity/shared';
+import { cableRouteValid, segmentHitsBox, ENTRY_DOOR_CLOSED, visibleCablePaths,cableSpec,caseTemplate, type CableTask, type CablePoint } from '@netcity/shared';
 import type { ProfileData } from './progress/store.js';
 import type { StreetRoom } from './StreetRoom.js';
 export class CableRoomController {
@@ -25,7 +25,7 @@ export class CableRoomController {
         else
             this.active.delete(client.sessionId);
         player.cablePath = c && (!c.carrier || held) ? JSON.stringify({ id: c.id, revision: data.version, points: held ? c.points : [...c.points, c.endpoint] }) : '';
-        player.heldItem = player.heldItem.startsWith('prop:')?player.heldItem:data.service?.cases.some(c => c.carrying && c.carrier === client.sessionId) ? 'patch_cord' : held ? 'cable_roll' : '';
+        player.heldItem = player.heldItem.startsWith('prop:')?player.heldItem:data.service?.cases.some(c => c.carrying && c.carrier === client.sessionId) ? (caseTemplate(data.service.cases.find(c=>c.carrying&&c.carrier===client.sessionId)).part??'patch_cord') : held ? 'cable_roll' : '';
     }
     forget(id: string) { this.active.delete(id); }
     constrain(id: string, from: CablePoint, next: CablePoint) {
