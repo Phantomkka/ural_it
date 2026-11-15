@@ -229,6 +229,7 @@ export function createWorld(
         if (!graphics.environmentLoaded)
           library.failed.push("potsdamer_platz_128.env");
         buildAssetDistrict(scene, library, material);
+        interiors.hydrate(library);
         graphics.refreshCasters();
         graphics.activate();
         const progress = {
@@ -320,7 +321,7 @@ export function createWorld(
           avatars.delete(id);
           graphics.refreshCasters();
         }
-      interiors.sync(room.state.doors);
+      interiors.sync(room.state.doors,camera.position);
       const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==="hq-server");if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
       office.sync(
         room.state.equipment?.port3Connected ?? false,
