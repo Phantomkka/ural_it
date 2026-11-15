@@ -28,7 +28,7 @@ export function buildOfficeRemaster(scene:Scene,mat:Palette){
   // The former solid upper storeys would conceal the now playable floors.
   scene.transformNodes.filter(n=>/^architecture-\d+-placement$/.test(n.name)||n.name==='office-exterior').forEach(n=>n.setEnabled(false));for(let i=0;i<10;i++)scene.getMeshByName('building-'+i)?.setEnabled(false);
   scene.getMeshByName('detail-batch-room-floor')!.material=maps.carpet;scene.getMeshByName('building-office')!.material=maps.carpet;
-  scene.getMeshByName('legacy-hq-ceiling')?.setEnabled(false);
+  scene.getMeshByName('legacy-hq-ceiling')?.setEnabled(false);scene.meshes.filter(m=>m.name.startsWith('storefront-glass-')).forEach(m=>m.setEnabled(false));
   scene.meshes.filter(m=>m.name.startsWith('detail-batch-room-wall-')).forEach(m=>m.material=maps.wall);
   for(const layer of layers){const b=CITY_BUILDINGS.find(b=>b.id===layer.buildingId)!;
    const desks=layer.floor?upperFurniture(b):[{x:Math.sign(b.x)*22,z:b.z-3},{x:Math.sign(b.x)*25,z:b.z-3},{x:Math.sign(b.x)*21.5,z:b.z+3.3}];
@@ -42,6 +42,7 @@ export function buildOfficeRemaster(scene:Scene,mat:Palette){
   scene.getMeshByName('detail-batch-pc-case')?.setEnabled(false);scene.getMeshByName('detail-batch-pc-metal')?.setEnabled(false);
   for(const b of CITY_BUILDINGS.filter(b=>b.id!=='hq'))for(let slot=0;slot<4;slot++){const t=CASE_CATALOG.find(t=>t.buildingId===b.id&&t.station===slot)!,old=scene.getMeshByName(`station-device-${b.id}-${slot}`),p=missionStation(b,slot),yaw=slot<2?0:Math.PI;if(['network','dhcp','dns'].includes(t.kind)){old?.setEnabled(false);hardware.computer('district-workstation-'+b.id+'-'+slot,root,p.x,.8,p.z,yaw,old?.metadata);}if(t.kind==='voip'){old?.setEnabled(false);hardware.device('phone','district-detailed-phone',root,p.x,.8,p.z,yaw,old?.metadata);}if(['power','server','storage','ups','backup'].includes(t.kind)){old?.setEnabled(false);hardware.device('tower','district-detailed-tower',root,p.x,.8,p.z,yaw,old?.metadata);}if(t.kind==='printer'){old?.setEnabled(false);hardware.device('printer','district-detailed-printer',root,p.x,.8,p.z,yaw,old?.metadata);}}
   for(const [id,kind]of [['printer','printer'],['voip','phone']] as const){const old=scene.getMeshByName('service-device-'+id);if(old){old.setEnabled(false);hardware.device(kind,'legacy-detailed-'+id,root,old.position.x,id==='printer'?.82:.85,old.position.z,0,old.metadata);}}
+ for(const l of layers)for(const m of l.root.getChildMeshes())m.metadata={...m.metadata,officeDetail:true};
  signs=scene.meshes.filter(m=>/^(station-tag-|tenant-label-|device-label-|entrance-label-|lift-label-|meeting-room-name-)/.test(m.name)) as Mesh[];
  },update(camera:Vector3,floor:number,buildingId:string,devices?:Map<string,{powered:boolean}>){serviceHardware?.setEnabled(!floor);for(const sign of signs)sign.setEnabled(Math.floor(sign.position.y/3.6)===floor&&Math.hypot(sign.position.x-camera.x,sign.position.z-camera.z)<8);for(const [id,screen]of serviceScreens){const material=devices?.get(id)?.powered===false?mat('monitor-off','#101a20'):maps.screen;if(screen.material!==material)screen.material=material;}for(const l of layers){const visible=l.floor===floor&&Math.hypot(l.x-camera.x,l.z-camera.z)<30&&(!floor||l.buildingId===buildingId);l.root.setEnabled(visible);}}};
 }

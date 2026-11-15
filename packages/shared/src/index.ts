@@ -1,6 +1,6 @@
 import {SERVICE_FURNITURE,PARKED_CARS} from './furniture.js';
 import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaf,doorClosed} from './buildings.js';
-import {upperColliders,OFFICE_REAR_FURNITURE,officeLiftWalls} from './officeFloors.js';
+import {upperColliders,OFFICE_REAR_FURNITURE,officeLiftWalls,insideOffice} from './officeFloors.js';
 export * from './officeFloors.js';
 export * from './buildings.js';
 export * from './furniture.js';
@@ -146,7 +146,7 @@ export function canReachSwitch(player: { x: number; z: number }) {
     Number.isFinite(player.x) &&
     Number.isFinite(player.z) &&
     player.x > 13.5 &&
-    player.x < 19.45 &&
+    insideOffice(player,OFFICE) &&
     Math.abs(player.z) < 5.45 &&
     Math.hypot(player.x - SWITCH.x, player.z - SWITCH.z) <= INTERACTION_RANGE
   );

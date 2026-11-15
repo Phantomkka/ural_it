@@ -71,6 +71,7 @@ test("local models load with real skins and instanced architecture; quality swit
     await expect.poll(async () => (await assetScene(a)).quality).toBe(quality);
     const state = await assetScene(a);
     expect(state.shadowEnabled).toBe(quality !== "low");
+    expect(await a.evaluate(async()=>{const {EngineStore}=await import("/src/world.ts");const s=EngineStore.LastCreatedScene;return s.getLightByName("sun").getShadowGenerator().getShadowMap().renderList.some((m:any)=>m.metadata?.officeDetail||m.billboardMode||(m.material?.alpha??1)<1);})).toBe(false);
     widths[quality] = state.renderWidth;
   }
   expect(widths.low).toBeLessThan(widths.medium);

@@ -3,7 +3,7 @@ import {
   CubeTexture,
   type DirectionalLight,
   type Engine,
-  type Scene,
+  type Scene,type StandardMaterial,
 } from "./babylon";
 export type Quality = "low" | "medium" | "high";
 export function defaultQuality(): Quality {
@@ -109,6 +109,10 @@ export function configureGraphics(
       for (const mesh of scene.meshes) {
         if (
           mesh.getTotalVertices() > 0 &&
+          !mesh.metadata?.officeDetail &&
+          !mesh.billboardMode &&
+          !(mesh.material as StandardMaterial|null)?.disableLighting &&
+          (mesh.material?.alpha??1)>=1 &&
           mesh.name !== "ground" &&
           !mesh.name.includes("nickname-") &&
           !mesh.name.includes("detail-batch-road")
