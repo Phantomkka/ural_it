@@ -17,7 +17,7 @@ export type CableAction = {
 };
 export const CABLE_SOURCE = { x: 11, z: 4.8 }, CABLE_TARGET = { x: 18, z: 0 };
 export const CABLE_BUDGET = 18, CABLE_MAX_ANCHORS = 12;
-export function cableSpec(c?:Pick<CableTask,'kind'>){return c?.kind==='camera'?{source:{x:-6,z:2},target:{x:-6,z:22},budget:26,indoor:false}:{source:CABLE_SOURCE,target:CABLE_TARGET,budget:CABLE_BUDGET,indoor:true};}
+export function cableSpec(c?:Pick<CableTask,'kind'>){return c?.kind==='camera'?{source:{x:-6,z:2},target:{x:-6,z:20},budget:26,indoor:false}:{source:CABLE_SOURCE,target:CABLE_TARGET,budget:CABLE_BUDGET,indoor:true};}
 /** Deduplicate one physical line when the same profile is open on two devices. */
 export function visibleCablePaths(players: Iterable<{
     x: number;

@@ -158,7 +158,7 @@ export function buildAssetDistrict(
       place(
         side === 1 ? "car_sedan.glb" : "car_hatchback.glb",
         `car-${placements}`,
-        side * 3.6,
+        side * 4.05,
         z,
         1.5,
         1.8,
@@ -174,7 +174,7 @@ export function buildAssetDistrict(
     );
   }
   for (const { x, z } of COMPUTERS) {
-    place("table_medium.glb", `desk-${placements}`, x, z, 0.8, 2, 0.9);
+    place("table_medium.glb", `desk-${placements}`, x, z, 0.8, .9, 1.8, Math.PI/2);
     place(
       "book_set.glb",
       `books-${placements}`,

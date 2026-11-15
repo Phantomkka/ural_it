@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {createProps,handleProp} from './propsState.js';import {propBlocks,propFloor} from '@netcity/shared';
+import {createProps,handleProp} from './propsState.js';import {propBlocks,propBlocksMove,propFloor} from '@netcity/shared';
 import {Client} from '@colyseus/sdk';import {matchMaker} from '@colyseus/core';import {createGameServer} from './server.js';import type {StreetRoom,StreetState} from './StreetRoom.js';
 test('carry objects reserve once, reject remote or occupied hands and use safe authoritative drops',()=>{
  const props=createProps(),p={x:0,z:0,yaw:0,heldItem:''},v={kind:'takeProp',id:'toolbox'};
@@ -12,7 +12,11 @@ test('carry objects reserve once, reject remote or occupied hands and use safe a
  assert.equal(handleProp(props,p,'a',{kind:'dropProp'},true,[]).ok,true);
  const box=props.get('toolbox')!;assert.equal(box.holder,'');assert.equal(p.heldItem,'');assert.equal(propFloor(box,true),true);assert.equal(propBlocks(box,box),true);
  assert.equal(propFloor({x:8,z:0},false),false);assert.equal(propFloor({x:100,z:0},true),false);
+ assert.equal(propBlocksMove(box,{x:box.x+.1,z:box.z},box),false);
+ assert.equal(propBlocksMove({x:box.x+.2,z:box.z},{x:box.x+.1,z:box.z},box),true);
+ assert.equal(propBlocksMove({x:box.x+1,z:box.z},{x:box.x+.6,z:box.z},box),true);
 });
+test('a drop avoids other players instead of trapping them inside an object',()=>{const props=createProps(),p={x:16,z:0,yaw:0,heldItem:'prop:toolbox'},o=props.get('toolbox')!;o.holder='owner';assert.equal(handleProp(props,p,'owner',{kind:'dropProp'},true,[],[{x:16,z:1.1}]).ok,true);assert.ok(Math.hypot(o.x-16,o.z-1.1)>=.95);});
 test('two real clients share traffic and prop authority, release on disconnect', {timeout:15000},async()=>{
  const server=createGameServer();await server.listen(26810,'127.0.0.1');const rooms=[];
  const until=async(f:()=>boolean)=>{const end=Date.now()+4000;while(!f()){if(Date.now()>end)throw Error('timeout');await new Promise(r=>setTimeout(r,20));}};

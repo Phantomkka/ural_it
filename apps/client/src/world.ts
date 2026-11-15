@@ -104,7 +104,7 @@ export function createWorld(
       if(hit?.pickedMesh?.metadata?.heavy)return {id:"heavy",label:"Транспорт слишком тяжёлый"};
       if(hit?.pickedMesh?.metadata?.cableTarget)return {id:"contact:cable",label:"Бухта кабеля · инструменты"};
       if(hit?.pickedMesh?.metadata?.entryDoor)return {id:"entry-door",label:"Открыть / закрыть дверь"};
-      if(hit?.pickedMesh?.metadata?.caseTarget)return {id:"contact:case-"+hit.pickedMesh.metadata.caseTarget,label:hit.pickedMesh.metadata.caseTarget==="dropped"?"Подобрать свою деталь":"Осмотреть CLIENT-PC04"};
+      if(hit?.pickedMesh?.metadata?.caseTarget)return {id:"contact:case-"+hit.pickedMesh.metadata.caseTarget,label:hit.pickedMesh.metadata.caseTarget==="dropped"?"Подобрать свою деталь":"Осмотреть "+(hit.pickedMesh.metadata.deviceLabel??"устройство")};
       if(npcId) return {id:`contact:${npcId}`,label:`Поговорить: ${CONTACTS.find(n=>n.id===npcId)?.name??"инженер"}`};
       if (id)
         return {

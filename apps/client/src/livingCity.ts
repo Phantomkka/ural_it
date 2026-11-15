@@ -1,5 +1,5 @@
 import {TransformNode,MeshBuilder,Vector3,type Scene,type Mesh} from './babylon';
-import {CITY_PEDESTRIANS,pedestrianPosition,type CityCar} from '@netcity/shared';
+import {CITY_PEDESTRIANS,COMPUTERS,pedestrianPosition,type CityCar} from '@netcity/shared';
 import {sign,type Palette} from './visuals';
 import {type AssetLibrary,fitModel} from './assets';
 export function buildLivingCity(scene:Scene,mat:Palette){
@@ -15,11 +15,22 @@ export function buildLivingCity(scene:Scene,mat:Palette){
     body.metadata=head.metadata={npcId:n.id,cityDynamic:true};body.isPickable=head.isPickable=true;root.getChildMeshes().forEach(m=>m.metadata={...m.metadata,cityDynamic:true});people.push(root);
     const label=sign(scene,'walker-label-'+i,n.name,2.5,0.3);label.mesh.parent=root;label.mesh.position.y=2.05;label.mesh.billboardMode=7;label.mesh.isPickable=false;
   }
-  for(const [i,p]of [{x:10,z:-4},{x:10,z:4},{x:15,z:4}].entries()){
-    const body=MeshBuilder.CreateBox('seated-worker-'+i,{width:0.42,height:0.7,depth:0.3},scene);body.position.set(p.x+0.7,1,p.z+0.65);body.material=mat('worker-shirt','#728ca9');
-    const head=MeshBuilder.CreateSphere('seated-head-'+i,{diameter:0.35,segments:6},scene);head.position.set(p.x+0.7,1.55,p.z+0.65);head.material=mat('npc-skin','#cb9573');
-    for(const dx of [-0.16,0.16]){const arm=MeshBuilder.CreateBox('typing-arm-'+i,{width:0.12,height:0.12,depth:0.55},scene);arm.position.set(p.x+0.7+dx,1.1,p.z+0.3);arm.material=mat('worker-shirt','#728ca9');arm.metadata={cityDynamic:true};arms.push(arm);}
-    head.metadata=body.metadata={npcId:["alex","olga","igor"][i]};head.isPickable=body.isPickable=true;
+  for(const [i,p]of COMPUTERS.entries()){
+    const id=p.id==='pc01'?'alex':p.id==='pc03'?'olga':'igor',x=p.x-.9;
+    const shirt=mat('worker-shirt-'+i,['#728ca9','#75919f','#b6a783'][i]),trousers=mat('npc-trousers','#203849'),skin=mat('npc-skin','#cb9573');
+    const body=MeshBuilder.CreateBox('seated-worker-'+i,{width:.3,height:.56,depth:.4},scene);body.position.set(x,1,p.z);body.material=shirt;
+    const pelvis=MeshBuilder.CreateBox('worker-seat-'+i,{width:.3,height:.2,depth:.38},scene);pelvis.position.set(x,.65,p.z);pelvis.material=trousers;pelvis.isPickable=false;
+    const head=MeshBuilder.CreateSphere('seated-head-'+i,{diameter:.34,segments:8},scene);head.position.set(x+.03,1.48,p.z);head.material=skin;
+    const nose=MeshBuilder.CreateBox('worker-face-'+i,{width:.06,height:.07,depth:.08},scene);nose.position.set(x+.19,1.47,p.z);nose.material=skin;nose.isPickable=false;
+    for(const dz of [-.14,.14]){
+      const thigh=MeshBuilder.CreateBox('seated-thigh',{width:.45,height:.16,depth:.16},scene);thigh.position.set(x+.18,.57,p.z+dz);thigh.material=trousers;
+      const shin=MeshBuilder.CreateBox('seated-shin',{width:.15,height:.45,depth:.16},scene);shin.position.set(x+.37,.3,p.z+dz);shin.material=trousers;
+      const shoe=MeshBuilder.CreateBox('worker-shoe',{width:.28,height:.12,depth:.19},scene);shoe.position.set(x+.43,.08,p.z+dz);shoe.material=mat('worker-shoes','#24313a');
+      const arm=MeshBuilder.CreateTube('typing-arm-'+i,{path:[new Vector3(x+.02,1.13,p.z+dz*1.4),new Vector3(x+.17,.88,p.z+dz*1.5),new Vector3(p.x-.38,.87,p.z+dz)],radius:.065,tessellation:6},scene);arm.material=shirt;arm.isPickable=false;
+      const hand=MeshBuilder.CreateSphere('typing-hand-'+i,{diameter:.13,segments:6},scene);hand.position.set(p.x-.38,.87,p.z+dz);hand.material=skin;hand.metadata={cityDynamic:true};hand.isPickable=false;arms.push(hand);
+      for(const m of [thigh,shin,shoe])m.isPickable=false;
+    }
+    head.metadata=body.metadata={npcId:id,workstation:p.id};head.isPickable=body.isPickable=true;
   }
   const ground=MeshBuilder.CreateGround('terrain-continuation',{width:600,height:600},scene);ground.position.y=-0.09;ground.material=mat('grass','#6f9278');ground.isPickable=false;
   for(const z of [-47,47]){const portal=MeshBuilder.CreateBox('road-tunnel',{width:10,height:7,depth:4},scene);portal.position.set(0,3.3,z);portal.material=mat('tunnel','#283b42');portal.isPickable=false;const tag=sign(scene,'district-edge','НОВОЛИНСК · ОБЪЕЗД',8,0.8);tag.mesh.position.set(0,5,z-Math.sign(z)*2.05);tag.mesh.isPickable=false;}
@@ -28,10 +39,10 @@ export function buildLivingCity(scene:Scene,mat:Palette){
     if(now!==clock){clock=now;clockAt=performance.now();}now=clock+Math.min(performance.now()-clockAt,1500);
     for(const group of lights)group.forEach((m,i)=>m.material=phase==='DRIVE'&&i===2?lamp:phase==='AMBER'&&i===1?amber:phase==='CROSS'&&i===0?red:off);
     people.forEach((root,i)=>{const p=pedestrianPosition(i,now);root.position.set(p.x,0,p.z);root.rotation.y=p.yaw;const far=Vector3.Distance(root.position,camera)>45;root.setEnabled(!far);if(!far)root.getChildMeshes().filter(m=>m.name==='npc-walking-leg').forEach((leg,j)=>leg.rotation.x=p.walking?Math.sin(now/180+j*Math.PI)*0.3:0);});
-    arms.forEach((m,i)=>m.rotation.x=Math.sin(now/200+i)*0.05);
+    arms.forEach((m,i)=>m.position.y=.87+Math.sin(now/170+i*Math.PI)*.012);
     if(!vehicles)return;
     for(const [id,c]of vehicles){let item=cars.get(id);if(!item){const root=new TransformNode('traffic-car-'+id,scene);item={root};cars.set(id,item);}
-      if(!item.model&&library.has('car_sedan.glb')){const model=library.instantiate(id.endsWith('1')?'car_hatchback.glb':'car_sedan.glb','moving-'+id);if(model){model.root.parent=item.root;fitModel(model.root,1.7,1.2,3.5);model.root.getChildMeshes().forEach(m=>{m.metadata={heavy:true,cityDynamic:true};m.isPickable=true;});item.model=true;}}
+      if(!item.model&&library.has('car_sedan.glb')){const model=library.instantiate(id.endsWith('1')?'car_hatchback.glb':'car_sedan.glb','moving-'+id);if(model){fitModel(model.root,1.7,1.2,3.5);model.root.parent=item.root;model.root.getChildMeshes().forEach(m=>{m.metadata={heavy:true,cityDynamic:true};m.isPickable=true;});item.model=true;}}
       const target=new Vector3(c.x,0,c.z),snap=Vector3.Distance(item.root.position,target)>10;Vector3.LerpToRef(item.root.position,target,snap?1:1-Math.exp(-12*dt),item.root.position);item.root.rotation.y=c.direction>0?0:Math.PI;
     }
   }};

@@ -1,16 +1,19 @@
+import {walk} from './case-navigation';
 import {test,expect} from "@playwright/test";
 import {drive,tabletApp} from "./navigation";
 test("district contact explains the first job and routes to the real work board",async({page})=>{
   await page.addInitScript(()=>localStorage.setItem("netcity-quality","low"));
   await page.goto("/");await expect(page.locator(".connection-status")).toContainText("В сети");
   await page.locator("canvas").click({position:{x:450,y:350}});
-  await drive(page,"z",-5,()=>page.keyboard.down("KeyW"),()=>page.keyboard.up("KeyW"));
+  await drive(page,"z",-.5,()=>page.keyboard.down("KeyW"),()=>page.keyboard.up("KeyW"));
   await page.evaluate(()=>document.dispatchEvent(new MouseEvent("mousemove",{movementX:Math.PI/2/0.002})));
-  await drive(page,"x",2,()=>page.keyboard.down("KeyW"),()=>page.keyboard.up("KeyW"));
+  await drive(page,"x",4.6,()=>page.keyboard.down("KeyW"),()=>page.keyboard.up("KeyW"));
+  await page.evaluate(()=>document.dispatchEvent(new MouseEvent("mousemove",{movementX:-Math.PI/2/0.002})));
+  await walk(page,"z",-6);
   await page.evaluate(async()=>{
     const path="/src/world.ts",{EngineStore}=await import(/* @vite-ignore */path);
     const c=EngineStore.LastCreatedScene.activeCamera;
-    document.dispatchEvent(new MouseEvent("mousemove",{movementX:(Math.atan2(4-c.position.x,-5-c.position.z)-c.rotation.y)/0.002}));
+    document.dispatchEvent(new MouseEvent("mousemove",{movementX:(Math.atan2(6-c.position.x,-6-c.position.z)-c.rotation.y)/0.002}));
   });
   await expect(page.locator(".interaction-hint")).toContainText("Алина");
   await page.keyboard.press("KeyE");await expect(page.getByRole("dialog")).toHaveAccessibleName("Диспетчер Алина");

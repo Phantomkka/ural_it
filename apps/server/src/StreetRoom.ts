@@ -1,5 +1,5 @@
 import {CarryObject,createProps} from "./propsState.js";
-import {propBlocks} from "@netcity/shared";
+import {propBlocksMove} from "@netcity/shared";
 import {Vehicle,createCars,advanceCity} from "./cityState.js";
 import {carBlocksPoint} from "@netcity/shared";
 import { Room, type Client } from "@colyseus/core";
@@ -160,14 +160,14 @@ export class StreetRoom extends Room<{ state: StreetState }> {
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
         const carrying=player.heldItem==='cable_roll'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
         const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen));
-        if(![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocks(next,prop)))Object.assign(player,next);
+        if(![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocksMove(player,next,prop)))Object.assign(player,next);
         if (player.x > 5 && Math.abs(player.z) < 3)
           player.ticketStep = Math.max(player.ticketStep, 2);
         if (player.x > 13.5 && player.x < 20 && Math.abs(player.z) < 5.5)
           player.ticketStep = Math.max(player.ticketStep, 3);
         if (entry) player.yaw = entry.input.yaw;
       });
-    if(++cityTick%3===0){this.state.trafficPhase=advanceCity(this.state.cars,this.state.players.values(),Date.now());}
+    if(++cityTick%3===0){this.state.trafficPhase=advanceCity(this.state.cars,[...this.state.players.values(),...this.state.props.values()].filter(p=>!('holder' in p)||!p.holder),Date.now());}
       if(cityTick%30===0)this.state.worldClock=Date.now();
     }, 1000 / TICK_RATE);
   }
