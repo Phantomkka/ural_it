@@ -89,7 +89,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
           requestId: randomUUID(),
         });
         await service.finishDiagnostic(guest.profileId,"003",()=>null);
-        const savedService=(await store.read(guest.profileId)).service;
+        const savedService=(await store.read(guest.profileId)).service;const crewProof=(await store.pool.query('SELECT code,data FROM crew_projects ORDER BY code LIMIT 1')).rows[0];
         const row = (
           await store.pool.query(
             "SELECT token_hash FROM profiles WHERE id=$1",
@@ -107,6 +107,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
         await server.gracefullyShutdown(false);
         await store.close();
         store = new PostgresProgressStore(url.toString());
+        assert.deepEqual(await store.readProject(crewProof.code),crewProof.data);
         const restarted = createGameServer({ store });
         await restarted.listen(26794, "127.0.0.1");
         try {

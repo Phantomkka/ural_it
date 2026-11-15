@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {CREW_CATALOG,CREW_SHOP,CITY_BUILDINGS,buildingClient,type CrewIntent} from '@netcity/shared';
+import {CREW_CATALOG,CREW_SHOP,CITY_BUILDINGS,buildingClient,companyFromProgress,type CrewIntent} from '@netcity/shared';
 import {CrewService} from './progress/crew.js';
 import type {ProgressStore} from './progress/store.js';
 export async function crewContract(store:ProgressStore){
@@ -28,7 +28,7 @@ export async function crewContract(store:ProgressStore){
    }
   }
   move(0,buildingClient(b));assert.equal((await call(0,{action:'signoff',code})).result.ok,true);let total=0;
-  for(let i=0;i<5;i++){const key=randomUUID(),result=await Promise.all([call(i,{action:'claim',code},key),call(i,{action:'claim',code},key)]);assert.ok(result.every(r=>r.result.ok));const d=await store.read(ids[i]);total+=d.credits;assert.equal(d.credits,Math.floor(template.credits/5));assert.equal(d.xp,Math.floor(template.xp/5));assert.deepEqual(d.projects,[]);assert.equal((await call(i,{action:'claim',code})).result.ok,false);}
+  for(let i=0;i<5;i++){const key=randomUUID(),result=await Promise.all([call(i,{action:'claim',code},key),call(i,{action:'claim',code},key)]);assert.ok(result.every(r=>r.result.ok));const d=await store.read(ids[i]);total+=d.credits;assert.equal(d.credits,Math.floor(template.credits/5));assert.equal(d.xp,Math.floor(template.xp/5));assert.deepEqual(d.projects,[]);assert.equal(companyFromProgress(d).reputation,1);assert.equal((await call(i,{action:'claim',code})).result.ok,false);}
   assert.ok(total<=template.credits);const view=await service.view(ids[0],code);assert.ok(view?.tasks.every(t=>t.done));const serialized=JSON.stringify(view);for(const id of ids)assert.ok(!serialized.includes(id));assert.ok(!serialized.includes('carrierSession'));assert.equal((await call(0,{action:'create',templateId:template.id})).result.ok,true);
  }
  const a=await store.register(),svc=new CrewService(store,()=>now),c=await svc.command(a.profileId,{action:'create',templateId:CREW_CATALOG[0].id,requestId:randomUUID()},()=>CREW_SHOP),code=c.data!.projects![0];
