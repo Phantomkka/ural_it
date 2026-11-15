@@ -40,6 +40,7 @@ export interface WorkOrder {
   completedAt: number | null;
 }
 export interface PrivateProfile {
+  projects?:string[];
   business?:import('./business.js').BusinessProgress;
   cable?:import('./cable.js').CableTask;
   service?: ServiceProgress;

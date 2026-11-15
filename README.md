@@ -93,3 +93,6 @@ PostgreSQL-проверки используют отдельный тестов
 ## NETCITY 3.1 beta
 
 The tablet's **Работы района** catalog offers 44 missions across twelve repair families. All ten district buildings have accessible ground floors and shared doors. New DHCP, DNS, UPS and storage workflows, company laboratories and contracts extend the existing game. Account, money and active-case compatibility are retained through additive migration 008. See [beta release notes](docs/beta-3.1.md) for play and rollout instructions.
+# NETCITY 4.0 — совместные выезды
+
+Планшет → **Бригада · 4.0**: создайте общий заказ, пригласите друзей по коду и начните выезд. До пяти инженеров вместе заказывают и доставляют оборудование, монтируют камеры, прокладывают кабель и сдают систему клиенту. 27 повторяемых проектов дополняют 44 личные заявки; старый прогресс сохраняется. [Правила и состав обновления](docs/netcity-4.md).

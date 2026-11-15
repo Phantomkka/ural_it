@@ -1,3 +1,4 @@
+import {buildCrewObjects} from "./crewObjects";
 import {buildInteriors} from "./interiors";
 import {CARRY_PROPS,CITY_BUILDINGS,buildingAt} from "@netcity/shared";
 import {buildLivingCity} from "./livingCity";
@@ -92,6 +93,7 @@ export function createWorld(
     const cableObjects=buildCableObjects(scene,material);
     const city=buildLivingCity(scene,material);
     const interiors=buildInteriors(scene,material);
+    const crewObjects=buildCrewObjects(scene,material);
     const props=new Map(CARRY_PROPS.map(p=>{const mesh=MeshBuilder.CreateBox("carry-prop-"+p.id,{width:.5,height:p.id==="spare-pc"?.65:.35,depth:.5},scene);mesh.position.set(p.x,.3,p.z);mesh.material=material("prop-"+p.id,p.id==="toolbox"?"#497a93":"#b69570");mesh.metadata={propId:p.id,cityDynamic:true};return [p.id,mesh] as const;}));
     for (const mesh of scene.meshes)
       if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && !mesh.metadata?.cableDynamic && !mesh.metadata?.cityDynamic && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
@@ -102,6 +104,7 @@ export function createWorld(
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
       const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(hit?.pickedMesh?.metadata?.crewTarget)return {id:"contact:crew",label:"Бригада · склад / монтаж"};
       if(hit?.pickedMesh?.metadata?.propId){const id=hit.pickedMesh.metadata.propId;return {id:"prop:"+id,label:"Поднять: "+CARRY_PROPS.find(p=>p.id===id)?.name};}
       if(hit?.pickedMesh?.metadata?.heavy)return {id:"heavy",label:"Транспорт слишком тяжёлый"};
       if(hit?.pickedMesh?.metadata?.cableTarget)return {id:"contact:cable",label:"Бухта кабеля · инструменты"};
@@ -272,7 +275,7 @@ export function createWorld(
       const me = room.state.players?.get(room.sessionId);
       if(me&&!touch.modal&&!document.hidden&&performance.now()-lastAmbience>2500){playCityAmbience(!!buildingAt(me),settings().volume);lastAmbience=performance.now();}
       for(const [id,mesh]of props){const p=room.state.props?.get(id),holder=p?.holder&&room.state.players?.get(p.holder);if(p){mesh.position.set(holder?holder.x+Math.sin(holder.yaw)*.7:p.x,holder?1:.3,holder?holder.z+Math.cos(holder.yaw)*.7:p.z);mesh.isPickable=!holder;}}
-      carried.setEnabled(!!me?.heldItem&&!me.heldItem.startsWith("prop:")&&me.heldItem!=="cable_roll");roll.setEnabled(me?.heldItem==="cable_roll");
+      carried.scaling.setAll(me?.heldItem==="crew_parcel"?2:1);carried.setEnabled(!!me?.heldItem&&!me.heldItem.startsWith("prop:")&&me.heldItem!=="cable_roll");roll.setEnabled(me?.heldItem==="cable_roll");
       if (me) {
         origin ??= {x:me.x,z:me.z};
         moved ||= Math.hypot(me.x-origin.x,me.z-origin.z)>1;
@@ -375,7 +378,7 @@ export function createWorld(
       engine.dispose();
     };
     room.onLeave(dispose);
-    return { interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync,setCable:cableObjects.setTask };
+    return { interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync,setCable:cableObjects.setTask,setCrewObjects:crewObjects.sync,setCrewTarget:crewObjects.target };
   } catch (error) {
     engine.dispose();
     throw error;

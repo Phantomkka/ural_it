@@ -1,3 +1,6 @@
+import {CrewHud,crewDestination} from "./CrewHud";
+import {CrewPanel} from "./CrewPanel";
+import type {CrewView,CrewIntent,CrewAction} from "@netcity/shared";
 import {MissionBoard} from "./MissionBoard";
 import {CompanyPanel} from "./CompanyPanel";
 import { useEffect, useRef, useState } from "react";
@@ -45,6 +48,15 @@ import {DistrictMap} from "./DistrictMap";
 import {CLIENT_CASE_TEMPLATE as CASE,caseTemplate,clientCaseTarget,type CaseIntent} from "@netcity/shared";
 import "./style.css";
 function App() {
+  const [crew,setCrew]=useState<CrewView|null>(null),[crewMessage,setCrewMessage]=useState(''),[crewPending,setCrewPending]=useState(false);
+  const crewRequest=useRef<CrewAction|null>(null);
+  const crewRef=useRef<CrewView|null>(null);crewRef.current=crew;
+  const [crewFocus,setCrewFocus]=useState('survey');
+  const crewObjectsRef=useRef<import('@netcity/shared').CrewObject[]>([]);
+  const crewAct=(intent:CrewIntent)=>{if(!roomRef.current||crewRequest.current)return;const a={...intent,requestId:operationId()};crewRequest.current=a;setCrewPending(true);try{sessionStorage.setItem('netcity-pending-crew',JSON.stringify(a));roomRef.current.send('crew',a);}catch{setCrewMessage('Связь потеряна. Повторите отправку после подключения.');}};
+  const retryCrew=()=>{if(crewRequest.current&&roomRef.current?.connection.isOpen)roomRef.current.send('crew',crewRequest.current);};
+  useEffect(()=>{const t=setInterval(()=>{if(tabletRef.current&&roomRef.current?.connection.isOpen&&!crewRequest.current)roomRef.current.send('crew',{action:'refresh',requestId:operationId()});},3000);return()=>clearInterval(t);},[]);
+
   const [tablet,setTablet]=useState(false),[tabletApp,setTabletApp]=useState<TabletApp>("calls");
   const tabletRef=useRef(false);
   const [businessPending,setBusinessPending]=useState(false),[businessMessage,setBusinessMessage]=useState("");
@@ -118,8 +130,9 @@ function App() {
   const [economy, setEconomy] = useState(false);
   const [profile, setProfile] = useState<PrivateProfile | null>(null);
   const latestProfile=useRef(profile);latestProfile.current=profile;
+  useEffect(()=>{worldRef.current?.setCrewTarget(crewDestination(crew,crewFocus)?.point);},[crew,crewFocus]);
   useEffect(()=>{worldRef.current?.setCable(profile?.cable);worldRef.current?.setClientCase(profile?.service?.cases.at(-1));},[profile]);
-  useEffect(()=>{if(profile?.service?.cases.at(-1)?.stage!=="RINGING")return;const ring=()=>{if(!document.hidden)playFeedback(true,settingsRef.current.volume);};window.addEventListener("pointerdown",ring,{once:true});const t=setInterval(ring,7000);return()=>{clearInterval(t);window.removeEventListener("pointerdown",ring);};},[profile?.service?.cases.at(-1)?.id,profile?.service?.cases.at(-1)?.stage]);
+  useEffect(()=>{if(crew||profile?.service?.cases.at(-1)?.stage!=="RINGING")return;const ring=()=>{if(!document.hidden)playFeedback(true,settingsRef.current.volume);};window.addEventListener("pointerdown",ring,{once:true});const t=setInterval(ring,7000);return()=>{clearInterval(t);window.removeEventListener("pointerdown",ring);};},[crew?.code,profile?.service?.cases.at(-1)?.id,profile?.service?.cases.at(-1)?.stage]);
   const previousProfile=useRef<PrivateProfile|null>(null);
   const [reward,setReward]=useState<{credits:number;xp:number}|null>(null);
   useEffect(()=> {
@@ -217,13 +230,13 @@ function App() {
       if(e.repeat||isEditing(e.target))return;
       const b=settingsRef.current.bindings;
       if(e.code===b.tablet && (!tabletRef.current || b.tablet!=="Tab")){e.preventDefault();e.stopPropagation();if(tabletRef.current)closeTablet();else openTablet();}
-      if(e.code===b.drop && !touch.current.modal){if(roomRef.current?.state.players?.get(roomRef.current.sessionId)?.heldItem?.startsWith("prop:")){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});return;}if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}else if(roomRef.current){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});}}
+      if(e.code===b.drop && !touch.current.modal){const box=crewRef.current?.tasks.find(t=>t.mine);if(box&&crewRef.current){e.preventDefault();crewAct({action:'drop',code:crewRef.current.code,taskId:box.id});return;}if(roomRef.current?.state.players?.get(roomRef.current.sessionId)?.heldItem?.startsWith("prop:")){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});return;}if(latestProfile.current?.cable?.carrier===roomRef.current?.sessionId&&roomRef.current){e.preventDefault();cableAct("drop");return;}const c=roomRef.current && latestProfile.current?.service?.cases.at(-1);if(c?.carrying){e.preventDefault();caseAct({action:"drop",caseId:c.id});}else if(roomRef.current){e.preventDefault();roomRef.current.send("interaction",{kind:"dropProp"});}}
     };
     window.addEventListener("keydown",keyboard,true);return()=>window.removeEventListener("keydown",keyboard,true);
   },[]);
   useEffect(()=>{
     const prefs=()=>{const next=readSettings();setSettings(next);settingsRef.current=next;const q=defaultQuality();setQuality(q);worldRef.current?.setQuality(q);};window.addEventListener("netcity-preferences",prefs);
-    const changed=()=>{savePending(null);pendingRef.current=null;setPending(null);pendingCaseId.current=null;casePendingRef.current=false;setCasePending(false);setProfile(null);setAttempt(v=>v+1);};
+    const changed=()=>{crewRequest.current=null;setCrewPending(false);setCrew(null);try{sessionStorage.removeItem('netcity-pending-crew');}catch{}savePending(null);pendingRef.current=null;setPending(null);pendingCaseId.current=null;casePendingRef.current=false;setCasePending(false);setProfile(null);setAttempt(v=>v+1);};
     window.addEventListener('netcity-auth-changed',changed);return()=>{window.removeEventListener('netcity-auth-changed',changed);window.removeEventListener("netcity-preferences",prefs);};
   },[]);
   useEffect(() => {
@@ -265,6 +278,12 @@ function App() {
           return;
         }
         roomRef.current = room;
+        setCrew(null);crewRequest.current=null;setCrewPending(false);
+        room.onMessage('crewState',(v:CrewView|null)=>{if(!cancelled)setCrew(v);});
+        room.onMessage('crewObjects',(v:import('@netcity/shared').CrewObject[])=>{crewObjectsRef.current=v;worldRef.current?.setCrewObjects(v);});
+        room.onMessage('crewResult',(r:ProgressResult)=>{if(r.requestId===crewRequest.current?.requestId){crewRequest.current=null;setCrewPending(false);setCrewMessage(r.message);try{sessionStorage.removeItem('netcity-pending-crew');}catch{}}});
+        try{const raw=sessionStorage.getItem('netcity-pending-crew');if(raw){crewRequest.current=JSON.parse(raw);setCrewPending(true);room.send('crew',crewRequest.current);}}catch{}
+
         setBusinessPending(false);businessRequest.current=null;
         room.onMessage("businessResult",(r:ProgressResult)=>{setBusinessMessage(r.message);if(r.requestId===businessRequest.current?.requestId){businessRequest.current=null;setBusinessPending(false);try{sessionStorage.removeItem("netcity-pending-business");}catch{}}});
         try{const raw=sessionStorage.getItem("netcity-pending-business");if(raw){businessRequest.current=JSON.parse(raw);setBusinessPending(true);room.send("business",businessRequest.current);}}catch{}
@@ -307,6 +326,7 @@ function App() {
           () => settingsRef.current,
           setView,
           id=>{
+            if(id==="crew"){openTablet("crew");return;}
             if(id.startsWith("tenant:")){const c=latestProfile.current?.service?.cases.at(-1);openTablet(caseTemplate(c).buildingId===id.slice(7)?"tickets":"missions");return;}
             if(id==="case-hardware"){openTablet("tickets");return;}
             if(id==="cable"){openTablet("tools");return;}
@@ -321,7 +341,7 @@ function App() {
             if(document.pointerLockElement) document.exitPointerLock();
           },
         );
-        worldRef.current = world;
+        worldRef.current = world;world.setCrewObjects(crewObjectsRef.current);room.send('crew',{action:'refresh',requestId:operationId()});
         room.onMessage("profile", (value: PrivateProfile) => {
           if (!cancelled) setProfile(value);
         });
@@ -484,7 +504,7 @@ function App() {
     setPending(action);
     sendProgress(roomRef.current, action);
   };
-  const homeView=(<>
+  const homeView=(<><section className="crew-banner"><h2>NETCITY 4.0 · Совместные выезды</h2><p>27 больших проектов: поставки, монтаж камер, прокладка сети и замена оборудования. Соберите до пяти инженеров.</p><button onClick={()=>openTablet("crew")}>Открыть бригаду · 4.0</button></section>
       <section className="beta-welcome"><h2>NETCITY 3.1 · Бета</h2><p>44 миссии, 12 направлений и доступные первые этажи всех зданий района.</p><button onClick={()=>openTablet("missions")}>Выбрать работу в районе</button></section>
       {tutorial && status === "В сети" && <Tutorial
         journey={{moved:view.moved,looked:view.looked,inspected:step>=4}} completed={profile?.tutorialCompleted??false}
@@ -751,10 +771,11 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="crew"?<CrewPanel view={crew} position={view} pending={crewPending} message={crewMessage} send={crewAct} retry={retryCrew} onTrack={setCrewFocus}/>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
-      {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
+      {!tablet && <CrewHud crew={crew} focus={crewFocus} position={view} open={()=>openTablet("crew")}/>}
+      {!tablet && <div className="minimal-hud"><small className="connection-status">{nickname} · {status} · Игроков: {count}</small><button onClick={()=>openTablet("calls")} aria-label="Открыть планшет">{!crew&&profile?.service?.cases.at(-1)?.stage==="RINGING"?"☎ Входящий звонок":"▣ Планшет"}</button></div>}
       <small hidden className="identity-status" data-mode={identity.mode}>{identity.conflict?"другой профиль":identity.mode==="tab"?"только в этой вкладке":""}</small>
       <header className="legacy-header">
         <button className="brand-link" aria-label="Главное меню" onClick={()=>openMenu("main")}><b>
@@ -775,7 +796,7 @@ function App() {
           enabled={target}
           input={touch.current}
           interact={() => worldRef.current?.interact()}
-          drop={()=>{const room=roomRef.current;if(room?.state.players?.get(room.sessionId)?.heldItem?.startsWith("prop:"))room.send("interaction",{kind:"dropProp"});else if(latestProfile.current?.cable?.carrier===room?.sessionId)cableAct("drop");else{const c=latestProfile.current?.service?.cases.at(-1);if(c?.carrying)caseAct({action:"drop",caseId:c.id});else room?.send("interaction",{kind:"dropProp"});}}}
+          drop={()=>{const box=crewRef.current?.tasks.find(t=>t.mine);if(box&&crewRef.current){crewAct({action:"drop",code:crewRef.current.code,taskId:box.id});return;}const room=roomRef.current;if(room?.state.players?.get(room.sessionId)?.heldItem?.startsWith("prop:"))room.send("interaction",{kind:"dropProp"});else if(latestProfile.current?.cable?.carrier===room?.sessionId)cableAct("drop");else{const c=latestProfile.current?.service?.cases.at(-1);if(c?.carrying)caseAct({action:"drop",caseId:c.id});else room?.send("interaction",{kind:"dropProp"});}}}
         />
       )}
       {!view.locked && !matchMedia("(pointer: coarse)").matches && !tablet && !panel && !economy && !pcId && !menu && <div className="capture-hint">Нажмите на улицу для обзора мышью · Esc — меню</div>}

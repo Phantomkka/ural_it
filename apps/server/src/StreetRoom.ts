@@ -133,6 +133,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     this.onMessage("case",(client,value:unknown)=>this.work.clientCase(client,value));
     this.onMessage('cable',(client,value:unknown)=>this.work.cable(client,value));
     this.onMessage('business',(client,value:unknown)=>this.work.business(client,value));
+    this.onMessage('crew',(client,value:unknown)=>this.work.crewCommand(client,value));
     this.onMessage("interaction",(client,value:unknown)=>this.work.interaction(client,value));
     this.onMessage("computer", (client, value: unknown) => {
       const now = performance.now();
@@ -160,7 +161,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
       this.state.players.forEach((player, id) => {
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
-        const carrying=player.heldItem==='cable_roll'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
+        const carrying=player.heldItem==='cable_roll'||player.heldItem==='crew_parcel'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
         const next=this.work.constrainMove(id,player,advance(player,movement,(carrying?0.6:1)/TICK_RATE,this.state.equipment.officeDoorOpen,this.state.doors));
         if(![...this.state.cars.values()].some(car=>carBlocksPoint(next,car))&&![...this.state.props.values()].some(prop=>propBlocksMove(player,next,prop)))Object.assign(player,next);
         if (player.x > 5 && Math.abs(player.z) < 3)

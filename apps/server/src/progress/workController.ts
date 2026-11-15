@@ -19,6 +19,8 @@ import { ClientCaseService } from "./clientCases.js";
 import {CableService} from './cable.js';
 import {BusinessService} from './business.js';
 import {CableRoomController} from '../cableRoom.js';
+import {CrewService} from './crew.js';
+import {crewView,CREW_SHOP,type CrewProject,type CrewObject} from '@netcity/shared';
 interface Lease {
   sessionId: string;
   profileId: string;
@@ -28,6 +30,19 @@ interface Lease {
 const liveSessions=new Set<string>();
 /** Serializes world transactions without blocking authoritative movement ticks. */
 export class WorkController {
+  private crewProjects=new Map<string,CrewProject>();
+  private crewCodes=new Map<string,string>();
+  private syncCrewHands(){for(const [session,id]of this.actors){const player=this.room.state.players.get(session);if(!player)continue;const carrying=[...this.crewProjects.values()].some(p=>p.tasks.some(t=>t.carrier===id&&t.carrierSession===session&&!t.done));if(carrying)player.heldItem='crew_parcel';else if(player.heldItem==='crew_parcel')player.heldItem='';}}
+  private async refreshCrew(client:Client){
+    const id=this.actors.get(client.sessionId);if(!id)return;const d=await this.service.store.read(id),code=d.projects?.at(-1);if(code){const p=await this.service.store.readProject(code);if(p?.members[id]){this.crewProjects.set(code,p);this.crewCodes.set(client.sessionId,code);}}else{this.crewCodes.delete(client.sessionId);this.send(client,'crewState',null);}
+    for(const peer of this.room.clients){const key=this.crewCodes.get(peer.sessionId),p=key&&this.crewProjects.get(key),actor=this.actors.get(peer.sessionId);if(p&&actor&&p.members[actor])this.send(peer,'crewState',crewView(p,actor));}
+    this.syncCrewHands();const objects:CrewObject[]=[];
+    // Keep the latest site per building, bounded by nine district sites.
+    const sites=new Map<string,CrewProject>();for(const p of this.crewProjects.values()){const site=p.templateId.replace(/-(security|network|renewal)$/,'');if(!sites.has(site)||sites.get(site)!.createdAt<p.createdAt)sites.set(site,p);}
+    for(const p of sites.values())for(const t of p.tasks){const pt=t.steps[0].point,id=p.id+':'+t.id;if(t.kind==='delivery'&&t.parcel&&!t.done)objects.push({id,kind:'parcel',...t.parcel,done:false,step:t.step,holder:t.carrierSession});if(['camera','replace'].includes(t.kind)&&t.step>0)objects.push({id,kind:t.kind==='camera'?'camera':'cabinet',...pt,done:t.done,step:t.step});if(t.kind==='cable'&&t.step>1)objects.push({id,kind:'cable',...pt,done:t.done,step:t.step,points:t.steps.slice(1,Math.min(t.step,6)).map(s=>s.point)});}
+    this.room.broadcast('crewObjects',objects);if(this.crewProjects.size>18)for(const [key,p]of this.crewProjects)if(p.status==='COMPLETE'&&![...this.crewCodes.values()].includes(key))this.crewProjects.delete(key);
+  }
+  crewCommand(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'crewResult',async id=>{const outcome=await new CrewService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId}:null;},()=>{const p=this.room.state.players.get(client.sessionId);return !!p&&!p.heldItem;});if(outcome.data)this.profile(client,outcome.data);await this.refreshCrew(client);this.send(client,'crewResult',{...outcome.result,requestId:typeof(value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});});}
   private lastDoorAction=0;
   private doorActions=new Map<string,number>();
   private actors = new Map<string, string>();
@@ -48,7 +63,7 @@ export class WorkController {
       for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier&&!liveSessions.has(c.carrier)){c.carrying=false;c.carrier=undefined;c.droppedAt=c.carryOrigin??null;c.carryOrigin=undefined;}
       const cable=tx.data.cable;if(cable?.carrier&&!liveSessions.has(cable.carrier)){cable.carrier=undefined;cable.endpoint={...cable.points.at(-1)!};}
       return {ok:true,message:""};
-    });this.cableRoom.sync(client,outcome.data);}).catch(()=>{});
+    });this.cableRoom.sync(client,outcome.data);await new CrewService(this.service.store).recover(id,liveSessions);await this.refreshCrew(client);}).catch(()=>{});
   }
   detach(client: Client) {
     const id=this.actors.get(client.sessionId),p=this.room.state.players.get(client.sessionId),position=p?{x:p.x,z:p.z}:undefined;
@@ -61,6 +76,7 @@ export class WorkController {
     this.tail = this.tail
       .then(async () => {
         if(id)await this.service.store.transaction(id,null,tx=>{for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier===client.sessionId){c.carrying=false;c.carrier=undefined;c.droppedAt=position??c.carryOrigin??null;c.carryOrigin=undefined;}const cable=tx.data.cable;if(cable?.carrier===client.sessionId){cable.carrier=undefined;cable.endpoint=position??{...cable.points.at(-1)!};}return {ok:true,message:""};});
+        if(id&&position)await new CrewService(this.service.store).dropOnDisconnect(id,position,client.sessionId);this.crewCodes.delete(client.sessionId);const peer=this.room.clients.find(c=>this.actors.has(c.sessionId));if(peer)await this.refreshCrew(peer);
         for (const [kind, lease] of this.leases)
           if (lease.sessionId === client.sessionId) this.release(kind);
       })
@@ -71,6 +87,7 @@ export class WorkController {
   }
   private profile(client: Client, data: ProfileData) {
     for(const peer of this.room.clients)if(this.actors.get(peer.sessionId)===data.id)this.cableRoom.sync(peer,data);
+    this.syncCrewHands();
     if (this.subscribers.has(client.sessionId))
       this.send(client, "profile", snapshot(data, this.service.store.mode));
   }
@@ -170,7 +187,7 @@ export class WorkController {
   clientCase(client:Client,value:unknown) {
     this.subscribers.add(client.sessionId);
     this.enqueue(client,"caseResult",async id=>{
-      if(this.room.state.players.get(client.sessionId)?.heldItem.startsWith("prop:"))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
+      if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel)/))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId}:null;});
       if(outcome.data) {
         this.profile(client,outcome.data);
@@ -185,9 +202,9 @@ export class WorkController {
   cable(client:Client,value:unknown){
     this.subscribers.add(client.sessionId);
     this.enqueue(client,'cableResult',async id=>{
-      if(this.room.state.players.get(client.sessionId)?.heldItem.startsWith("prop:"))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
+      if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel)/))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new CableService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId,entryOpen:this.room.state.equipment.officeDoorOpen}:null;});
-      if(outcome.data){this.profile(client,outcome.data);this.cableRoom.sync(client,outcome.data);}
+      if(outcome.data){this.profile(client,outcome.data);this.cableRoom.sync(client,outcome.data);this.syncCrewHands();}
       this.send(client,'cableResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});
     });
   }

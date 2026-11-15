@@ -1,3 +1,4 @@
+import {CrewService} from './progress/crew.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { AuthService, AuthError, SESSION_AGE } from './auth/service.js';
@@ -9,9 +10,10 @@ export async function authContract(store: ProgressStore) {
     const guest = await store.register();
     await store.transaction(guest.profileId, null, tx => { tx.data.credits = 321; tx.data.xp = 160; tx.data.inventory.patch_cord = 3; tx.data.inventory.cleaner = 2; tx.data.tutorialCompleted = true; tx.data.diagnostics = ['003']; refreshCases(tx.data, now); const c = tx.data.service!.cases[0]; c.stage = 'COMPLETED'; c.completedAt = now; c.availableAt = now + 60000; tx.data.service!.completed = 1; return { ok: true, message: '' }; });
     await store.transaction(guest.profileId,null,tx=>{tx.data.cable={id:randomUUID(),stage:'TESTED',points:[{x:11,z:4.8},{x:11,z:0},{x:16,z:0},{x:18,z:0}],endpoint:{x:18,z:0}};return {ok:true,message:''};});
+    const crew=new CrewService(store);await crew.command(guest.profileId,{action:'create',templateId:'building-2-security',requestId:randomUUID()},()=>null);const crewBefore=await crew.view(guest.profileId);
     const before = await store.read(guest.profileId);
     const created = await auth.register({ login: name.toUpperCase(), password, guestToken: guest.token, confirm: true }, 'contract');
-    assert.equal(created.login, name);
+    assert.equal(created.login, name);assert.equal((await crew.view(guest.profileId))?.code,crewBefore?.code);
     assert.equal(await store.identify(guest.token), null);
     assert.deepEqual(await store.read(guest.profileId), before);
     const account = (await store.accounts.find(name))!;
