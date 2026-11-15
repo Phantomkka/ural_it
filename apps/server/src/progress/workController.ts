@@ -224,7 +224,7 @@ export class WorkController {
       if(action==="liftHeavy")return fail("Автомобиль и серверная стойка слишком тяжёлые. Переносите небольшие детали.");
       if(action!=="door"||!player||Math.hypot(player.x-8,player.z)>2.5)return fail("Подойдите к входной двери.");
       if(Date.now()-this.lastDoorAction<800)return fail("Дождитесь движения двери.");
-      if(this.room.state.equipment.officeDoorOpen && [...this.room.state.players.values()].some(p=>Math.abs(p.x-8)<0.7&&Math.abs(p.z)<1.65))return fail("В проёме человек — дверь не закрывается.");
+      if(this.room.state.equipment.officeDoorOpen && [...this.room.state.players.values()].some(p=>!p.floor&&Math.abs(p.x-8)<0.7&&Math.abs(p.z)<1.65))return fail("В проёме человек — дверь не закрывается.");
       if(this.room.state.equipment.officeDoorOpen&&[...this.room.state.props.values()].some(p=>!p.holder&&Math.abs(p.x-8)<.7&&Math.abs(p.z)<1.65))return fail("В проёме предмет — дверь не закрывается.");
       if(this.room.state.equipment.officeDoorOpen&&this.cableRoom.blocksDoor())return fail('В проёме проложен кабель. Сначала уберите линию.');
       this.lastDoorAction=Date.now();this.room.state.equipment.officeDoorOpen=!this.room.state.equipment.officeDoorOpen;

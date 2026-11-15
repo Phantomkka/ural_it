@@ -5,7 +5,7 @@ export const officeFloorCount=(b:CityBuilding)=>b.id==='hq'?2:3;
 export const officeEnvelope=(b:CityBuilding)=>({x:Math.sign(b.x)*18,z:b.z,width:20,depth:12});
 export const officeLift=(b:CityBuilding)=>({x:Math.sign(b.x)*24,z:b.z+1.8});
 export function upperWalls(b:CityBuilding){const e=officeEnvelope(b);return [{x:e.x-e.width/2,z:b.z,width:.3,depth:12},{x:e.x+e.width/2,z:b.z,width:.3,depth:12},{x:e.x,z:b.z-6,width:e.width,depth:.3},{x:e.x,z:b.z+6,width:e.width,depth:.3}];}
-export function upperFurniture(b:CityBuilding){const e=officeEnvelope(b);return [-3,0,3].flatMap(z=>[-3,2].map(x=>({x:e.x+x,z:b.z+z,width:1.6,depth:.85})));}
+export function upperFurniture(b:CityBuilding){const e=officeEnvelope(b);return [-3,0,3].flatMap(z=>[-3,2].map(x=>({x:e.x+Math.sign(b.x)*x,z:b.z+z,width:1.6,depth:.85})));}
 export function upperColliders(id:string){const b=CITY_BUILDINGS.find(b=>b.id===id);return b?[...upperWalls(b),...upperFurniture(b),...officeLiftWalls(b),...meetingWalls(b)]:[];}
 export const OFFICE_REAR_FURNITURE=CITY_BUILDINGS.flatMap(b=>[{x:Math.sign(b.x)*22,z:b.z-3,width:1.6,depth:.85},{x:Math.sign(b.x)*25,z:b.z-3,width:1.6,depth:.85},{x:Math.sign(b.x)*21.5,z:b.z+3.3,width:1.6,depth:.85}]);
 export function insideOffice(p:{x:number;z:number},b:CityBuilding){const e=officeEnvelope(b);return Math.abs(p.x-e.x)<e.width/2-.55&&Math.abs(p.z-b.z)<5.45;}
