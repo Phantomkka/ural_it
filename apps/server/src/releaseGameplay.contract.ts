@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict';import {randomUUID} from 'node:crypto';
-import {CASE_CATALOG,BUSINESS_UPGRADES,type ClientCase} from '@netcity/shared';
+import {CASE_CATALOG,BUSINESS_UPGRADES,propFloor,type ClientCase} from '@netcity/shared';
 import type {ProgressStore} from './progress/store.js';import {ClientCaseService,refreshCases} from './progress/clientCases.js';import {BusinessService,initBusiness} from './progress/business.js';import {CableService} from './progress/cable.js';
 export async function releaseGameplayContract(store:ProgressStore){
  for(const t of CASE_CATALOG.slice(1)){
+  const servicePosition={...t.hardware,x:t.hardware.x+(t.kind==='camera'?.95:-.95)};assert.ok(propFloor(servicePosition,true),t.id+': walkable service position');
   const guest=await store.register();let p={...t.client};const sessionId='engineer';
   await store.transaction(guest.profileId,null,tx=>{refreshCases(tx.data,Date.now());tx.data.service!.cases[0].templateId=t.id;tx.data.business!.upgrades=BUSINESS_UPGRADES.map(u=>u.id);return {ok:true,message:''};});
   const id=(await store.read(guest.profileId)).service!.cases[0].id,service=new ClientCaseService(store),act=(action:string,extra={})=>service.command(guest.profileId,{action,caseId:id,requestId:randomUUID(),...extra},()=>({...p,sessionId}));
   assert.equal((await act('accept')).result.ok,true,t.id);assert.equal((await act('signoff')).result.ok,false);
-  await act('talk',{choice:'changed'});p={...t.hardware};assert.equal((await act('diagnose',{choice:t.diagnosis})).result.ok,false);p={...t.client};await act('talk',{choice:'scope'});p={...t.hardware};
+  await act('talk',{choice:'changed'});p={...servicePosition};assert.equal((await act('diagnose',{choice:t.diagnosis})).result.ok,false);p={...t.client};await act('talk',{choice:'scope'});p={...servicePosition};
   assert.equal((await act('diagnose',{choice:'restart'})).result.ok,false);assert.equal((await act('diagnose',{choice:t.diagnosis})).result.ok,true,t.id);
   assert.equal((await act('verify')).result.ok,false);
   const step=async(choice:string)=>{const r=await act('repairStep',{choice});assert.equal(r.result.ok,true,t.id+':'+choice);};
-  if(t.part){p={...t.shop};assert.equal((await act('buyPart')).result.ok,true,t.id);p={...t.hardware};}
+  if(t.part){p={...t.shop};assert.equal((await act('buyPart')).result.ok,true,t.id);p={...servicePosition};}
   if(t.kind==='wifi'){assert.equal((await act('repairStep',{choice:'wifiPing'})).result.ok,false);await step('survey');await step('channel:11');assert.equal((await act('repairStep',{choice:'wifiPing'})).result.ok,false);await step('channel:6');await step('wifiPing');}
   if(t.kind==='power'||t.kind==='printer'||t.kind==='server'){
    await act('take');assert.equal((await act('install',{port:t.port})).result.ok,false);await step(t.kind==='power'?'isolate':t.kind==='printer'?'clearJam':'shutdown');

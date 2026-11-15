@@ -16,10 +16,10 @@ export function buildCaseObjects(scene:Scene,mat:Palette){
   const target=(m:ReturnType<typeof MeshBuilder.CreateBox>,label:string)=>{m.metadata={caseTarget:'hardware',deviceLabel:label};m.isPickable=true;};
   const workstation=SERVICE_FURNITURE.find(f=>f.id==='network')!;
   const device=box('client-pc04',T.hardware.x,1.08,workstation.z,.5,.6,.7,dark,true);target(device,'CLIENT-PC04');
-  const printer=box('service-device-printer',11.7,1.01,3,.7,.38,.5);target(printer,'PRINT-01');
-  box('printer-scanner-lid',11.7,1.215,3,.72,.035,.51,dark);
-  box('printer-output-slot',11.7,.99,2.741,.45,.06,.025,dark);
-  box('printer-paper',11.7,.955,2.64,.3,.012,.24);
+  const printer=box('service-device-printer',12.5,1.01,3,.7,.38,.5);target(printer,'PRINT-01');
+  box('printer-scanner-lid',12.5,1.215,3,.72,.035,.51,dark);
+  box('printer-output-slot',12.5,.99,2.741,.45,.06,.025,dark);
+  box('printer-paper',12.5,.955,2.64,.3,.012,.24);
   const nas=box('service-device-backup',18,1.02,3.3,.42,.4,.4,dark);target(nas,'BACKUP-NAS');
   for(const x of [17.87,18,18.13])box('nas-drive',x,1.02,3.09,.09,.3,.02,metal);
   const phone=box('service-device-voip',6,.92,-4,.3,.14,.3,dark);target(phone,'SIP-01');
@@ -30,7 +30,7 @@ export function buildCaseObjects(scene:Scene,mat:Palette){
   const camera=box('service-device-camera',-6.5,2.55,20.23,.3,.22,.5);target(camera,'CAM-01');
   box('camera-bracket',-6.5,2.4,20.07,.08,.1,.25,metal);box('camera-lens',-6.5,2.55,20.493,.15,.15,.035,dark);
   for(const p of [
-    {id:'network',label:'CLIENT-PC04',x:11.5,y:1.55,z:-5.25},{id:'printer',label:'PRINT-01',x:11.7,y:1.43,z:3},
+    {id:'network',label:'CLIENT-PC04',x:11.5,y:1.55,z:-5.25},{id:'printer',label:'PRINT-01',x:12.5,y:1.43,z:3},
     {id:'backup',label:'BACKUP-NAS',x:18,y:1.42,z:3.3},{id:'wifi',label:'WIFI-AP',x:12.78,y:2.85,z:-1.8},
     {id:'voip',label:'SIP-01',x:6,y:1.23,z:-4},{id:'camera',label:'CAM-01',x:-6.5,y:2.95,z:20},
   ]){const label=sign(scene,'device-label-'+p.id,p.label,.95,.15);label.mesh.position.set(p.x,p.y,p.z);label.mesh.billboardMode=7;label.mesh.isPickable=false;}
