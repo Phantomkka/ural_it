@@ -8,7 +8,7 @@ export interface ClientCase {
   availableAt:number; completedAt:number|null;
 }
 export interface ServiceProgress { cases:ClientCase[]; completed:number; }
-export type CaseIntent = { action:"measure"|"configure"|"select"|"accept"|"decline"|"talk"|"diagnose"|"buyPart"|"returnCleaner"|"returnPart"|"take"|"drop"|"install"|"verify"|"signoff"|"repairStep"; caseId:string; choice?:string; port?:number; };
+export type CaseIntent = { action:"stow"|"measure"|"configure"|"select"|"accept"|"decline"|"talk"|"diagnose"|"buyPart"|"returnCleaner"|"returnPart"|"take"|"drop"|"install"|"verify"|"signoff"|"repairStep"; caseId:string; choice?:string; port?:number; };
 export function clientCaseTarget(c:ClientCase|undefined,inventory:Record<string,number>) {
   const t=caseTemplate(c);
   if(c?.droppedAt)return c.droppedAt;

@@ -3,6 +3,7 @@ import {MemoryAccountStore,AuthConflict,type AccountStore} from "../auth/store.j
 import {
   ITEMS,
   validLogistics,
+  validCompany,
   JOBS,
   companyFromProgress,
   levelFor,
@@ -37,6 +38,10 @@ export interface Reward {
   xp: number;
 }
 export interface Transaction {
+  companyReceiptUsed?:boolean;
+  consumeCompanyReceipt?:string;
+  company?:import('@netcity/shared').EnterpriseCompany;
+  occupiedOffices?:string[];
   project?:import('@netcity/shared').CrewProject;
   data: ProfileData;
   operation?: Operation;
@@ -44,6 +49,7 @@ export interface Transaction {
   saveOperation?: Operation;
 }
 export interface ProgressStore {
+  readCompany(code:string):Promise<import('@netcity/shared').EnterpriseCompany|null>;
   readProject(code:string):Promise<import('@netcity/shared').CrewProject|null>;
   readonly accounts:AccountStore;
   mode: PrivateProfile["persistence"];
@@ -55,6 +61,8 @@ export interface ProgressStore {
     key: string | null,
     work: (tx: Transaction) => ProgressResult,
     projectCode?:string,
+    companyCode?:string,
+    receiptId?:string,
   ): Promise<{ result: ProgressResult; data: ProfileData }>;
   health(): Promise<void>;
   close(): Promise<void>;
@@ -100,6 +108,8 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.business?.companyStock!==undefined&&(!data.business.companyCode||Object.entries(data.business.companyStock).some(([item,n])=>!Object.hasOwn(ITEMS,item)||!Number.isSafeInteger(n)||n!<0||n!>data.inventory[item as ItemId]))) ||
+    (data.business?.companyCode!==undefined&&!/^[A-F0-9]{12}$/.test(data.business.companyCode)) ||
     (data.business?.logistics!==undefined&&!validLogistics(data.business.logistics)) ||
     (data.projects!==undefined&&(!Array.isArray(data.projects)||data.projects.length>20||new Set(data.projects).size!==data.projects.length||data.projects.some(c=>!/^[A-F0-9]{12}$/.test(c)))) ||
     (data.business!==undefined&&(!Array.isArray(data.business.upgrades)||new Set(data.business.upgrades).size!==data.business.upgrades.length||data.business.upgrades.some(x=>!['field-kit','workbench','service-van','network-lab','infra-lab'].includes(x))||!Array.isArray(data.business.claimed)||new Set(data.business.claimed).size!==data.business.claimed.length||Object.keys(data.business.workCounts).length>128||Object.values(data.business.workCounts).some(n=>!Number.isSafeInteger(n)||n<0||n>2147483647))) ||
@@ -122,6 +132,9 @@ export function assertProfile(data: ProfileData) {
 }
 /** In-memory adapter obeys the same transaction and uniqueness contract as PostgreSQL. */
 export class MemoryProgressStore implements ProgressStore {
+  private companyReceipts=new Set<string>();
+  private companies=new Map<string,import('@netcity/shared').EnterpriseCompany>();
+  async readCompany(code:string){await this.tail;return structuredClone(this.companies.get(code)??null);}
   private projects=new Map<string,import('@netcity/shared').CrewProject>();
   async readProject(code:string){await this.tail;return structuredClone(this.projects.get(code)??null);}
   mode = "temporary" as const;
@@ -159,6 +172,8 @@ export class MemoryProgressStore implements ProgressStore {
     key: string | null,
     work: (tx: Transaction) => ProgressResult,
     projectCode?:string,
+    companyCode?:string,
+    receiptId?:string,
   ) {
     const task = this.tail.then(() => {
       const original = this.profiles.get(id);
@@ -166,12 +181,17 @@ export class MemoryProgressStore implements ProgressStore {
       const data = structuredClone(original),
         opKey = `${id}:${key}`,
         tx: Transaction = {
+          companyReceiptUsed:receiptId?this.companyReceipts.has(receiptId):false,
+          company:companyCode?structuredClone(this.companies.get(companyCode)):undefined,
+          occupiedOffices:companyCode?[...this.companies.entries()].filter(([code])=>code!==companyCode).flatMap(([,c])=>c.officeId&&c.officeId!=='coworking'?[c.officeId]:[]):undefined,
           project:projectCode?structuredClone(this.projects.get(projectCode)):undefined,
           data,
           operation: key ? this.operations.get(opKey) : undefined,
         };
       const result = work(tx);
       assertProfile(data);
+      if(tx.consumeCompanyReceipt&&(!companyCode||this.companyReceipts.has(tx.consumeCompanyReceipt)))throw Error('Company receipt already consumed');
+      if(tx.company&&(!companyCode||tx.company.code!==companyCode||!validCompany(tx.company)||[...this.companies.values()].some(c=>c.code!==companyCode&&c.owner===tx.company!.owner)||(tx.company.officeId!=='coworking'&&tx.occupiedOffices?.includes(tx.company.officeId!))))throw Error('Company invariant violation');
       if (tx.reward && this.rewards.has(tx.reward.jobId))
         throw Error("Duplicate reward");
       if (JSON.stringify(data) !== JSON.stringify(original)) data.version++;
@@ -180,6 +200,8 @@ export class MemoryProgressStore implements ProgressStore {
         this.operations.set(opKey, structuredClone(tx.saveOperation));
       if (tx.reward) this.rewards.add(tx.reward.jobId);
       if(projectCode&&tx.project)this.projects.set(projectCode,structuredClone(tx.project));
+      if(companyCode&&tx.company)this.companies.set(companyCode,structuredClone(tx.company));
+      if(tx.consumeCompanyReceipt)this.companyReceipts.add(tx.consumeCompanyReceipt);
       return { result, data: structuredClone(data) };
     });
     this.tail = task.catch(() => {});

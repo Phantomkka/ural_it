@@ -266,11 +266,15 @@ export function createWorld(
       });
     let lastTarget = "",
       lastPick = 0,lastAmbience=0;
+    const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==='hq-server');
     const onVisibility = () => {
       if (document.hidden) stop();
     };
     document.addEventListener("visibilitychange", onVisibility);
     engine.runRenderLoop(() => {
+      // A hidden tab keeps the network session, but does not run the 3D simulation/render work.
+      if(document.hidden){stop();return;}
+      if(!touch.modal)graphics.sample(engine.getDeltaTime()/1000);
       if (touch.modal || document.hidden || !active) stop();
       else {
         const s = settings();
@@ -336,7 +340,7 @@ export function createWorld(
         }
       interiors.sync(room.state.doors,camera.position);officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices,room.state.players?.values(),Math.min(engine.getDeltaTime()/1000,.1));
       if(serviceVans.update(room.state.vans,room.state.freight,camera.position,room.sessionId,Math.min(engine.getDeltaTime()/1000,.1)))graphics.refreshCasters();
-      const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==="hq-server");if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
+      if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
       office.sync(
         room.state.equipment?.port3Connected ?? false,
         room.state.equipment?.rackServiced ?? false,

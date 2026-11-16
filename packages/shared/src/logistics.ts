@@ -6,7 +6,7 @@ import {ITEMS} from './progression.js';
 
 export interface VanPose {x:number;z:number;yaw:number;speed:number}
 export interface WorkVan extends VanPose {id:string;driver:string;cargoCount:number;bootOpen?:boolean}
-export interface VanCaseCargo {id:string;caseId:string;part:ItemId;weight:number}
+export interface VanCaseCargo {companyCode?:string;id:string;caseId:string;part:ItemId;weight:number}
 export interface SavedVan {id:string;pose:VanPose;cargo:VanCaseCargo[]}
 export const VAN_BAYS=[-1,1].flatMap(side=>[6,-12,24,-24].map(z=>({x:side*3.8,z,yaw:side<0?Math.PI:0,speed:0})));
 export const VAN_WIDTH=1.95,VAN_LENGTH=4.2,VAN_MAX_SPEED=10;
@@ -40,7 +40,7 @@ export interface GroundFreight {id:string;x:number;z:number;product:FreightProdu
 export interface DeliveryTemplate {id:string;title:string;buildingId:string;product:FreightProduct;prepaid:boolean;payment:number;xp:number;client:{x:number;z:number};station:{x:number;z:number}}
 export const FREIGHT_SHOP={x:-6,z:2};
 export const DELIVERY_CATALOG:DeliveryTemplate[]=CITY_BUILDINGS.filter(b=>b.id!=='hq').map((b,i)=>{const product=(['pc','camera','cable','server'] as const)[i%4];return {id:'delivery-'+b.id,title:b.name+' · '+FREIGHT_PRODUCTS[product].name,buildingId:b.id,product,prepaid:i===0,payment:(i===0?0:FREIGHT_PRODUCTS[product].price)+120+i*20,xp:60+i*10,client:buildingClient(b),station:missionStation(b,0)};});
-export interface DeliveryOrder {id:string;templateId:string;stage:'ORDERED'|'INSTALLED'|'TESTED'|'COMPLETE';availableAt:number;location:'supplier'|'hands'|'ground'|'van'|'installed';x:number;z:number;carrier?:string;vanId?:string;loadedAt?:{x:number;z:number};transported:boolean;completedAt?:number}
+export interface DeliveryOrder {companyCode?:string;id:string;templateId:string;stage:'ORDERED'|'INSTALLED'|'TESTED'|'COMPLETE';availableAt:number;location:'supplier'|'hands'|'ground'|'van'|'installed';x:number;z:number;carrier?:string;vanId?:string;loadedAt?:{x:number;z:number};transported:boolean;completedAt?:number}
 export interface LogisticsProgress {van?:SavedVan;delivery?:DeliveryOrder;completed:number}
 export type VanIntent={action:'request'|'enter'|'exit'|'loadCase'|'unloadCase'|'order'|'collect'|'drop'|'load'|'unload'|'install'|'test'|'signoff';choice?:string};
 export type VanAction=VanIntent&{requestId:string};

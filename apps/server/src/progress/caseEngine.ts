@@ -2,6 +2,7 @@ import {ITEMS,ITEM_WEIGHT,bagUsage,caseTemplate,inOfficeRoom,insideBuilding,type
 import type {Transaction} from './store.js';
 import {initBusiness} from './business.js';
 import {initLab,performLab,labPart} from './diagnosticLab.js';
+import {consumeInventory,refundableInventory} from './inventory.js';
 const bad=(message:string):ProgressResult=>({ok:false,message}),ok=(message:string):ProgressResult=>({ok:true,message});
 export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>,p:{x:number;z:number;sessionId:string}|null,now:number):ProgressResult{
  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.z))return bad('Сеанс закрыт.');
@@ -41,12 +42,12 @@ export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>
   d.credits-=item.price;d.inventory[t.part]++;return ok(`${item.name} куплен за ${item.price} NET.`);
  }
  if(a.action==='returnPart'||a.action==='returnCleaner'){
-  if(!near(t.shop))return bad('Вернуть расходник можно у Марата.');const chosen=typeof a.choice==='string'&&Object.hasOwn(ITEMS,a.choice)?a.choice as keyof typeof ITEMS:null;const part=a.action==='returnCleaner'?'cleaner':chosen??t.part;if(!part||!ITEMS[part].consumable||d.inventory[part]<1)return bad('Нет расходника для возврата.');const price=a.action==='returnCleaner'?10:ITEMS[part].price;d.inventory[part]--;d.credits+=price;return ok(`Возвращено ${price} NET.`);
+  if(!near(t.shop))return bad('Вернуть расходник можно у Марата.');const chosen=typeof a.choice==='string'&&Object.hasOwn(ITEMS,a.choice)?a.choice as keyof typeof ITEMS:null;const part=a.action==='returnCleaner'?'cleaner':chosen??t.part;if(!part||!ITEMS[part].consumable||refundableInventory(d,part)<1)return bad('Нет личного расходника для возврата. Корпоративные запасы возвращаются фирме.');const price=a.action==='returnCleaner'?10:ITEMS[part].price;d.inventory[part]--;d.credits+=price;return ok(`Возвращено ${price} NET.`);
  }
  if(a.action==='take'){
   if(q.inVan)return bad('Деталь находится в багажнике. Выгрузите её через приложение «Транспорт и доставка».');
   if(d.cable?.carrier||c.carrying||c.stage!=='DIAGNOSED'||!t.part)return bad('Для детали нужны свободные руки и этап ремонта.');
-  if(c.droppedAt){if(!near(c.droppedAt))return bad('Подойдите к оставленной детали.');c.droppedAt=null;}else{if(d.inventory[t.part]<1)return bad('В рюкзаке нет нужного расходника.');d.inventory[t.part]--;}
+  if(c.droppedAt){if(!near(c.droppedAt))return bad('Подойдите к оставленной детали.');c.droppedAt=null;}else{if(d.inventory[t.part]<1)return bad('В рюкзаке нет нужного расходника.');const source=consumeInventory(d,t.part);if(source)q.companyIssued=source;}
   c.carrying=true;c.carrier=p.sessionId;c.carryOrigin={x:p.x,z:p.z};return ok(ITEMS[t.part].name+' в руках.');
  }
  if(a.action==='drop'){if(!c.carrying||c.carrier!==p.sessionId)return bad('В этом сеансе нет детали в руках.');c.carrying=false;c.carrier=undefined;c.carryOrigin=undefined;c.droppedAt={x:p.x,z:p.z};return ok('Деталь оставлена у ног.');}
