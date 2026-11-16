@@ -1,4 +1,4 @@
-import {MeshBuilder,TransformNode,type Scene,type Vector3,type Mesh} from './babylon';
+import {MeshBuilder,Mesh,TransformNode,type Scene,type Vector3} from './babylon';
 import {CITY_BUILDINGS,FLOOR_HEIGHT,LIFT_DOOR_MS,officeFloorCount,officeLift,officeLiftWalls,type PlayerView} from '@netcity/shared';
 import {officeMaterials} from './officeMaterials';
 import {sign,type Palette} from './visuals';
@@ -21,10 +21,13 @@ export function buildElevators(scene:Scene,mat:Palette,maps:ReturnType<typeof of
   const panel=box('lift-control-'+b.id+'-'+floor,root,p.x-side*1.16,1.3,p.z+1.05,.13,.42,.16,dark);panel.isPickable=true;panel.metadata={...panel.metadata,officeLift:b.id};
   box('lift-call-button',root,p.x-side*1.24,1.33,p.z+1.05,.025,.09,.1,mat('elevator-button','#67d8bc',true));
   const label=sign(scene,'lift-label-'+b.id+'-'+floor,`ЭТАЖ ${floor+1}  ·  ЛИФТ`,1.7,.22,37);label.mesh.parent=root;label.mesh.position.set(p.x-side*1.15,2.76,p.z);label.mesh.rotation.y=side*Math.PI/2;label.mesh.isPickable=false;
+  // Merge only stationary finishes; keep the sliding doors and control as independent hit targets.
+  const groups=new Map<unknown,Mesh[]>();for(const m of root.getChildMeshes())if(m instanceof Mesh&&!m.isPickable){const group=groups.get(m.material)??[];group.push(m);groups.set(m.material,group);}
+  for(const group of groups.values())if(group.length>1){const name=group[0].name,merged=Mesh.MergeMeshes(group,true,true,undefined,false,false)!;merged.name=name;merged.setParent(root);merged.isPickable=false;merged.metadata={cityDynamic:true,officeDetail:true};}
   landings.push({root,doors,id:b.id,floor,side,x:p.x,z:p.z,open:1});
  }
  return {update(camera:Vector3,players:Iterable<PlayerView>,dt:number){const people=[...players];for(const l of landings){
-  const nearby=Math.hypot(l.x-camera.x,l.z-camera.z)<35;l.root.setEnabled(nearby);if(!nearby)continue;
+  const nearby=l.floor===Math.floor(camera.y/FLOOR_HEIGHT)&&Math.hypot(l.x-camera.x,l.z-camera.z)<35;l.root.setEnabled(nearby);if(!nearby)continue;
   const now=Date.now(),rider=people.find(p=>p.buildingId===l.id&&(p.liftTarget??-1)>=0&&(p.floor===l.floor||p.liftTarget===l.floor));
   let open=1;
   if(rider){const elapsed=now-(rider.liftStarted??now),remaining=(rider.liftUntil??now)-now;open=Math.min(1,Math.max(0,1-elapsed/LIFT_DOOR_MS,1-remaining/LIFT_DOOR_MS));}

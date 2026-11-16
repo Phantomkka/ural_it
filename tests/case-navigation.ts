@@ -29,9 +29,9 @@ export async function face(page: Page, x: number, z: number, pitch = 0) {
       ),
   );
 }
-export async function walk(page: Page, axis: "x" | "z", goal: number) {
+export async function walk(page: Page, axis: "x" | "z", goal: number, tolerance = 0.6) {
   await page.evaluate(
-    async ({ axis, goal }) => {
+    async ({ axis, goal, tolerance }) => {
       const path = "/src/world.ts";
       const { EngineStore } = await import(/* @vite-ignore */ path);
       const camera = EngineStore.LastCreatedScene.activeCamera;
@@ -40,7 +40,7 @@ export async function walk(page: Page, axis: "x" | "z", goal: number) {
           requestAnimationFrame(() => requestAnimationFrame(() => r())),
         );
       const end = performance.now() + 45000;
-      while (Math.abs(camera.position[axis] - goal) > 0.6) {
+      while (Math.abs(camera.position[axis] - goal) > tolerance) {
         if (performance.now() > end)
           throw Error(
             `Waypoint ${axis} ${goal}: ${JSON.stringify(camera.position)}`,
@@ -67,6 +67,6 @@ export async function walk(page: Page, axis: "x" | "z", goal: number) {
         await settle();
       }
     },
-    { axis, goal },
+    { axis, goal, tolerance },
   );
 }

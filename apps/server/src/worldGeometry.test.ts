@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {CITY_BUILDINGS,CITY_FENCES,clipFence,footprintsOverlap,officeEnvelope,officeFloorCount,officeLift,upperColliders,advance} from '@netcity/shared';
+import {CITY_BUILDINGS,CITY_FENCES,clipFence,footprintsOverlap,officeEnvelope,officeFloorCount,officeLift,officeLiftRoute,upperColliders,advance} from '@netcity/shared';
 
 test('legacy x23 rail reproduced inside offices; generated perimeter excludes all 29 floor envelopes and gates',()=>{
  const original={x:-23,z:0,width:.05,depth:80};
@@ -29,6 +29,7 @@ test('clipping handles crossing, fully contained, touching and reversed sides de
 test('all office lift landings have a walkable front approach on every floor',()=>{
  for(const b of CITY_BUILDINGS){const lift=officeLift(b),side=Math.sign(b.x);
   for(let floor=0;floor<officeFloorCount(b);floor++){
+   const route=officeLiftRoute({x:lift.x,z:b.z},b);assert.ok(route.some(p=>Math.abs(p.x-(lift.x-side*2.2))<.01&&p.z===lift.z),'GPS approaches the door, not the side wall');
    let p={x:lift.x-side*2,z:lift.z};
    for(let i=0;i<12;i++)p=advance(p,{forward:1,strafe:0,yaw:side*Math.PI/2},1/30,true,undefined,floor?b.id:undefined);
    assert.ok(Math.hypot(p.x-lift.x,p.z-lift.z)<.3,`${b.id}/${floor}`);
