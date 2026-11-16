@@ -1,4 +1,6 @@
 import {SERVICE_FURNITURE,PARKED_CARS} from './furniture.js';
+import {CITY_FENCES} from './worldGeometry.js';
+export * from './worldGeometry.js';
 import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaf,doorClosed} from './buildings.js';
 import {upperColliders,OFFICE_REAR_FURNITURE,officeLiftWalls,insideOffice} from './officeFloors.js';
 export * from './officeFloors.js';
@@ -88,6 +90,7 @@ export const STREET_DETAILS = [-1, 1].flatMap((side) =>
   [-28, -12, 12, 28].map((z) => ({ x: side * 6.8, z })),
 );
 export const WORLD_COLLIDERS = [
+  ...CITY_FENCES,
   ...OFFICE_REAR_FURNITURE,...CITY_BUILDINGS.flatMap(officeLiftWalls),
   ...SERVICE_FURNITURE,
   ...PARKED_CARS,
@@ -124,6 +127,7 @@ export interface ActionResult {
   inspected?: boolean;
 }
 export interface PlayerView {
+  liftTarget?:number;liftStarted?:number;liftUntil?:number;
   floor?:number;buildingId?:string;
   cablePath?:string;
   heldItem?:string;

@@ -9,7 +9,7 @@ export function buildInteriors(scene:Scene,mat:Palette){
  for(const b of CITY_BUILDINGS.filter(b=>b.id!=='hq')){
   for(const [i,w]of buildingWalls(b).entries()){
    box('wall-sill-'+b.id+'-'+i,w.x,.45,w.z,w.width,.9,w.depth,b.theme,'room-wall-'+b.theme);box('wall-lintel-'+b.id+'-'+i,w.x,3.25,w.z,w.width,.7,w.depth,b.theme,'room-wall-'+b.theme);
-   const glass=box('office-window-'+b.id+'-'+i,w.x,1.9,w.z,w.width,2.0,w.depth*.25,'#a2c3cd','office-window');glass.material!.unfreeze();(glass.material as any).alpha=.22;glass.material!.freeze();
+   const glass=box('office-window-'+b.id+'-'+i,w.x,1.9,w.z,w.width>w.depth?w.width:w.width*.25,2.0,w.depth>w.width?w.depth:w.depth*.25,'#a2c3cd','office-window');glass.material!.unfreeze();(glass.material as any).alpha=.22;glass.material!.freeze();
    const length=Math.max(w.width,w.depth);for(let at=-length/2;at<=length/2;at+=2.8)box('window-mullion',w.x+(w.width>w.depth?at:0),1.9,w.z+(w.depth>w.width?at:0),w.width>w.depth?.08:w.width,2,w.depth>w.width?.08:w.depth,'#526878','window-frame');
   }const e=officeEnvelope(b);
   box('room-floor-'+b.id,e.x,.005,b.z,e.width-.3,.03,11.7,'#71828b','room-floor');

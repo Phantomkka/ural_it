@@ -1,4 +1,12 @@
-# NETCITY 3.0 — checkpoint
+# NETCITY 5.0 — active development (Issue #30)
+
+Baseline verified: main and public read-only health both `6e344a1a766cf497410730ee30997b4340759553` (4.1), schema 009. Existing 44 personal missions, 27 crew projects and account persistence are retained. Production stays on 4.1 until explicit owner confirmation of 5.0; no 4.2 release.
+
+P0 reproduced in the actual main renderer: first floor of building-2, Supply/workshop, X -23 / Z 0. The original X ±23, Z -40…40 rails cross the enlarged X ±8…±28 office envelopes. Shared clipped rear perimeters now drive visible rails and physical collisions, with service gates. Cabin remaster adds three matching collision walls, threshold, non-slip floor, brushed panels, handrails, ceiling light, control and two animated doors. Server-timed travel freezes movement and denies world actions with correlated responses; floor changes only on arrival. A labelled transition conceals passage through floor slabs. Side-facing glazing previously shrank along its long axis, leaving gaps; thickness now shrinks on the correct axis.
+
+Next dependent blocks: diagnostic workbench → vehicle/logistics → company/employees/SLA → districts/NPC → career/co-op → release candidate. These are outstanding, not completed by the world fixes. All blocks belong to one 5.0 programme and will be staged before requesting production cutover.
+
+## Historical checkpoints
 
 - Base: PR #21, 8ae1f57; preceding dependency chain remains open. No merge or production changes.
 - Branch: codex/netcity-3-cable. Schema: 005 (accounts/session tables and optional private cable JSONB; original guest progress preserved).

@@ -3,6 +3,7 @@ import {CarryObject,createProps} from "./propsState.js";
 import {propBlocksMove} from "@netcity/shared";
 import {Vehicle,createCars,advanceCity} from "./cityState.js";
 import {carBlocksPoint} from "@netcity/shared";
+import {officeLift,liftTravelDuration,type CityBuilding} from '@netcity/shared';
 import { Room, type Client } from "@colyseus/core";
 import { Schema, MapSchema, defineTypes } from "@colyseus/schema";
 import { ServerError } from "@colyseus/core";
@@ -27,6 +28,7 @@ import {
   type MoveInput,
 } from "@netcity/shared";
 export class Player extends Schema {
+  declare liftTarget:number;declare liftStarted:number;declare liftUntil:number;
   declare floor:number;declare buildingId:string;
   declare cablePath:string;
   declare heldItem:string;
@@ -39,6 +41,7 @@ export class Player extends Schema {
   declare yaw: number;
   constructor() {
     super();
+    this.liftTarget=-1;this.liftStarted=0;this.liftUntil=0;
     this.floor=0;this.buildingId='';
     this.cablePath='';
     this.jobs = createJobs();
@@ -52,6 +55,7 @@ export class Player extends Schema {
   }
 }
 defineTypes(Player, {
+  liftTarget:'number',liftStarted:'number',liftUntil:'number',
   floor:'number',buildingId:'string',
   cablePath:'string',
   heldItem:"string",
@@ -107,6 +111,13 @@ defineTypes(StreetState, {doors:{map:DoorState},props:{map:CarryObject},cars:{ma
 });
 const IDLE: MoveInput = { forward: 0, strafe: 0, yaw: 0 };
 export class StreetRoom extends Room<{ state: StreetState }> {
+  startLift(client:Client,b:CityBuilding,floor:number){
+    const player=this.state.players.get(client.sessionId)!;
+    if(player.liftTarget>=0||floor===player.floor)return false;
+    player.buildingId=b.id;player.liftTarget=floor;player.liftStarted=Date.now();
+    player.liftUntil=player.liftStarted+liftTravelDuration(player.floor,floor);
+    Object.assign(player,officeLift(b));this.inputs.delete(client.sessionId);return true;
+  }
   maxClients = 32;
   protected progressStore: ProgressStore = new MemoryProgressStore();
   private work!: WorkController;
@@ -162,6 +173,10 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     this.setSimulationInterval(() => {
       const now = performance.now();
       this.state.players.forEach((player, id) => {
+        if(player.liftTarget>=0){
+          if(Date.now()>=player.liftUntil){player.floor=player.liftTarget;player.liftTarget=-1;if(!player.floor)player.buildingId='';this.inputs.delete(id);this.clients.find(c=>c.sessionId===id)?.send('interactionResult',{ok:true,message:'Этаж '+(player.floor+1)+'. Двери открыты.'});}
+          return;
+        }
         const entry = this.inputs.get(id);
         const input = entry && now - entry.at < 250 ? entry.input : IDLE;
         const carrying=player.heldItem==='cable_roll'||player.heldItem==='crew_parcel'||player.heldItem.startsWith('prop:'),movement=carrying?{...input,sprint:false}:input;
