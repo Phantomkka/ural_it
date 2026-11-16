@@ -89,7 +89,7 @@ export function createWorld(
     });
     const material = createPalette(scene);
     buildStreet(scene, material);
-    buildFieldSites(scene,material);
+    const fieldSites=buildFieldSites(scene,material);
     const office = buildOffice(scene, material);
     const computers = buildComputers(scene, material);
     buildDistrict(scene,material);
@@ -121,7 +121,7 @@ export function createWorld(
       if(hit?.pickedMesh?.metadata?.cityDoor)return {id:"cityDoor:"+hit.pickedMesh.metadata.cityDoor,label:"Открыть / закрыть дверь"};
       if(hit?.pickedMesh?.metadata?.entryDoor)return {id:"entry-door",label:"Открыть / закрыть дверь"};
       if(hit?.pickedMesh?.metadata?.caseTarget)return {id:"contact:case-"+hit.pickedMesh.metadata.caseTarget,label:hit.pickedMesh.metadata.caseTarget==="dropped"?"Подобрать свою деталь":"Осмотреть "+(hit.pickedMesh.metadata.deviceLabel??"устройство")};
-      if(npcId) return {id:`contact:${npcId}`,label:`Поговорить: ${CONTACTS.find(n=>n.id===npcId)?.name??CITY_BUILDINGS.find(b=>"tenant:"+b.id===npcId)?.name??"инженер"}`};
+      if(npcId) return {id:`contact:${npcId}`,label:`Поговорить: ${hit?.pickedMesh?.metadata?.npcName??CONTACTS.find(n=>n.id===npcId)?.name??CITY_BUILDINGS.find(b=>"tenant:"+b.id===npcId)?.name??"инженер"}`};
       if (id)
         return {
           id,
@@ -243,7 +243,7 @@ export function createWorld(
         if (!graphics.environmentLoaded)
           library.failed.push("potsdamer_platz_128.env");
         buildAssetDistrict(scene, library, material);
-        interiors.hydrate(library);officeRemaster.hydrate(library);
+        interiors.hydrate(library);officeRemaster.hydrate(library);fieldSites.hydrate(library);
         graphics.refreshCasters();
         graphics.activate();
         const progress = {
@@ -353,7 +353,7 @@ export function createWorld(
         room.state.equipment?.port3Connected ?? false,
       );
       if (performance.now() - lastPick > 100) {
-        if(room.state.players)cableObjects.update(room.state.players);
+        if(room.state.players)cableObjects.update(room.state.players);fieldSites.update(camera.position,me?.floor??0);
         city.update(room.state.cars,room.state.trafficPhase??"DRIVE",room.state.worldClock??Date.now(),camera.position,0.1,library);
         const next = active && !touch.modal ? pickEquipment() : null;
         if ((next?.id ?? "") !== lastTarget) {

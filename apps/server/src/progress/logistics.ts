@@ -20,7 +20,7 @@ export class LogisticsService {
    const near=(point:{x:number;z:number},radius=2.8)=>!!p&&Math.hypot(p.x-point.x,p.z-point.z)<=radius;
    const handsFree=()=>!!p&&!p.heldItem;
    const boot=()=>!!v&&!!l.van&&v.id===l.van.id&&!v.driver&&Math.abs(v.speed)<.15&&near(vanBoot(v));
-   const savePose=()=>{if(l.van&&v)l.van.pose={x:v.x,z:v.z,yaw:v.yaw,speed:0};};
+   const savePose=()=>{if(l.van&&v){l.van.pose={x:v.x,z:v.z,yaw:v.yaw,speed:0};l.van.odometer=v.odometer??0;}};
    const cargoUsage=()=>{const delivery=l.delivery,product=delivery&&DELIVERY_CATALOG.find(t=>t.id===delivery.templateId)?.product,loaded=delivery?.location==='van';return {weight:(l.van?.cargo.reduce((n,c)=>n+c.weight,0)??0)+(loaded&&product?FREIGHT_PRODUCTS[product].weight:0),slots:(l.van?.cargo.length??0)+Number(loaded)};};
    const perform=():ProgressResult=>{
     if(!p||p.floor)return fail('Транспорт и груз доступны на улице и первом этаже.');
@@ -76,12 +76,12 @@ export class LogisticsService {
     if(a.action==='load'){
      if(!boot()||order.location!=='hands'||order.carrier!==p.sessionId)return fail('Подойдите с комплектом к багажнику своего фургона.');
      const usage=cargoUsage();if(usage.slots>=capacity.slots||usage.weight+product.weight>capacity.weight)return fail('Превышена грузоподъёмность или число слотов.');
-     order.location='van';order.carrier=undefined;order.vanId=v!.id;order.loadedAt={x:v!.x,z:v!.z};savePose();return ok('Комплект закреплён в багажнике. Можно садиться за руль.');
+     order.location='van';order.carrier=undefined;order.vanId=v!.id;order.loadedAt={x:v!.x,z:v!.z};order.loadedOdometer=v!.odometer??0;savePose();return ok('Комплект закреплён в багажнике. Можно садиться за руль.');
     }
     if(a.action==='unload'){
      if(!boot()||!handsFree()||order.location!=='van'||order.vanId!==v!.id)return fail('Подойдите к багажнику своего фургона со свободными руками.');
      const required=Math.max(2,Math.min(12,Math.hypot(t.station.x-FREIGHT_SHOP.x,t.station.z-FREIGHT_SHOP.z)*.35));
-     if(!order.loadedAt||Math.hypot(v!.x-order.loadedAt.x,v!.z-order.loadedAt.z)<required||Math.hypot(v!.x-t.client.x,v!.z-t.client.z)>12)return fail('Сначала перевезите комплект к клиенту. Парковка должна быть рядом с адресом доставки.');
+     if((v!.odometer??0)-(order.loadedOdometer??0)<required||!order.loadedAt||Math.hypot(v!.x-order.loadedAt.x,v!.z-order.loadedAt.z)<required||Math.hypot(v!.x-t.client.x,v!.z-t.client.z)>12)return fail('Сначала перевезите комплект к клиенту. Парковка должна быть рядом с адресом доставки.');
      order.transported=true;order.location='hands';order.carrier=p.sessionId;order.x=p.x;order.z=p.z;savePose();return ok('Груз выгружен. Занесите комплект в помещение к рабочему месту.');
     }
     if(a.action==='install'){
