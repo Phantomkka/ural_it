@@ -1,13 +1,24 @@
 import {ITEMS,ITEM_WEIGHT,bagUsage,caseTemplate,inOfficeRoom,insideBuilding,type ClientCase,type ProgressResult} from '@netcity/shared';
 import type {Transaction} from './store.js';
 import {initBusiness} from './business.js';
+import {initLab,performLab,labPart} from './diagnosticLab.js';
 const bad=(message:string):ProgressResult=>({ok:false,message}),ok=(message:string):ProgressResult=>({ok:true,message});
 export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>,p:{x:number;z:number;sessionId:string}|null,now:number):ProgressResult{
  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.z))return bad('Сеанс закрыт.');
  const t=caseTemplate(c),d=tx.data,b=initBusiness(d),q=c.progress??={};
  const near=(point:{x:number;z:number},inside=false)=> (!inside||(t.buildingId?insideBuilding(p,t.buildingId):inOfficeRoom(p,point.x)))&&Math.hypot(p.x-point.x,p.z-point.z)<=2.5;
  const hardware=()=>near(t.hardware,t.indoor),cameraReady=()=>d.cable?.kind==='camera'&&d.cable.caseId===c.id&&d.cable.stage==='TESTED';
- if(a.action==='accept'){if(c.stage!=='RINGING')return bad('Звонок уже обработан.');if(d.jobs.some(j=>j.status==='ACTIVE'))return bad('Сначала завершите текущую работу.');c.stage='ACCEPTED';d.credits+=t.advance;return ok(`${t.caller} ждёт по адресу: ${t.address}. Аванс ${t.advance} NET на материалы.`);}
+ if(t.lab){
+  const lab=initLab(c,t);
+  if(['measure','configure','diagnose','verify'].includes(String(a.action))){
+   if(!hardware())return bad('Подойдите к устройству для измерения или настройки.');
+   if(d.inventory.toolkit<1)return bad('Нужен набор инструментов.');
+   if(t.upgrade&&!b.upgrades.includes(t.upgrade))return bad('Нужен соответствующий комплект компании.');
+   return performLab(tx,c,t,a,now)!;
+  }
+  if(['buyPart','take','install'].includes(String(a.action))&&lab.requiredPart!==t.part)return bad('Для установленной причины эта запчасть не требуется.');
+ }
+ if(a.action==='accept'){if(c.stage!=='RINGING')return bad('Звонок уже обработан.');if(d.jobs.some(j=>j.status==='ACTIVE'))return bad('Сначала завершите текущую работу.');const advance=t.lab&&!labPart(c,t)?0:t.advance;c.stage='ACCEPTED';d.credits+=advance;return ok(`${t.caller} ждёт по адресу: ${t.address}. Аванс ${advance} NET на материалы.`);}
  if(a.action==='decline'){if(c.stage!=='RINGING')return bad('Звонок уже обработан.');c.stage='DECLINED';c.availableAt=now+20000;return ok('Клиент позвонит снова через 20 секунд.');}
  if(['RINGING','DECLINED','COMPLETED'].includes(c.stage))return bad('Нет активной заявки для этого действия.');
  if(a.action==='talk'){

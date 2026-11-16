@@ -1,13 +1,14 @@
 export {CLIENT_CASE_TEMPLATE} from "./clientCaseLegacy.js";
 export type CaseStage = "RINGING"|"DECLINED"|"ACCEPTED"|"INTERVIEW"|"DIAGNOSED"|"REPAIRED"|"VERIFIED"|"COMPLETED";
 export interface ClientCase {
+  lab?:import('./diagnosticLab.js').DiagnosticLab;
   id:string; templateId:string; stage:CaseStage; clues:string[]; progress?:Record<string,string|number|boolean>;
   carrying:boolean; droppedAt:{x:number;z:number}|null; satisfaction:number;
   carrier?:string; carryOrigin?:{x:number;z:number};
   availableAt:number; completedAt:number|null;
 }
 export interface ServiceProgress { cases:ClientCase[]; completed:number; }
-export type CaseIntent = { action:"select"|"accept"|"decline"|"talk"|"diagnose"|"buyPart"|"returnCleaner"|"returnPart"|"take"|"drop"|"install"|"verify"|"signoff"|"repairStep"; caseId:string; choice?:string; port?:number; };
+export type CaseIntent = { action:"measure"|"configure"|"select"|"accept"|"decline"|"talk"|"diagnose"|"buyPart"|"returnCleaner"|"returnPart"|"take"|"drop"|"install"|"verify"|"signoff"|"repairStep"; caseId:string; choice?:string; port?:number; };
 export function clientCaseTarget(c:ClientCase|undefined,inventory:Record<string,number>) {
   const t=caseTemplate(c);
   if(c?.droppedAt)return c.droppedAt;
