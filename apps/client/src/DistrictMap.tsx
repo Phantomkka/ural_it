@@ -1,7 +1,7 @@
 import {BUILDINGS,OFFICE,SWITCH,COMPUTERS,CITY_DOORS,districtRoute,officeEnvelope} from '@netcity/shared';
 import {CONTACTS} from './district';
-export function DistrictMap({x,z,destination=SWITCH}:{x:number;z:number;destination?:{x:number;z:number}}){
- const path=districtRoute({x,z},destination).map((p,i)=>`${i?'L':'M'} ${p.x} ${-p.z}`).join(' ');
+export function DistrictMap({x,z,destination=SWITCH,route}:{x:number;z:number;destination?:{x:number;z:number};route?:{x:number;z:number}[]}){
+ const path=(route??districtRoute({x,z},destination)).map((p,i)=>`${i?'L':'M'} ${p.x} ${-p.z}`).join(' ');
  return <><p>Во всех десяти зданиях доступны офисы: два этажа в IT-офисе и три в районных зданиях. Входы обращены к улице; дверь открывается клавишей E или кнопкой «Осмотреть». Переход между сторонами — по центру района.</p>
  <svg className="district-map" viewBox="-46 -46 92 92" role="img" aria-label="Карта Новолинска">
  <rect x="-46" y="-46" width="92" height="92" fill="#183b43"/><path d="M 0 -45 V 45" stroke="#45616d" strokeWidth="10"/>

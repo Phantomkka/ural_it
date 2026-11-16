@@ -1,4 +1,4 @@
-import { COMPUTERS } from "@netcity/shared";
+import { COMPUTERS,CITY_FENCES } from "@netcity/shared";
 import { TransformNode, MeshBuilder, type Scene } from "./babylon";
 import { BUILDINGS, OFFICE, STREET_DETAILS } from "@netcity/shared";
 import { AssetLibrary, fitModel } from "./assets";
@@ -263,10 +263,12 @@ export function buildAssetDistrict(
     );
     label.mesh.position.set(x, 2.5, z - 1.6);
     label.mesh.isPickable = false;
-    for (let dz = -40; dz <= 40; dz += 4)
-      box("fence-post", side * 23, 0.8, dz, 0.08, 1.6, 0.08, metal);
-    for (const y of [0.5, 1.25])
-      box("fence-rail", side * 23, y, 0, 0.05, 0.06, 80, metal);
+  }
+  const fenceMaterial=mat('perimeter-fence-metal','#485b64');
+  for(const f of CITY_FENCES){
+    for(let dz=-f.depth/2;dz<=f.depth/2+.001;dz+=Math.min(2.5,f.depth))box('fence-post',f.x,.8,f.z+dz,.08,1.6,.08,fenceMaterial);
+    box('fence-end',f.x,.8,f.z+f.depth/2,.08,1.6,.08,fenceMaterial);
+    for(const y of [.5,1.25])box('fence-rail',f.x,y,f.z,f.width,.06,f.depth,fenceMaterial);
   }
   batchStatic(scene, trim);
   scene.metadata = { ...scene.metadata, assetPlacements: placements };

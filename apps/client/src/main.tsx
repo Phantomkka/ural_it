@@ -663,6 +663,7 @@ function App() {
   return (
     <>
       <canvas tabIndex={0} ref={canvas} aria-label="Трёхмерная улица NETCITY" />
+      {(view.liftTarget??-1)>=0&&<div className="lift-transition" role="status" aria-live="polite"><div><span className="eyebrow">ЛИФТ / ПЕРЕХОД МЕЖДУ ЭТАЖАМИ</span><h2>Этаж {(view.liftTarget??0)+1}</h2><p>Двери закрываются · поездка · двери открываются</p><progress aria-label="Поездка на лифте"/><p>Дождитесь остановки</p></div></div>}
 
       {tablet && <Tablet wallet={profile?`${profile.credits} NET · Ур. ${profile.level} · ${profile.xp} XP · ${profile.persistence==="temporary"?"Временные данные":"Прогресс сохраняется"}`:"Загрузка профиля…"} page={tabletApp} change={openTablet} close={closeTablet} dialogRef={dialogRef} overlay={!!(menu||economy||pcId||panel)}>
         {(menu||economy||pcId||panel)?<>      {menu && <GameMenu menu={menu} settings={settings} change={changeSettings} quality={quality}

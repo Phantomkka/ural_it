@@ -43,7 +43,7 @@ export class WorkController {
     for(const p of sites.values())for(const t of p.tasks){const pt=t.steps[0].point,id=p.id+':'+t.id;if(t.kind==='delivery'&&t.parcel&&!t.done)objects.push({id,kind:'parcel',...t.parcel,done:false,step:t.step,holder:t.carrierSession});if(['camera','replace'].includes(t.kind)&&t.step>0)objects.push({id,kind:t.kind==='camera'?'camera':'cabinet',...pt,done:t.done,step:t.step});if(t.kind==='cable'&&t.step>1)objects.push({id,kind:'cable',...pt,done:t.done,step:t.step,points:t.steps.slice(1,Math.min(t.step,6)).map(s=>s.point)});}
     this.room.broadcast('crewObjects',objects);if(this.crewProjects.size>18)for(const [key,p]of this.crewProjects)if(p.status==='COMPLETE'&&![...this.crewCodes.values()].includes(key))this.crewProjects.delete(key);
   }
-  crewCommand(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'crewResult',async id=>{const outcome=await new CrewService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId}:null;},()=>{const p=this.room.state.players.get(client.sessionId);return !!p&&!p.heldItem;});if(outcome.data)this.profile(client,outcome.data);await this.refreshCrew(client);this.send(client,'crewResult',{...outcome.result,requestId:typeof(value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});});}
+  crewCommand(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'crewResult', value, async id=>{const outcome=await new CrewService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId}:null;},()=>{const p=this.room.state.players.get(client.sessionId);return !!p&&!p.heldItem;});if(outcome.data)this.profile(client,outcome.data);await this.refreshCrew(client);this.send(client,'crewResult',{...outcome.result,requestId:typeof(value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});});}
   private lastDoorAction=0;
   private doorActions=new Map<string,number>();
   private actors = new Map<string, string>();
@@ -123,6 +123,7 @@ export class WorkController {
   private enqueue(
     client: Client,
     channel: string,
+    requestValue: unknown,
     task: (id: string) => Promise<void>,
   ) {
     const now = Date.now(),
@@ -143,7 +144,7 @@ export class WorkController {
       .then(async () => {
         this.expire();
         const id = this.actors.get(client.sessionId);
-        if (id) {if(await this.room.authorize(client)){const p=this.room.state.players.get(client.sessionId);if(p?.floor&&['actionResult'].includes(channel)){this.send(client,channel,{ok:false,message:'Это оборудование находится на первом этаже. Спуститесь на лифте.'});return;}await task(id);}else client.leave(4001);}
+        if (id) {if(await this.room.authorize(client)){const p=this.room.state.players.get(client.sessionId);if(p&&p.liftTarget>=0){const v=requestValue as {requestId?:unknown;pcId?:unknown};this.send(client,channel,{ok:false,message:'Дождитесь остановки лифта и открытия дверей.',requestId:typeof v?.requestId==='string'?v.requestId.slice(0,36):undefined,pcId:typeof v?.pcId==='string'?v.pcId:undefined});return;}if(p?.floor&&['actionResult'].includes(channel)){this.send(client,channel,{ok:false,message:'Это оборудование находится на первом этаже. Спуститесь на лифте.'});return;}await task(id);}else client.leave(4001);}
       })
       .catch(() => {
         this.send(client, channel, {
@@ -159,7 +160,7 @@ export class WorkController {
   }
   progress(client: Client, value: unknown) {
     this.subscribers.add(client.sessionId);
-    this.enqueue(client, "progressResult", async (id) => {
+    this.enqueue(client, "progressResult", value, async (id) => {
       const outcome = await this.service.command(id, value, (job) =>
         this.busy(id, job),
       );
@@ -187,7 +188,7 @@ export class WorkController {
   }
   clientCase(client:Client,value:unknown) {
     this.subscribers.add(client.sessionId);
-    this.enqueue(client,"caseResult",async id=>{
+    this.enqueue(client,"caseResult", value, async id=>{
       if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel)/))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId}:null;});
       if(outcome.data) {
@@ -199,10 +200,10 @@ export class WorkController {
     });
   }
   constrainMove(id:string,from:{x:number;z:number},next:{x:number;z:number}){return this.cableRoom.constrain(id,from,next);}
-  business(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'businessResult',async id=>{const outcome=await new BusinessService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return !!p&&!p.floor&&Math.hypot(p.x+6,p.z-2)<=2.5;});if(outcome.data)this.profile(client,outcome.data);this.send(client,'businessResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId:undefined});});}
+  business(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'businessResult', value, async id=>{const outcome=await new BusinessService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return !!p&&!p.floor&&Math.hypot(p.x+6,p.z-2)<=2.5;});if(outcome.data)this.profile(client,outcome.data);this.send(client,'businessResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId:undefined});});}
   cable(client:Client,value:unknown){
     this.subscribers.add(client.sessionId);
-    this.enqueue(client,'cableResult',async id=>{
+    this.enqueue(client,'cableResult', value, async id=>{
       if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel)/))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new CableService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId,entryOpen:this.room.state.equipment.officeDoorOpen}:null;});
       if(outcome.data){this.profile(client,outcome.data);this.cableRoom.sync(client,outcome.data);this.syncCrewHands();}
@@ -210,13 +211,13 @@ export class WorkController {
     });
   }
   interaction(client:Client,value:unknown) {
-    this.enqueue(client,"interactionResult",async()=>{
+    this.enqueue(client,"interactionResult", value, async()=>{
       const action=(value as {kind?:string})?.kind,player=this.room.state.players.get(client.sessionId);
       const fail=(message:string)=>this.send(client,"interactionResult",{ok:false,message});
       if(action==='floor'){
         const a=value as {kind:string;buildingId?:string;floor?:number},b=CITY_BUILDINGS.find(b=>b.id===a.buildingId);if(!player||!b||!Number.isInteger(a.floor)||a.floor!<0||a.floor!>=officeFloorCount(b)||Object.keys(a).some(k=>!['kind','buildingId','floor'].includes(k)))return fail('Некорректный этаж.');
         const lift=officeLift(b);if(Math.hypot(player.x-lift.x,player.z-lift.z)>2.2||player.floor>0&&player.buildingId!==b.id)return fail('Подойдите к лифту внутри нужного офиса.');if(player.heldItem)return fail('Поставьте груз перед поездкой на лифте.');
-        const last=this.doorActions.get(client.sessionId)??0;if(Date.now()-last<800)return fail('Дождитесь остановки лифта.');this.doorActions.set(client.sessionId,Date.now());player.floor=a.floor!;player.buildingId=player.floor?b.id:'';player.x=lift.x;player.z=lift.z;this.send(client,'interactionResult',{ok:true,message:'Этаж '+(player.floor+1)});return;
+        const last=this.doorActions.get(client.sessionId)??0;if(Date.now()-last<800)return fail('Дождитесь остановки лифта.');if(!this.room.startLift(client,b,a.floor!))return fail('Этот этаж уже выбран.');this.doorActions.set(client.sessionId,Date.now());this.send(client,'interactionResult',{ok:true,message:'Двери закрываются. Едем на этаж '+(a.floor!+1)+'…'});return;
       }
       if(player?.floor)return fail('Воспользуйтесь лифтом для спуска к оборудованию первого этажа.');
       if(action==="cityDoor"){const last=this.doorActions.get(client.sessionId)??0;if(Date.now()-last<800)return fail("Дождитесь движения двери.");this.doorActions.set(client.sessionId,Date.now());this.send(client,"interactionResult",toggleDoor(this.room,client.sessionId,value));return;}
@@ -232,7 +233,7 @@ export class WorkController {
     });
   }
   computer(client: Client, value: unknown) {
-    this.enqueue(client, "computerResult", async id => {
+    this.enqueue(client, "computerResult", value, async id => {
       const player=this.room.state.players.get(client.sessionId)!;
       if(player.floor)return this.send(client,"computerResult",{ok:false,message:"Этот терминал находится на первом этаже.",pcId:(value as any)?.pcId});
       const action=value as {type?:string;pcId?:ComputerId} | null;
@@ -256,7 +257,7 @@ export class WorkController {
     });
   }
   equipment(client: Client, value: unknown) {
-    this.enqueue(client, "actionResult", async (id) => {
+    this.enqueue(client, "actionResult", value, async (id) => {
       const player = this.room.state.players.get(client.sessionId)!;
       const fail = (message: string) =>
         this.send(client, "actionResult", { ok: false, message });

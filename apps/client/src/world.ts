@@ -35,7 +35,7 @@ import { buildDistrict, CONTACTS } from "./district";
 import { playFootstep,playCityAmbience } from "./sound";
 import {buildCaseObjects} from "./caseObjects";
 import type {ClientCase} from "@netcity/shared";
-export interface WorldView { floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
+export interface WorldView { liftTarget?:number;liftStarted?:number;liftUntil?:number;floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
 import { sendComputer, sendEquipment, type NetworkState } from "./network";
@@ -327,7 +327,7 @@ export function createWorld(
           avatars.delete(id);
           graphics.refreshCasters();
         }
-      interiors.sync(room.state.doors,camera.position);officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices);
+      interiors.sync(room.state.doors,camera.position);officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices,room.state.players?.values(),Math.min(engine.getDeltaTime()/1000,.1));
       const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==="hq-server");if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
       office.sync(
         room.state.equipment?.port3Connected ?? false,
@@ -351,7 +351,7 @@ export function createWorld(
           lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
-        onView({floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
+        onView({liftTarget:me?.liftTarget??-1,liftStarted:me?.liftStarted,liftUntil:me?.liftUntil,floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
       }
       scene.render();
     });
