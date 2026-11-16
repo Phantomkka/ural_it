@@ -1,4 +1,4 @@
-import {BUILDINGS,OFFICE,SWITCH,COMPUTERS,CITY_DOORS,districtRoute,officeEnvelope} from '@netcity/shared';
+import {FIELD_SITES,BUILDINGS,OFFICE,SWITCH,COMPUTERS,CITY_DOORS,districtRoute,officeEnvelope} from '@netcity/shared';
 import {CONTACTS} from './district';
 export function DistrictMap({x,z,destination=SWITCH,route}:{x:number;z:number;destination?:{x:number;z:number};route?:{x:number;z:number}[]}){
  const path=(route??districtRoute({x,z},destination)).map((p,i)=>`${i?'L':'M'} ${p.x} ${-p.z}`).join(' ');
@@ -6,6 +6,7 @@ export function DistrictMap({x,z,destination=SWITCH,route}:{x:number;z:number;de
  <svg className="district-map" viewBox="-46 -46 92 92" role="img" aria-label="Карта Новолинска">
  <rect x="-46" y="-46" width="92" height="92" fill="#183b43"/><path d="M 0 -45 V 45" stroke="#45616d" strokeWidth="10"/>
  {BUILDINGS.map(b=>{const e=officeEnvelope(b);return <g key={b.id}><rect x={e.x-e.width/2} y={-b.z-6} width={e.width} height="12" rx="1" fill={b===OFFICE?'#62e3bd':'#66838b'}/><text x={e.x} y={-b.z} fill="#102b36" textAnchor="middle" fontSize="2">{b.name.split(' ')[0]}</text><circle cx={Math.sign(b.x)*8} cy={-b.z} r=".7" fill="#e9d59d"/></g>})}
+ {FIELD_SITES.map(p=><g key={p.id}><rect x={p.x-2} y={-p.z-2} width="4" height="4" fill="#d7ba79"/><title>{p.name}</title></g>)}
  <path d={path} stroke="#ffd38b" strokeWidth=".6" strokeDasharray="1 1" fill="none"/>
  <circle cx={destination.x} cy={-destination.z} r="2" fill="none" stroke="#ffd38b" strokeWidth=".5"/>
  <circle cx={SWITCH.x} cy={-SWITCH.z} r="1.1" fill="#ffb65f"/>{COMPUTERS.map(pc=><circle key={pc.id} cx={pc.x} cy={-pc.z} r=".6" fill="#153142"/>)}

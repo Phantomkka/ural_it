@@ -4,7 +4,7 @@ import {walk} from './case-navigation';
 
 test('engineering network call uses observed evidence, real repair and fresh acceptance readings through reload',async({page})=>{
  test.setTimeout(240000);page.setDefaultTimeout(15000);await page.addInitScript(()=>localStorage.setItem('netcity-quality','low'));await page.goto('/');await expect(page.locator('.connection-status')).toContainText('В сети');
- await tabletApp(page,'Диагностика');await expect(page.locator('.lab-catalog .mission-list article')).toHaveCount(12);await page.locator('.lab-catalog article').filter({hasText:'Инженерный аудит: Сеть пропала после перестановки'}).getByRole('button',{name:'Получить инженерный звонок',exact:true}).click();
+ await tabletApp(page,'Диагностика');await expect(page.locator('.lab-catalog .mission-list article')).toHaveCount(14);await page.locator('.lab-catalog article').filter({hasText:'Инженерный аудит: Сеть пропала после перестановки'}).getByRole('button',{name:'Получить инженерный звонок',exact:true}).click();
  const act=async(label:string)=>{const b=page.getByRole('button',{name:label,exact:true});await expect(b).toBeEnabled();await b.click();await expect(page.getByText('Ожидание подтверждения…',{exact:false})).toHaveCount(0);};
  await act('Ответить и принять');await page.keyboard.press('Escape');await expect(page.locator('.asset-status')).toHaveAttribute('data-state','ready',{timeout:60000});
  const move=async(axis:'x'|'z',goal:number)=>{await page.locator('canvas').click();await walk(page,axis,goal);};
@@ -22,5 +22,5 @@ test('engineering network call uses observed evidence, real repair and fresh acc
 });
 
 test('portrait engineering catalog and diagnostic navigation fit touch controls',async({browser})=>{
- const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});try{const page=await context.newPage();await page.goto('/');await expect(page.locator('.connection-status')).toContainText('В сети');await tabletApp(page,'Диагностика');await expect(page.locator('.lab-catalog .mission-list article')).toHaveCount(12);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}finally{await context.close();}
+ const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});try{const page=await context.newPage();await page.goto('/');await expect(page.locator('.connection-status')).toContainText('В сети');await tabletApp(page,'Диагностика');await expect(page.locator('.lab-catalog .mission-list article')).toHaveCount(14);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}finally{await context.close();}
 });

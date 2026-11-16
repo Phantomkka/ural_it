@@ -16,7 +16,9 @@ export function buildingAt(p:{x:number;z:number}){return CITY_BUILDINGS.find(b=>
 export function missionStation(b:CityBuilding,slot:number){return {x:b.x+(slot%2===0?-1:2.5)*Math.sign(b.x),z:b.z+(slot<2?-3.2:3.2)};}
 export function buildingClient(b:CityBuilding){return {x:b.x-Math.sign(b.x)*3,z:b.z-3.7};}
 export const DISTRICT_FURNITURE=CITY_BUILDINGS.filter(b=>b.id!=='hq').flatMap(b=>[0,1,2,3].map(slot=>({...missionStation(b,slot),width:.8,depth:.7,buildingId:b.id,slot})));
-export function districtRoute(start:{x:number;z:number},target:{x:number;z:number}){
+export function districtRoute(start:{x:number;z:number},target:{x:number;z:number}):{x:number;z:number}[]{
+ if(Math.abs(target.x)>31){const side=Math.sign(target.x),gate=Math.round(target.z/17)*17,gap=gate-Math.sign(gate||1)*8.5;return [...districtRoute(start,{x:side*6,z:gap}),{x:side*29,z:gap},{x:side*29,z:gate},{x:side*33,z:gate},target];}
+ if(Math.abs(start.x)>31)return districtRoute(target,start).reverse();
  const from=buildingAt(start),to=buildingAt(target),out=[start];if(from&&to&&from.id===to.id)return [start,target];let side=Math.sign(from?.x??start.x)||Math.sign(target.x)||1;
  if(from){if(from.id==='hq'&&start.x>13)out.push({x:16,z:0},{x:11,z:0});else out.push({x:from.x,z:from.z});out.push({x:side*8,z:from.z},{x:side*6,z:from.z});}
  else if(Math.abs(start.x)<5)out.push({x:start.x,z:0},{x:side*6,z:0});else out.push({x:side*6,z:start.z});

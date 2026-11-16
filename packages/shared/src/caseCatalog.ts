@@ -1,3 +1,4 @@
+import {FIELD_SITES} from './fieldSites.js';
 import {betaCases} from './betaCatalog.js';
 import {engineeringCases} from './diagnosticLab.js';
 import {DISPATCHER_POINT} from './city.js';
@@ -23,4 +24,5 @@ export const CASE_CATALOG:CaseTemplate[]=[
 ];
 CASE_CATALOG.push(...betaCases(CASE_CATALOG));
 export const ENGINEERING_CASES=engineeringCases(CASE_CATALOG);
+ENGINEERING_CASES.push(...FIELD_SITES.map(p=>({...ENGINEERING_CASES.find(t=>t.kind===p.kind)!,id:p.id,title:"Выездной аудит: "+p.name,caller:p.caller,address:p.name,client:p.client,hardware:{x:p.x,z:p.z},buildingId:undefined,station:undefined,indoor:false,payment:390,xp:160})));
 export function caseTemplate(c:Pick<ClientCase,'templateId'>|undefined|null){return [...CASE_CATALOG,...ENGINEERING_CASES].find(t=>t.id===c?.templateId)??CASE_CATALOG[0];}
