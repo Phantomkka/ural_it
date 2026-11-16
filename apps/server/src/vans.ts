@@ -6,10 +6,10 @@ import type {ProfileData,ProgressStore} from './progress/store.js';
 import {LogisticsService,type VanContext} from './progress/logistics.js';
 
 export class WorkVanState extends Schema implements WorkVan {
- declare id:string;declare x:number;declare z:number;declare yaw:number;declare speed:number;declare driver:string;declare cargoCount:number;declare bootOpen:boolean;
- constructor(){super();Object.assign(this,{id:'',x:0,z:0,yaw:0,speed:0,driver:'',cargoCount:0,bootOpen:false});}
+ declare odometer:number;declare id:string;declare x:number;declare z:number;declare yaw:number;declare speed:number;declare driver:string;declare cargoCount:number;declare bootOpen:boolean;
+ constructor(){super();Object.assign(this,{odometer:0,id:'',x:0,z:0,yaw:0,speed:0,driver:'',cargoCount:0,bootOpen:false});}
 }
-defineTypes(WorkVanState,{id:'string',x:'number',z:'number',yaw:'number',speed:'number',driver:'string',cargoCount:'number',bootOpen:'boolean'});
+defineTypes(WorkVanState,{odometer:'number',id:'string',x:'number',z:'number',yaw:'number',speed:'number',driver:'string',cargoCount:'number',bootOpen:'boolean'});
 export class GroundFreightState extends Schema {declare id:string;declare x:number;declare z:number;declare product:string;constructor(){super();Object.assign(this,{id:'',x:0,z:0,product:'pc'});}}
 defineTypes(GroundFreightState,{id:'string',x:'number',z:'number',product:'string'});
 // One active room per profile in the single authoritative server process. Cargo itself stays transactional.
@@ -31,7 +31,7 @@ export class VanController {
  sync(data:ProfileData){
   const saved=data.business?.logistics?.van;
   if(saved&&(!activeRooms.has(data.id)||activeRooms.get(data.id)===this)){
-   let v=this.vehicle(data.id);if(!v&&this.room.state.vans.size<8){const pose=this.freeParking(saved.pose);if(pose){v=Object.assign(new WorkVanState(),pose,{id:saved.id});this.room.state.vans.set(v.id,v);this.owners.set(v.id,data.id);activeRooms.set(data.id,this);}}
+   let v=this.vehicle(data.id);if(!v&&this.room.state.vans.size<8){const pose=this.freeParking(saved.pose);if(pose){v=Object.assign(new WorkVanState(),pose,{id:saved.id,odometer:saved.odometer??0});this.room.state.vans.set(v.id,v);this.owners.set(v.id,data.id);activeRooms.set(data.id,this);}}
    if(v)v.cargoCount=saved.cargo.length+Number(data.business?.logistics?.delivery?.location==='van');
   }
   const d=data.business?.logistics?.delivery,t=d&&DELIVERY_CATALOG.find(t=>t.id===d.templateId);
@@ -55,14 +55,14 @@ export class VanController {
   for(const v of this.room.state.vans.values()){
    if((this.bootUntil.get(v.id)??0)<Date.now())v.bootOpen=false;
    const p=v.driver&&this.room.state.players.get(v.driver),entry=v.driver&&inputs.get(v.driver),input=p&&entry&&now-entry.at<250?entry.input:{forward:0,strafe:0,yaw:0};
-   if(!p)v.driver='';Object.assign(v,stepVan(v,input,1/30,this.obstacles(v.id,v.driver,input.forward)));
+   if(!p)v.driver='';const before={x:v.x,z:v.z};Object.assign(v,stepVan(v,input,1/30,this.obstacles(v.id,v.driver,input.forward)));v.odometer=Math.min(1e12,v.odometer+Math.hypot(v.x-before.x,v.z-before.z));
    if(p){p.x=v.x;p.z=v.z;p.yaw=v.yaw;}
   }
   if(now-this.checkpointAt>5000){this.checkpointAt=now;for(const [vehicle,owner]of this.owners){const v=this.room.state.vans.get(vehicle);if(v?.driver)void this.checkpoint(owner,v);}}
  }
  private checkpoint(profileId:string,v:WorkVan){
   const previous=this.pending.get(profileId)??Promise.resolve(),pose={x:v.x,z:v.z,yaw:v.yaw,speed:0};
-  const next=previous.then(()=>this.store.transaction(profileId,null,tx=>{const saved=tx.data.business?.logistics?.van;if(saved?.id===v.id)saved.pose=pose;return {ok:true,message:''};})).catch(()=>{v.speed=0;const p=this.room.state.players.get(v.driver),exit=this.exitPoint(v,v.driver);if(p){p.vehicleId='';if(exit)Object.assign(p,exit);}this.room.clients.find(c=>c.sessionId===v.driver)?.send('vanResult',{ok:false,message:'Сохранение транспорта недоступно. Поездка остановлена.'});v.driver='';});
+  const next=previous.then(()=>this.store.transaction(profileId,null,tx=>{const saved=tx.data.business?.logistics?.van;if(saved?.id===v.id){saved.pose=pose;saved.odometer=v.odometer;}return {ok:true,message:''};})).catch(()=>{v.speed=0;const p=this.room.state.players.get(v.driver),exit=this.exitPoint(v,v.driver);if(p){p.vehicleId='';if(exit)Object.assign(p,exit);}this.room.clients.find(c=>c.sessionId===v.driver)?.send('vanResult',{ok:false,message:'Сохранение транспорта недоступно. Поездка остановлена.'});v.driver='';});
   this.pending.set(profileId,next);void next.finally(()=>{if(this.pending.get(profileId)===next)this.pending.delete(profileId);});return next;
  }
  async detach(session:string,position:{x:number;z:number}){
