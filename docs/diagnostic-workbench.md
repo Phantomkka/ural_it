@@ -1,0 +1,7 @@
+# NETCITY 5.0 engineering workbench
+
+Depends on world PR #32. The original 44 cases and 27 crew templates retain their identifiers, coordinates and flows. Twelve optional engineering audits use fifteen physical/configuration fault branches and fourteen fixed virtual instruments; faulty VLAN, RAM seating and paused-print variants require different actions from cable replacement, cleaning and cartridge/jam variants.
+
+Readings belong to the private case, carry an equipment revision and survive profile reload. Hypothesis requires two client clues and the family's mandatory readings. Replacement keeps existing distance, isolation, custody and resource rules. Settings are constrained by the virtual device and agreed site parameters. Changes invalidate earlier readings; verified healthy readings and physical-client signoff precede transactional rewards. Configuration-only work receives no material advance. Incorrect hypotheses/configuration cost time and satisfaction; errors remain recoverable. No shell execution, real DNS/ICMP or arbitrary external targets exist.
+
+Persistence uses the existing service JSONB. No schema migration or guest/account copy is introduced. Same-profile concurrent signoffs pay once through the existing operation fingerprint/reward ledger. Production remains 4.1; this branch is a dependent 5.0 block, not a standalone release. Van deliveries, deeper company accounting/employees, new districts and career acceptance remain subsequent work.

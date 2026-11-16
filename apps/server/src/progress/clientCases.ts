@@ -1,7 +1,7 @@
 import {randomUUID,createHash} from "node:crypto";
 import {CLIENT_CASE_TEMPLATE as T, BAG_LIMIT,bagUsage,inOfficeRoom,type ProgressResult} from "@netcity/shared";
 import type {ProfileData,ProgressStore} from "./store.js";
-import {CASE_CATALOG} from '@netcity/shared';
+import {CASE_CATALOG,ENGINEERING_CASES,caseTemplate} from '@netcity/shared';
 import {performCase} from './caseEngine.js';
 import {initBusiness} from './business.js';
 const bad=(message:string):ProgressResult=>({ok:false,message});
@@ -23,7 +23,7 @@ export class ClientCaseService {
     if(!a || typeof a!=="object" || typeof a.requestId!=="string" || !/^[a-f0-9-]{36}$/.test(a.requestId) || typeof a.caseId!=="string" || !/^[a-f0-9-]{36}$/.test(a.caseId) ||
       (a.choice!==undefined && (typeof a.choice!=="string" || a.choice.length>64)) || (a.port!==undefined && (!Number.isInteger(a.port)||Number(a.port)<1||Number(a.port)>8)) ||
       Object.keys(a).some(k=>!["requestId","caseId","action","choice","port"].includes(k)) ||
-      !["select","accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
+      !["measure","configure","select","accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
       return Promise.resolve({result:bad("Некорректное действие заявки."),data:null});
     const fingerprint=createHash("sha256").update(JSON.stringify(["case",a.action,a.caseId,a.choice,a.port])).digest("hex");
     return this.store.transaction(id,a.requestId,tx=>{
@@ -33,7 +33,7 @@ export class ClientCaseService {
       const position=actor();
       const near=(point:{x:number;z:number},indoors=false)=>!!position && Number.isFinite(position.x)&&Number.isFinite(position.z)&&(!indoors||inOfficeRoom(position,point.x))&&Math.hypot(position.x-point.x,position.z-point.z)<=2.5;
       if(a.action==='select'){
-        let result:ProgressResult;const last=tx.data.service!.cases.at(-1),t=CASE_CATALOG.find(t=>t.id===a.choice);
+        let result:ProgressResult;const last=tx.data.service!.cases.at(-1),t=[...CASE_CATALOG,...ENGINEERING_CASES].find(t=>t.id===a.choice);
         if(!t||!last||last.id!==a.caseId||!['RINGING','DECLINED','COMPLETED'].includes(last.stage)||tx.data.jobs.some(j=>j.status==='ACTIVE'))result=bad('Сначала завершите активную работу.');
         else if(last.stage==='COMPLETED'&&this.now()<last.availableAt)result=bad('Клиент ещё оформляет документы. Дождитесь следующего звонка.');
         else if(t.upgrade&&!tx.data.business!.upgrades.includes(t.upgrade))result=bad('Для этого заказа нужен соответствующий комплект компании.');
@@ -42,7 +42,11 @@ export class ClientCaseService {
       }
       let result:ProgressResult;
       const perform=():ProgressResult=>{
-        if(c&&(c.templateId!=='moved-desks'||a.action==='returnPart'))return performCase(tx,c,a,position,this.now());
+        if(c&&(c.templateId!=='moved-desks'||a.action==='returnPart')){
+          const result=performCase(tx,c,a,position,this.now());
+          if(result.ok&&c.lab&&['install','repairStep'].includes(String(a.action))){if(a.action==='install')(c.progress??={}).labInstalled=true;c.lab.revision++;c.lab.busyUntil=this.now()+350;}
+          return result;
+        }
         if(!position || !Number.isFinite(position.x) || !Number.isFinite(position.z))return bad("Сеанс закрыт. Переподключитесь.");
         if(!c)return bad("Эта заявка не принадлежит вашему профилю.");
         if(a.action==="accept") {

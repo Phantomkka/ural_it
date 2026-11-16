@@ -1,4 +1,5 @@
 import {betaContract} from "./beta.contract.js";
+import {diagnosticsContract} from './diagnostics.contract.js';
 import {crewContract} from './crew.contract.js';
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -70,6 +71,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
     await t.test('eight-archetype release engine and business transactions',()=>releaseGameplayContract(store));
     await t.test('beta 36-site missions, variants, secure selection and new consumable transactions',()=>betaContract(store));
     await t.test('27 crew projects with five participants and atomic shared stock/rewards',()=>crewContract(store));
+    await t.test('engineering diagnostics, persisted evidence, safe repairs and exact-once payments',()=>diagnosticsContract(store));
     await t.test(
       "hash-only storage and persistence across a real server and pool restart",
       async () => {

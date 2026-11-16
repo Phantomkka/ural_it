@@ -4,7 +4,11 @@ Baseline verified: main and public read-only health both `6e344a1a766cf497410730
 
 P0 reproduced in the actual main renderer: first floor of building-2, Supply/workshop, X -23 / Z 0. The original X ±23, Z -40…40 rails cross the enlarged X ±8…±28 office envelopes. Shared clipped rear perimeters now drive visible rails and physical collisions, with service gates. Cabin remaster adds three matching collision walls, threshold, non-slip floor, brushed panels, handrails, ceiling light, control and two animated doors. Server-timed travel freezes movement and denies world actions with correlated responses; floor changes only on arrival. A labelled transition conceals passage through floor slabs. Side-facing glazing previously shrank along its long axis, leaving gaps; thickness now shrinks on the correct axis.
 
-Next dependent blocks: diagnostic workbench → vehicle/logistics → company/employees/SLA → districts/NPC → career/co-op → release candidate. These are outstanding, not completed by the world fixes. All blocks belong to one 5.0 programme and will be staged before requesting production cutover.
+World block: PR #32, no merge/deploy. Typecheck/build, 63 server tests, 35/36 full browser run plus successful focused reruns cover all 36 cases. Final timed-lift/furniture circulation and rendered geometry checks passed 2/2. Five connected clients: ~51–53 FPS on actual GTX 1060 3GB; mobile viewport is emulation. Per-frame draw-call instrumentation remains part of final performance acceptance.
+
+Diagnostic block in progress above #32: 12 engineering audit families / 15 hidden physical/configuration fault branches, 14 virtual instruments, revision-bound readings, parameter validation, safe repairs and post-repair evidence. Legacy 44 cases/27 projects are retained separately. Memory authority/economy contract covers all branches; isolated Ubuntu PostgreSQL checks passed (18), with final advance-accounting rerun pending. Lab state uses existing per-case service JSONB, no schema migration. Final browser call-to-payment validation pending.
+
+Next dependent blocks: vehicle/logistics → company/employees/SLA → districts/NPC → career/co-op → release candidate. These are outstanding, not completed by the world/diagnostic work. All blocks belong to one 5.0 programme and will be staged before requesting production cutover.
 
 ## Historical checkpoints
 

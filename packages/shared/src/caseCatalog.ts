@@ -1,10 +1,12 @@
 import {betaCases} from './betaCatalog.js';
+import {engineeringCases} from './diagnosticLab.js';
 import {DISPATCHER_POINT} from './city.js';
 import {CLIENT_CASE_TEMPLATE} from './clientCaseLegacy.js';
 import type {ClientCase} from './clientCases.js';
 import type {ItemId} from './progression.js';
 export type CaseKind='network'|'wifi'|'power'|'printer'|'server'|'backup'|'camera'|'voip'|'dhcp'|'dns'|'ups'|'storage';
 export interface CaseTemplate {
+ lab?:boolean;
  buildingId?:string;station?:number;tuning?:{wifiChannel?:number;backupFile?:string;voiceVlan?:number;sipHost?:string;poolStart?:number;poolEnd?:number;dnsHost?:string;targetIP?:string};
  id:string;title:string;caller:string;address:string;client:{x:number;z:number};hardware:{x:number;z:number};shop:{x:number;z:number};advance:number;payment:number;xp:number;port:number;questions:Record<string,string>;symptom:string;diagnosis:string;part:ItemId|null;kind:CaseKind;indoor:boolean;upgrade?:string;
 }
@@ -20,4 +22,5 @@ export const CASE_CATALOG:CaseTemplate[]=[
  {id:'voip-vlan',kind:'voip',title:'IP-телефон не регистрируется',caller:'Алина · диспетчер',address:'Диспетчерская · терминал у входа',client:DISPATCHER_POINT,hardware:{x:6,z:-4},shop,advance:0,payment:220,xp:140,port:1,part:null,indoor:false,upgrade:'service-van',symptom:'Телефон включён, но звонки не проходят.',diagnosis:'voice',questions:{changed:'Телефон переставили на порт с обычной сетью данных.',lights:'Экран показывает ошибку регистрации SIP.',scope:'Голосовая VLAN 20, сервер pbx.netcity.local; соседние телефоны работают.'}},
 ];
 CASE_CATALOG.push(...betaCases(CASE_CATALOG));
-export function caseTemplate(c:Pick<ClientCase,'templateId'>|undefined|null){return CASE_CATALOG.find(t=>t.id===c?.templateId)??CASE_CATALOG[0];}
+export const ENGINEERING_CASES=engineeringCases(CASE_CATALOG);
+export function caseTemplate(c:Pick<ClientCase,'templateId'>|undefined|null){return [...CASE_CATALOG,...ENGINEERING_CASES].find(t=>t.id===c?.templateId)??CASE_CATALOG[0];}
