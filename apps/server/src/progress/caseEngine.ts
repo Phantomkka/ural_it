@@ -1,7 +1,8 @@
+import {clientInterview} from './clientInterview.js';
 import {ITEMS,ITEM_WEIGHT,bagUsage,caseTemplate,inOfficeRoom,insideBuilding,type ClientCase,type ProgressResult} from '@netcity/shared';
 import type {Transaction} from './store.js';
 import {initBusiness} from './business.js';
-import {initLab,performLab,labPart} from './diagnosticLab.js';
+import {initLab,performLab,labPart,labFault} from './diagnosticLab.js';
 import {consumeInventory,refundableInventory} from './inventory.js';
 const bad=(message:string):ProgressResult=>({ok:false,message}),ok=(message:string):ProgressResult=>({ok:true,message});
 export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>,p:{x:number;z:number;sessionId:string}|null,now:number):ProgressResult{
@@ -25,7 +26,7 @@ export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>
  if(a.action==='talk'){
   if(!near(t.client,t.indoor))return bad('Подойдите к клиенту на месте.');
   if(!['ACCEPTED','INTERVIEW'].includes(c.stage)||typeof a.choice!=='string'||!Object.hasOwn(t.questions,a.choice))return bad('Выберите вопрос на этапе опроса.');
-  if(!c.clues.includes(a.choice))c.clues.push(a.choice);c.stage='INTERVIEW';return ok(t.questions[a.choice]);
+  if(!c.clues.includes(a.choice))c.clues.push(a.choice);c.stage='INTERVIEW';if(t.lab){const lab=initLab(c,t);lab.notes??={};const answer=clientInterview(labFault(c,t),a.choice);lab.notes[a.choice]=answer;return ok(answer);}return ok(t.questions[a.choice]);
  }
  if(a.action==='diagnose'){
   if(!hardware())return bad('Подойдите к нужному устройству.');

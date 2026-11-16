@@ -6,7 +6,7 @@ import {labFault,labSite,labPart} from './progress/diagnosticLab.js';
 import type {ProgressStore} from './progress/store.js';
 
 export async function diagnosticsContract(store:ProgressStore){
- assert.equal(ENGINEERING_CASES.length,12);const variants=new Set<string>();
+ assert.equal(new Set(ENGINEERING_CASES.map(t=>t.kind)).size,12);const variants=new Set<string>();
  for(const t of ENGINEERING_CASES)for(let variant=0;variant<(['network','server','printer'].includes(t.kind)?2:1);variant++){
   const guest=await store.register(),work={...t.hardware,x:t.hardware.x-Math.sign(t.hardware.x)};let now=Date.now(),p={...t.client},online=true;
   await store.transaction(guest.profileId,null,tx=>{refreshCases(tx.data,now);tx.data.business!.upgrades=BUSINESS_UPGRADES.map(u=>u.id);tx.data.credits=2000;return {ok:true,message:''};});

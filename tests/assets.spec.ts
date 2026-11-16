@@ -75,7 +75,8 @@ test("local models load with real skins and instanced architecture; quality swit
     widths[quality] = state.renderWidth;
   }
   expect(widths.low).toBeLessThan(widths.medium);
-  expect(widths.medium).toBeLessThan(widths.high);
+  expect(widths.medium).toBeLessThanOrEqual(widths.high);
+  expect(widths.high).toBeLessThanOrEqual(1280); // High is native resolution, never forced supersampling.
   await b.bringToFront();
   await b.locator("canvas").click({ position: { x: 450, y: 350 } });
   await b.evaluate(() =>

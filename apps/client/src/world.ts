@@ -1,3 +1,4 @@
+import {buildFieldSites} from './fieldSites';
 import {buildOfficeRemaster} from "./officeRemaster";
 import {buildServiceVans,createFreightCrate} from './serviceVan';
 import {buildCrewObjects} from "./crewObjects";
@@ -88,6 +89,7 @@ export function createWorld(
     });
     const material = createPalette(scene);
     buildStreet(scene, material);
+    buildFieldSites(scene,material);
     const office = buildOffice(scene, material);
     const computers = buildComputers(scene, material);
     buildDistrict(scene,material);

@@ -11,7 +11,7 @@ export const LAB_FAULTS={
 export type LabFault=keyof typeof LAB_FAULTS;
 export interface LabReading {instrument:LabInstrument;revision:number;at:number;healthy:boolean;rows:{label:string;value:string}[]}
 export interface LabSite {vlan:number;poolStart:number;poolEnd:number;channel:number;host:string;address:string;sipHost:string;file:string;disk:number}
-export interface DiagnosticLab {revision:number;readings:Partial<Record<LabInstrument,LabReading>>;settings:Record<string,string|number>;busyUntil:number;site?:LabSite;requiredPart?:ItemId|null;hypothesis?:LabFault}
+export interface DiagnosticLab {notes?:Record<string,string>;revision:number;readings:Partial<Record<LabInstrument,LabReading>>;settings:Record<string,string|number>;busyUntil:number;site?:LabSite;requiredPart?:ItemId|null;hypothesis?:LabFault}
 export const freshLab=():DiagnosticLab=>({revision:0,readings:{},settings:{},busyUntil:0});
 export const LAB_REQUIRED:Record<CaseKind,LabInstrument[]>={network:['link','ping'],dhcp:['ip','ping'],dns:['ip','trace'],wifi:['wifi','ping'],power:['voltage','memory'],server:['thermal','memory'],printer:['printer','link'],voip:['sip','ip'],camera:['camera','link'],backup:['backup','smart'],ups:['battery','voltage'],storage:['smart','backup']};
 export function engineeringCases(base:readonly CaseTemplate[]):CaseTemplate[]{
