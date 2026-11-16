@@ -1,4 +1,5 @@
 import {createCableRoll} from "./cableObjects";
+import {createFreightCrate} from './serviceVan';
 import { TransformNode, Vector3, Mesh, MeshBuilder, type Scene } from "./babylon";
 import {
   AssetLibrary,
@@ -24,6 +25,7 @@ export function createAvatar(
     return { ...fallback, asset: file, loaded: false };
   }
   const root = new TransformNode(`player-${id}`, scene);
+  const freight=createFreightCrate(scene,mat,'remote-freight-'+id);freight.parent=root;freight.position.set(0,.65,.65);freight.setEnabled(false);
   model.root.parent = root;
   fitModel(model.root, undefined, 1.8, undefined);
   root.position.set(player.x, (player.floor??0)*3.6, player.z);
@@ -56,7 +58,7 @@ export function createAvatar(
     asset: file,
     loaded: true,
     update(next: PlayerView, dt: number, distance: number) {
-      held.scaling.setAll(next.heldItem==="crew_parcel"?2:1);held.setEnabled(!!next.heldItem&&!next.heldItem.startsWith("prop:")&&next.heldItem!=="cable_roll");roll.setEnabled(next.heldItem==="cable_roll");
+      held.scaling.setAll(next.heldItem==="crew_parcel"?2:1);held.setEnabled(!!next.heldItem&&!next.heldItem.startsWith("prop:")&&!next.heldItem.startsWith('freight:')&&next.heldItem!=="cable_roll");roll.setEnabled(next.heldItem==="cable_roll");freight.setEnabled(!!next.heldItem?.startsWith('freight:'));
       const moving =
         Math.hypot(next.x - root.position.x, next.z - root.position.z) > 0.025;
       blend += (Number(moving) - blend) * Math.min(1, dt * 8);
@@ -74,7 +76,7 @@ export function createAvatar(
           Math.sin(next.yaw - root.rotation.y),
           Math.cos(next.yaw - root.rotation.y),
         ) * Math.min(1, dt * 15);
-      root.setEnabled(distance < 45 && distance > 0.5);
+      root.setEnabled(!next.vehicleId&&distance < 45 && distance > 0.5);
       tag.mesh.setEnabled(distance < 20 && distance > 0.8);
       tag.mesh.scaling.setAll(Math.min(1, distance / 5));
     },

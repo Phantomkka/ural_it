@@ -2,6 +2,7 @@ import { randomBytes, randomUUID, createHash } from "node:crypto";
 import {MemoryAccountStore,AuthConflict,type AccountStore} from "../auth/store.js";
 import {
   ITEMS,
+  validLogistics,
   JOBS,
   companyFromProgress,
   levelFor,
@@ -99,6 +100,7 @@ export function snapshot(
 }
 export function assertProfile(data: ProfileData) {
   if (
+    (data.business?.logistics!==undefined&&!validLogistics(data.business.logistics)) ||
     (data.projects!==undefined&&(!Array.isArray(data.projects)||data.projects.length>20||new Set(data.projects).size!==data.projects.length||data.projects.some(c=>!/^[A-F0-9]{12}$/.test(c)))) ||
     (data.business!==undefined&&(!Array.isArray(data.business.upgrades)||new Set(data.business.upgrades).size!==data.business.upgrades.length||data.business.upgrades.some(x=>!['field-kit','workbench','service-van','network-lab','infra-lab'].includes(x))||!Array.isArray(data.business.claimed)||new Set(data.business.claimed).size!==data.business.claimed.length||Object.keys(data.business.workCounts).length>128||Object.values(data.business.workCounts).some(n=>!Number.isSafeInteger(n)||n<0||n>2147483647))) ||
     (data.cable!==undefined && (data.cable.points.length<1||data.cable.points.length>12||![...data.cable.points,data.cable.endpoint].every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)&&Math.abs(p.x)<=45&&Math.abs(p.z)<=45))) ||

@@ -1,3 +1,5 @@
+import {VanPanel} from './VanPanel';
+import type {VanIntent,VanAction} from '@netcity/shared';
 import {DiagnosticDesk} from './DiagnosticDesk';
 import {FloorPanel} from "./FloorPanel";
 import {CrewHud,crewDestination} from "./CrewHud";
@@ -50,6 +52,10 @@ import {DistrictMap} from "./DistrictMap";
 import {CLIENT_CASE_TEMPLATE as CASE,caseTemplate,clientCaseTarget,type CaseIntent} from "@netcity/shared";
 import "./style.css";
 function App() {
+  const [vanPending,setVanPending]=useState(false),[vanMessage,setVanMessage]=useState('');
+  const vanRequest=useRef<VanAction|null>(null);
+  const vanAct=(intent:VanIntent)=>{if(!roomRef.current||vanRequest.current)return;const a={...intent,requestId:operationId()};vanRequest.current=a;setVanPending(true);try{sessionStorage.setItem('netcity-pending-van',JSON.stringify(a));roomRef.current.send('van',a);}catch{setVanMessage('Связь потеряна. Повторите ту же операцию после подключения.');}};
+  const retryVan=()=>{if(vanRequest.current&&roomRef.current?.connection.isOpen)roomRef.current.send('van',vanRequest.current);};
   const [officeId,setOfficeId]=useState("");
   const [crew,setCrew]=useState<CrewView|null>(null),[crewMessage,setCrewMessage]=useState(''),[crewPending,setCrewPending]=useState(false);
   const crewRequest=useRef<CrewAction|null>(null);
@@ -281,6 +287,9 @@ function App() {
           return;
         }
         roomRef.current = room;
+        vanRequest.current=null;setVanPending(false);
+        room.onMessage('vanResult',(r:ProgressResult)=>{if(r.requestId===vanRequest.current?.requestId){vanRequest.current=null;setVanPending(false);setVanMessage(r.replayed?'Операция уже обработана. Состояние обновлено.':r.message);try{sessionStorage.removeItem('netcity-pending-van');}catch{}}else if(!r.requestId)setVanMessage(r.message);});
+        try{const raw=sessionStorage.getItem('netcity-pending-van');if(raw){vanRequest.current=JSON.parse(raw);setVanPending(true);room.send('van',vanRequest.current);}}catch{}
         setCrew(null);crewRequest.current=null;setCrewPending(false);
         room.onMessage('crewState',(v:CrewView|null)=>{if(!cancelled)setCrew(v);});
         room.onMessage('crewObjects',(v:import('@netcity/shared').CrewObject[])=>{crewObjectsRef.current=v;worldRef.current?.setCrewObjects(v);});
@@ -330,6 +339,7 @@ function App() {
           setView,
           id=>{
             if(id.startsWith("lift:")){setOfficeId(id.slice(5));openTablet("office");return;}
+            if(id==="transport"){openTablet("transport");return;}
             if(id==="crew"){openTablet("crew");return;}
             if(id.startsWith("tenant:")){const c=latestProfile.current?.service?.cases.at(-1);openTablet(caseTemplate(c).buildingId===id.slice(7)?"tickets":"missions");return;}
             if(id==="case-hardware"){openTablet("tickets");return;}
@@ -664,6 +674,7 @@ function App() {
   return (
     <>
       <canvas tabIndex={0} ref={canvas} aria-label="Трёхмерная улица NETCITY" />
+      {view.vehicleId&&<div className="driving-hud">ФУРГОН · {Math.round(Math.abs(view.vehicleSpeed??0)*3.6)} км/ч · Tab — транспорт / выход</div>}
       {(view.liftTarget??-1)>=0&&<div className="lift-transition" role="status" aria-live="polite"><div><span className="eyebrow">ЛИФТ / ПЕРЕХОД МЕЖДУ ЭТАЖАМИ</span><h2>Этаж {(view.liftTarget??0)+1}</h2><p>Двери закрываются · поездка · двери открываются</p><progress aria-label="Поездка на лифте"/><p>Дождитесь остановки</p></div></div>}
 
       {tablet && <Tablet wallet={profile?`${profile.credits} NET · Ур. ${profile.level} · ${profile.xp} XP · ${profile.persistence==="temporary"?"Временные данные":"Прогресс сохраняется"}`:"Загрузка профиля…"} page={tabletApp} change={openTablet} close={closeTablet} dialogRef={dialogRef} overlay={!!(menu||economy||pcId||panel)}>
@@ -776,7 +787,7 @@ function App() {
           </section>
         </div>
       )}
-</>:tabletApp==="diagnostics"?<DiagnosticDesk profile={profile} send={caseAct} pending={casePending} message={caseMessage} retry={retryCase} tools={()=>openTablet("tools")} mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")}/>:tabletApp==="office"?<FloorPanel id={officeId} position={view} message={message} send={(buildingId,floor)=>roomRef.current?.send("interaction",{kind:"floor",buildingId,floor})}/>:tabletApp==="crew"?<CrewPanel view={crew} position={view} pending={crewPending} message={crewMessage} send={crewAct} retry={retryCrew} onTrack={setCrewFocus}/>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
+</>:tabletApp==="transport"?<VanPanel profile={profile} van={roomRef.current?.state.vans?.get(profile?.business?.logistics?.van?.id??"")} position={view} pending={vanPending} message={vanMessage} send={vanAct} retry={retryVan} company={()=>openTablet("company")}/>:tabletApp==="diagnostics"?<DiagnosticDesk profile={profile} send={caseAct} pending={casePending} message={caseMessage} retry={retryCase} tools={()=>openTablet("tools")} mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")}/>:tabletApp==="office"?<FloorPanel id={officeId} position={view} message={message} send={(buildingId,floor)=>roomRef.current?.send("interaction",{kind:"floor",buildingId,floor})}/>:tabletApp==="crew"?<CrewPanel view={crew} position={view} pending={crewPending} message={crewMessage} send={crewAct} retry={retryCrew} onTrack={setCrewFocus}/>:tabletApp==="missions"?<MissionBoard profile={profile} pending={casePending} message={caseMessage} send={caseAct} open={openTablet}/>:tabletApp==="company"?<CompanyPanel profile={profile} send={businessAct} pending={businessPending} message={businessMessage} retry={retryBusiness} openLegacy={()=>setEconomy(true)}/>:tabletApp==="tools"?<CablePanel profile={profile} position={view} sessionId={roomRef.current?.sessionId} send={cableAct} pending={cablePending} message={cableMessage} retry={retryCable}/>:tabletApp==="account"?<AccountPanel profile={profile}/>:tabletApp==="home"?homeView:tabletApp==="map"?<section><h2>GPS · {caseTemplate(profile?.service?.cases.at(-1)).address}</h2><p>До цели {Math.ceil(Math.hypot(view.x-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).x,view.z-clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{}).z))} м</p><DistrictMap x={view.x} z={view.z} destination={clientCaseTarget(profile?.service?.cases.at(-1),profile?.inventory??{})}/></section>:tabletApp==="tickets"?<><CaseDesk mission={()=>{cableAct("mission");openTablet("tools");}} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/><details><summary>Заявки NETCITY 2.0</summary>{journalView}</details></>:<CaseDesk mission={()=>cableAct("mission")} company={()=>openTablet("company")} tools={()=>openTablet("tools")} sessionId={roomRef.current?.sessionId} profile={profile} page={tabletApp} retry={retryCase} send={caseAct} pending={casePending} message={caseMessage} openLegacy={()=>setEconomy(true)}/>}
       </Tablet>}
       <output className="asset-status" hidden data-state={graphics.state}>{graphics.state==="degraded"?"Резервная графика":""}</output>
       {!tablet && <CrewHud crew={crew} focus={crewFocus} position={view} open={()=>openTablet("crew")}/>}

@@ -1,4 +1,5 @@
 import {buildOfficeRemaster} from "./officeRemaster";
+import {buildServiceVans,createFreightCrate} from './serviceVan';
 import {buildCrewObjects} from "./crewObjects";
 import {buildInteriors} from "./interiors";
 import {CARRY_PROPS,CITY_BUILDINGS,buildingAt} from "@netcity/shared";
@@ -35,7 +36,7 @@ import { buildDistrict, CONTACTS } from "./district";
 import { playFootstep,playCityAmbience } from "./sound";
 import {buildCaseObjects} from "./caseObjects";
 import type {ClientCase} from "@netcity/shared";
-export interface WorldView { liftTarget?:number;liftStarted?:number;liftUntil?:number;floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
+export interface WorldView { vehicleId?:string;vehicleSpeed?:number;liftTarget?:number;liftStarted?:number;liftUntil?:number;floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
 import { sendComputer, sendEquipment, type NetworkState } from "./network";
@@ -95,17 +96,21 @@ export function createWorld(
     const city=buildLivingCity(scene,material);
     const interiors=buildInteriors(scene,material);
     const officeRemaster=buildOfficeRemaster(scene,material);
+    const serviceVans=buildServiceVans(scene,material);
     const crewObjects=buildCrewObjects(scene,material);
     const props=new Map(CARRY_PROPS.map(p=>{const mesh=MeshBuilder.CreateBox("carry-prop-"+p.id,{width:.5,height:p.id==="spare-pc"?.65:.35,depth:.5},scene);mesh.position.set(p.x,.3,p.z);mesh.material=material("prop-"+p.id,p.id==="toolbox"?"#497a93":"#b69570");mesh.metadata={propId:p.id,cityDynamic:true};return [p.id,mesh] as const;}));
     for (const mesh of scene.meshes)
       if (mesh.name !== "equipment-selection" && !mesh.billboardMode && !mesh.metadata?.entryDoor && !mesh.metadata?.cableDynamic && !mesh.metadata?.cityDynamic && mesh.metadata?.caseTarget!=="dropped") mesh.freezeWorldMatrix();
     const pickEquipment = () => {
+      if(room.state.players?.get(room.sessionId)?.vehicleId)return {id:'contact:transport',label:'Транспорт · остановиться и выйти'};
       const hit = scene.pickWithRay(
         camera.getForwardRay(INTERACTION_RANGE),
         (mesh) => mesh.isPickable && !mesh.name.startsWith("player-"),
       );
       const id = hit?.pickedMesh?.metadata?.pcId;
       const npcId=hit?.pickedMesh?.metadata?.npcId;
+      if(hit?.pickedMesh?.metadata?.vanId)return {id:'contact:transport',label:'Служебный фургон · транспорт и багажник'};
+      if(hit?.pickedMesh?.metadata?.groundFreight)return {id:'contact:transport',label:'Комплект поставки · получить / погрузить'};
       if(hit?.pickedMesh?.metadata?.officeLift)return {id:"contact:lift:"+hit.pickedMesh.metadata.officeLift,label:"Лифт · выбрать этаж"};
       if(hit?.pickedMesh?.metadata?.crewTarget)return {id:"contact:crew",label:"Бригада · склад / монтаж"};
       if(hit?.pickedMesh?.metadata?.propId){const id=hit.pickedMesh.metadata.propId;return {id:"prop:"+id,label:"Поднять: "+CARRY_PROPS.find(p=>p.id===id)?.name};}
@@ -143,6 +148,7 @@ export function createWorld(
     const avatars = new Map<string, ReturnType<typeof createAvatar>>();
     const roll=createCableRoll(scene,material,"held-roll");roll.parent=camera;roll.position.set(0.35,-0.45,0.85);roll.getChildMeshes().forEach(m=>m.isPickable=false);roll.setEnabled(false);
     const carried=MeshBuilder.CreateBox("held-cable",{width:0.25,height:0.12,depth:0.2},scene);carried.material=material("held-cable","#64dec1");carried.parent=camera;carried.position.set(0.3,-0.4,0.8);carried.isPickable=false;carried.setEnabled(false);
+    const freight=createFreightCrate(scene,material,'held-freight');freight.parent=camera;freight.position.set(0,-.8,1.0);freight.setEnabled(false);let previousVan='',previousVanYaw=0;
     const keys = new Set<string>();
     let yaw = 0,
       pitch = 0,
@@ -278,7 +284,7 @@ export function createWorld(
       const me = room.state.players?.get(room.sessionId);
       if(me&&!touch.modal&&!document.hidden&&performance.now()-lastAmbience>2500){playCityAmbience(!!buildingAt(me),settings().volume);lastAmbience=performance.now();}
       for(const [id,mesh]of props){const p=room.state.props?.get(id),holder=p?.holder&&room.state.players?.get(p.holder);if(p){mesh.position.set(holder?holder.x+Math.sin(holder.yaw)*.7:p.x,holder?1:.3,holder?holder.z+Math.cos(holder.yaw)*.7:p.z);mesh.isPickable=!holder;}}
-      carried.scaling.setAll(me?.heldItem==="crew_parcel"?2:1);carried.setEnabled(!!me?.heldItem&&!me.heldItem.startsWith("prop:")&&me.heldItem!=="cable_roll");roll.setEnabled(me?.heldItem==="cable_roll");
+      carried.scaling.setAll(me?.heldItem==="crew_parcel"?2:1);carried.setEnabled(!!me?.heldItem&&!me.heldItem.startsWith("prop:")&&!me.heldItem.startsWith('freight:')&&me.heldItem!=="cable_roll");roll.setEnabled(me?.heldItem==="cable_roll");freight.setEnabled(!!me?.heldItem?.startsWith('freight:'));
       if (me) {
         origin ??= {x:me.x,z:me.z};
         moved ||= Math.hypot(me.x-origin.x,me.z-origin.z)>1;
@@ -288,9 +294,10 @@ export function createWorld(
           footstep={x:me.x,z:me.z};
         }
         const blend = Math.hypot(me.x-camera.position.x,me.z-camera.position.z)>3 ? 1 : 1-Math.exp(-25*Math.min(engine.getDeltaTime()/1000,0.1));
-        camera.position.x += (me.x-camera.position.x)*blend;
-        camera.position.z += (me.z-camera.position.z)*blend;
-        camera.position.y = EYE_HEIGHT+(me.floor??0)*3.6;
+        const van=me.vehicleId&&room.state.vans?.get(me.vehicleId);if(van){yaw=(previousVan===van.id?yaw+Math.atan2(Math.sin(van.yaw-previousVanYaw),Math.cos(van.yaw-previousVanYaw)):van.yaw)%(Math.PI*2);previousVan=van.id;previousVanYaw=van.yaw;camera.rotation.set(pitch,yaw,0);}else previousVan='';
+        const offset=van?1.1:0;camera.position.x += (me.x+Math.sin(van?van.yaw:0)*offset-camera.position.x)*blend;
+        camera.position.z += (me.z+Math.cos(van?van.yaw:0)*offset-camera.position.z)*blend;
+        camera.position.y = (van?1.78:EYE_HEIGHT)+(me.floor??0)*3.6;
       }
       const present = new Set<string>();
       room.state.players?.forEach((player, id) => {
@@ -328,6 +335,7 @@ export function createWorld(
           graphics.refreshCasters();
         }
       interiors.sync(room.state.doors,camera.position);officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices,room.state.players?.values(),Math.min(engine.getDeltaTime()/1000,.1));
+      if(serviceVans.update(room.state.vans,room.state.freight,camera.position,room.sessionId,Math.min(engine.getDeltaTime()/1000,.1)))graphics.refreshCasters();
       const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==="hq-server");if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
       office.sync(
         room.state.equipment?.port3Connected ?? false,
@@ -351,7 +359,7 @@ export function createWorld(
           lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
-        onView({liftTarget:me?.liftTarget??-1,liftStarted:me?.liftStarted,liftUntil:me?.liftUntil,floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
+        onView({vehicleId:me?.vehicleId,vehicleSpeed:me?.vehicleId?room.state.vans?.get(me.vehicleId)?.speed:undefined,liftTarget:me?.liftTarget??-1,liftStarted:me?.liftStarted,liftUntil:me?.liftUntil,floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
       }
       scene.render();
     });
