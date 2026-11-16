@@ -6,6 +6,7 @@ import {
   type Scene,
 } from "./babylon";
 import { sign, type Palette } from "./visuals";
+import {createFreightCrate} from './serviceVan';
 import type { PlayerView } from "@netcity/shared";
 export function createFallbackAvatar(
   scene: Scene,
@@ -14,6 +15,7 @@ export function createFallbackAvatar(
   mat: Palette,
 ) {
   const root = new TransformNode(`player-${id}`, scene);
+  const freight=createFreightCrate(scene,mat,'fallback-freight-'+id);freight.parent=root;freight.position.set(0,.65,.65);freight.setEnabled(false);
   root.position.set(player.x, (player.floor??0)*3.6, player.z);
   const part = (
     name: string,
@@ -54,6 +56,7 @@ export function createFallbackAvatar(
   return {
     root,
     update(next: PlayerView, dt: number, distance: number) {
+      freight.setEnabled(!!next.heldItem?.startsWith('freight:'));
       const dx = next.x - root.position.x,
         dz = next.z - root.position.z;
       const moving = Math.hypot(dx, dz) > 0.025;
@@ -74,8 +77,8 @@ export function createFallbackAvatar(
           Math.sin(next.yaw - root.rotation.y),
           Math.cos(next.yaw - root.rotation.y),
         ) * Math.min(1, dt * 15);
-      if (root.isEnabled() !== (distance < 45 && distance > 0.5))
-        root.setEnabled(distance < 45 && distance > 0.5);
+      if (root.isEnabled() !== (!next.vehicleId&&distance < 45 && distance > 0.5))
+        root.setEnabled(!next.vehicleId&&distance < 45 && distance > 0.5);
       tag.mesh.setEnabled(distance < 20 && distance > 0.8);
       tag.mesh.scaling.setAll(Math.min(1, distance / 5));
     },

@@ -1,4 +1,6 @@
 import {toggleDoor} from "../doorsState.js";
+import {VanController} from '../vans.js';
+import type {MoveInput} from '@netcity/shared';
 import {handleProp} from "../propsState.js";
 import { randomUUID } from "node:crypto";
 import type { Client } from "@colyseus/core";
@@ -31,6 +33,12 @@ interface Lease {
 const liveSessions=new Set<string>();
 /** Serializes world transactions without blocking authoritative movement ticks. */
 export class WorkController {
+  private vans:VanController;
+  isDriving(session:string){return this.vans.isDriving(session);}
+  vanBlocks(p:{x:number;z:number}){return this.vans.blocks(p);}
+  freightBlocks(from:{x:number;z:number},to:{x:number;z:number}){return this.vans.blocksFreight(from,to);}
+  stepVans(inputs:ReadonlyMap<string,{input:MoveInput;at:number}>,now:number){this.vans.step(inputs,now);}
+  vanCommand(client:Client,value:unknown){this.subscribers.add(client.sessionId);this.enqueue(client,'vanResult',value,async id=>{const outcome=await this.vans.command(client,id,value);if(outcome.data)this.profile(client,outcome.data);this.send(client,'vanResult',{...outcome.result,requestId:typeof(value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});});}
   private crewProjects=new Map<string,CrewProject>();
   private crewCodes=new Map<string,string>();
   private syncCrewHands(){for(const [session,id]of this.actors){const player=this.room.state.players.get(session);if(!player)continue;const carrying=[...this.crewProjects.values()].some(p=>p.tasks.some(t=>t.carrier===id&&t.carrierSession===session&&!t.done));if(carrying)player.heldItem='crew_parcel';else if(player.heldItem==='crew_parcel')player.heldItem='';}}
@@ -56,17 +64,19 @@ export class WorkController {
   constructor(
     private room: StreetRoom,
     readonly service: ProgressService,
-  ) {this.cableRoom=new CableRoomController(room);}
+  ) {this.cableRoom=new CableRoomController(room);this.vans=new VanController(room,service.store);}
   attach(client: Client, id: string) {
     this.actors.set(client.sessionId, id);
     liveSessions.add(client.sessionId);
     this.tail=this.tail.then(async()=>{const outcome=await this.service.store.transaction(id,null,tx=>{
       for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier&&!liveSessions.has(c.carrier)){c.carrying=false;c.carrier=undefined;c.droppedAt=c.carryOrigin??null;c.carryOrigin=undefined;}
       const cable=tx.data.cable;if(cable?.carrier&&!liveSessions.has(cable.carrier)){cable.carrier=undefined;cable.endpoint={...cable.points.at(-1)!};}
+      const delivery=tx.data.business?.logistics?.delivery;if(delivery?.location==='hands'&&delivery.carrier&&!liveSessions.has(delivery.carrier)){delivery.location='ground';delivery.carrier=undefined;}
       return {ok:true,message:""};
-    });this.cableRoom.sync(client,outcome.data);await new CrewService(this.service.store).recover(id,liveSessions);await this.refreshCrew(client);}).catch(()=>{});
+    });this.cableRoom.sync(client,outcome.data);this.vans.bind(client,outcome.data);await new CrewService(this.service.store).recover(id,liveSessions);await this.refreshCrew(client);}).catch(()=>{});
   }
   detach(client: Client) {
+    this.vans.stopSession(client.sessionId);
     const id=this.actors.get(client.sessionId),p=this.room.state.players.get(client.sessionId),position=p?{x:p.x,z:p.z}:undefined;
     liveSessions.delete(client.sessionId);
     this.actors.delete(client.sessionId);
@@ -77,7 +87,7 @@ export class WorkController {
     this.tail = this.tail
       .then(async () => {
         if(id)await this.service.store.transaction(id,null,tx=>{for(const c of tx.data.service?.cases??[])if(c.carrying&&c.carrier===client.sessionId){c.carrying=false;c.carrier=undefined;c.droppedAt=position??c.carryOrigin??null;c.carryOrigin=undefined;}const cable=tx.data.cable;if(cable?.carrier===client.sessionId){cable.carrier=undefined;cable.endpoint=position??{...cable.points.at(-1)!};}return {ok:true,message:""};});
-        if(id&&position)await new CrewService(this.service.store).dropOnDisconnect(id,position,client.sessionId);this.crewCodes.delete(client.sessionId);const peer=this.room.clients.find(c=>this.actors.has(c.sessionId));if(peer)await this.refreshCrew(peer);
+        if(id&&position){await this.vans.detach(client.sessionId,position);await new CrewService(this.service.store).dropOnDisconnect(id,position,client.sessionId);}this.crewCodes.delete(client.sessionId);const peer=this.room.clients.find(c=>this.actors.has(c.sessionId));if(peer)await this.refreshCrew(peer);
         for (const [kind, lease] of this.leases)
           if (lease.sessionId === client.sessionId) this.release(kind);
       })
@@ -89,6 +99,7 @@ export class WorkController {
   private profile(client: Client, data: ProfileData) {
     for(const peer of this.room.clients)if(this.actors.get(peer.sessionId)===data.id)this.cableRoom.sync(peer,data);
     this.syncCrewHands();
+    this.vans.sync(data);
     if (this.subscribers.has(client.sessionId))
       this.send(client, "profile", snapshot(data, this.service.store.mode));
   }
@@ -126,16 +137,15 @@ export class WorkController {
     requestValue: unknown,
     task: (id: string) => Promise<void>,
   ) {
+    const request=requestValue as {requestId?:unknown;pcId?:unknown}|null;
+    const failure=(message:string)=>this.send(client,channel,{ok:false,message,requestId:typeof request?.requestId==='string'?request.requestId.slice(0,36):undefined,pcId:typeof request?.pcId==='string'?request.pcId:undefined});
     const now = Date.now(),
       b = this.budgets.get(client.sessionId) ?? { at: now, tokens: 16 };
     b.tokens = Math.min(16, b.tokens + (now - b.at) / 250);
     b.at = now;
     this.budgets.set(client.sessionId, b);
     if (b.tokens < 1 || this.pending >= 64) {
-      this.send(client, channel, {
-        ok: false,
-        message: "Слишком много действий. Подождите секунду.",
-      });
+      failure("Слишком много действий. Подождите секунду.");
       return;
     }
     b.tokens--;
@@ -144,14 +154,10 @@ export class WorkController {
       .then(async () => {
         this.expire();
         const id = this.actors.get(client.sessionId);
-        if (id) {if(await this.room.authorize(client)){const p=this.room.state.players.get(client.sessionId);if(p&&p.liftTarget>=0){const v=requestValue as {requestId?:unknown;pcId?:unknown};this.send(client,channel,{ok:false,message:'Дождитесь остановки лифта и открытия дверей.',requestId:typeof v?.requestId==='string'?v.requestId.slice(0,36):undefined,pcId:typeof v?.pcId==='string'?v.pcId:undefined});return;}if(p?.floor&&['actionResult'].includes(channel)){this.send(client,channel,{ok:false,message:'Это оборудование находится на первом этаже. Спуститесь на лифте.'});return;}await task(id);}else client.leave(4001);}
+        if (id) {if(await this.room.authorize(client)){const p=this.room.state.players.get(client.sessionId);if(p&&(p.liftTarget>=0||p.vehicleId&&channel!=='vanResult')){const v=requestValue as {requestId?:unknown;pcId?:unknown};this.send(client,channel,{ok:false,message:p.vehicleId?'Остановитесь и выйдите из фургона для работы.':'Дождитесь остановки лифта и открытия дверей.',requestId:typeof v?.requestId==='string'?v.requestId.slice(0,36):undefined,pcId:typeof v?.pcId==='string'?v.pcId:undefined});return;}if(p?.floor&&['actionResult'].includes(channel)){this.send(client,channel,{ok:false,message:'Это оборудование находится на первом этаже. Спуститесь на лифте.'});return;}await task(id);}else client.leave(4001);}
       })
       .catch(() => {
-        this.send(client, channel, {
-          ok: false,
-          message:
-            "Хранилище прогресса недоступно. Действие не подтверждено; повторите позже.",
-        });
+        failure("Хранилище прогресса недоступно. Действие не подтверждено; повторите позже.");
         console.error("Не удалось выполнить транзакцию прогресса.");
       })
       .finally(() => {
@@ -189,7 +195,7 @@ export class WorkController {
   clientCase(client:Client,value:unknown) {
     this.subscribers.add(client.sessionId);
     this.enqueue(client,"caseResult", value, async id=>{
-      if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel)/))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
+      if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel|freight:)/))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId}:null;});
       if(outcome.data) {
         this.profile(client,outcome.data);
@@ -204,7 +210,7 @@ export class WorkController {
   cable(client:Client,value:unknown){
     this.subscribers.add(client.sessionId);
     this.enqueue(client,'cableResult', value, async id=>{
-      if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel)/))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
+      if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel|freight:)/))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new CableService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId,entryOpen:this.room.state.equipment.officeDoorOpen}:null;});
       if(outcome.data){this.profile(client,outcome.data);this.cableRoom.sync(client,outcome.data);this.syncCrewHands();}
       this.send(client,'cableResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});
@@ -368,5 +374,6 @@ export class WorkController {
   }
   async idle() {
     await this.tail;
+    await this.vans.idle();
   }
 }

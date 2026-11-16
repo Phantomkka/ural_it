@@ -20,6 +20,7 @@ import { CreatePlane } from "@babylonjs/core/Meshes/Builders/planeBuilder.js";
 import { CreateCylinder } from "@babylonjs/core/Meshes/Builders/cylinderBuilder.js";
 import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder.js";
 import { CreateTube } from "@babylonjs/core/Meshes/Builders/tubeBuilder.js";
+import {CreateTorus} from '@babylonjs/core/Meshes/Builders/torusBuilder.js';
 export const MeshBuilder = {
   CreateBox,
   CreateGround,
@@ -27,6 +28,7 @@ export const MeshBuilder = {
   CreateCylinder,
   CreateSphere,
   CreateTube,
+  CreateTorus,
 };
 export { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial.js";
 export { Texture } from "@babylonjs/core/Materials/Textures/texture.js";

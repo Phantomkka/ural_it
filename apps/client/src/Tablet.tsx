@@ -1,6 +1,6 @@
 import {useEffect,type ReactNode,type RefObject} from "react";
-export type TabletApp="diagnostics"|"office"|"crew"|"missions"|"home"|"calls"|"tickets"|"map"|"bag"|"company"|"settings"|"contacts"|"account"|"tools";
-const APPS:Record<TabletApp,string>={diagnostics:"Диагностика",office:"Офис / этажи",crew:"Бригада · 4.0",missions:"Работы района",home:"Обзор",calls:"Звонки",tickets:"Заявки",map:"GPS",bag:"Рюкзак и магазин",company:"Компания",settings:"Настройки",contacts:"Контакты",account:"Аккаунт",tools:"Инструменты"};
+export type TabletApp="transport"|"diagnostics"|"office"|"crew"|"missions"|"home"|"calls"|"tickets"|"map"|"bag"|"company"|"settings"|"contacts"|"account"|"tools";
+const APPS:Record<TabletApp,string>={transport:"Транспорт и доставка",diagnostics:"Диагностика",office:"Офис / этажи",crew:"Бригада · 4.0",missions:"Работы района",home:"Обзор",calls:"Звонки",tickets:"Заявки",map:"GPS",bag:"Рюкзак и магазин",company:"Компания",settings:"Настройки",contacts:"Контакты",account:"Аккаунт",tools:"Инструменты"};
 export function Tablet({page,change,close,children,dialogRef,overlay,wallet}: {page:TabletApp;change:(p:TabletApp)=>void;close:()=>void;children:ReactNode;dialogRef:RefObject<HTMLElement|null>;overlay:boolean;wallet:string}) {
   useEffect(()=>{if(!overlay)dialogRef.current?.querySelector<HTMLButtonElement>('.tablet-nav [aria-current="page"]')?.focus();},[page,overlay]);
   return <div className="tablet-backdrop"><section className="tablet-frame" role={overlay?undefined:"dialog"} aria-modal={overlay?undefined:true} aria-label="Планшет инженера" ref={overlay?undefined:dialogRef}>

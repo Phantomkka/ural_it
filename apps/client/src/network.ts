@@ -14,6 +14,8 @@ import {
 } from "@netcity/shared";
 export type NetworkPlayer = PlayerView & { jobs: Map<string, ProgressView> };
 export interface NetworkState {
+  freight:Map<string,import('@netcity/shared').GroundFreight>;
+  vans:Map<string,import('@netcity/shared').WorkVan>;
   doors:Map<string,{open:boolean}>;
   props:Map<string,import("@netcity/shared").CarryProp>;
   cars:Map<string,import("@netcity/shared").CityCar>;worldClock:number;trafficPhase:string;

@@ -86,6 +86,7 @@ export class ClientCaseService {
           tx.data.inventory.cleaner--;tx.data.credits+=10;return good("Баллон возвращён за 10 NET. Место освобождено.");
         }
         if(a.action==="take") {
+          if(c.progress?.inVan)return bad("Деталь находится в багажнике. Выгрузите её через транспорт.");
           if(tx.data.cable?.carrier)return bad('Сначала положите бухту: руки заняты.');
           if(c.stage!=="DIAGNOSED" || c.carrying)return bad("Сейчас нельзя взять деталь.");
           if(c.droppedAt) {if(!near(c.droppedAt))return bad("Подойдите к своей оставленной детали.");c.droppedAt=null;}
