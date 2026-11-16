@@ -3,6 +3,7 @@ import {CITY_FENCES} from './worldGeometry.js';
 export * from './worldGeometry.js';
 export * from './diagnosticLab.js';
 export * from './logistics.js';
+export * from './enterprise.js';
 import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaf,doorClosed} from './buildings.js';
 import {upperColliders,OFFICE_REAR_FURNITURE,officeLiftWalls,insideOffice} from './officeFloors.js';
 export * from './officeFloors.js';

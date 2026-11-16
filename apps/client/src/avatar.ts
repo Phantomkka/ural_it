@@ -52,13 +52,15 @@ export function createAvatar(
     animation: "Idle",
     walkWeight: 0,
   };
-  let blend = 0;
+  let blend = 0, visible = true;
   return {
     root,
     asset: file,
     loaded: true,
     update(next: PlayerView, dt: number, distance: number) {
       held.scaling.setAll(next.heldItem==="crew_parcel"?2:1);held.setEnabled(!!next.heldItem&&!next.heldItem.startsWith("prop:")&&!next.heldItem.startsWith('freight:')&&next.heldItem!=="cable_roll");roll.setEnabled(next.heldItem==="cable_roll");freight.setEnabled(!!next.heldItem?.startsWith('freight:'));
+      const show=!next.vehicleId&&distance<45&&distance>.5;
+      if(show!==visible){visible=show;for(const group of [idle,walk]){if(show)group?.play(true);else group?.pause();}}
       const moving =
         Math.hypot(next.x - root.position.x, next.z - root.position.z) > 0.025;
       blend += (Number(moving) - blend) * Math.min(1, dt * 8);

@@ -5,6 +5,7 @@ import {
   type Engine,
   type Scene,type StandardMaterial,
 } from "./babylon";
+import {FrameBudget} from './frameBudget';
 export type Quality = "low" | "medium" | "high";
 export function defaultQuality(): Quality {
   try {
@@ -13,7 +14,7 @@ export function defaultQuality(): Quality {
   } catch {
     /* Storage may be disabled. */
   }
-  return matchMedia("(pointer:coarse)").matches ? "low" : "medium";
+  return matchMedia("(pointer:coarse)").matches || navigator.hardwareConcurrency<=4 ? "low" : "medium";
 }
 export function configureGraphics(
   scene: Scene,
@@ -32,6 +33,7 @@ export function configureGraphics(
   let quality = initial,
     dead = false;
   let assetsReady = false;
+  const budget=new FrameBudget();
   let environment: CubeTexture | undefined;
   let environmentLoaded = false;
   let finishEnvironment: (ok: boolean) => void = () => {};
@@ -68,20 +70,21 @@ export function configureGraphics(
   });
   const apply = (next: Quality) => {
     quality = next;
-    const effective = assetsReady ? next : "low";
+    const selectedRank={low:0,medium:1,high:2}[next];
+    const effective = assetsReady ? (['low','medium','high'] as const)[Math.max(0,selectedRank-budget.level)] : "low";
     engine.setHardwareScalingLevel(
-      effective === "low" ? 1.5 : effective === "medium" ? 1 : 0.8,
+      Math.max(effective === "low" ? 1.5 : effective === "medium" ? 1 : 1, budget.level>selectedRank?Math.min(2.5,1.5+(budget.level-selectedRank)*.25):1, Math.max(engine.getRenderingCanvas()?.clientWidth??0,engine.getRenderingCanvas()?.clientHeight??0)/(effective==='low'?1280:1920)),
     );
-    sun.shadowEnabled = assetsReady && next !== "low";
-    shadow.getShadowMap()!.refreshRate = next === "high" ? 1 : 2;
-    shadow.getShadowMap()!.resize(next === "high" ? 2048 : 1024);
+    sun.shadowEnabled = assetsReady && effective !== "low";
+    shadow.getShadowMap()!.refreshRate = effective === "high" ? 1 : 2;
+    shadow.getShadowMap()!.resize(effective === "high" ? 2048 : 1024);
     shadow.filteringQuality =
-      next === "high"
+      effective === "high"
         ? ShadowGenerator.QUALITY_MEDIUM
         : ShadowGenerator.QUALITY_LOW;
-    scene.fogStart = next === "low" ? 28 : 40;
-    scene.fogEnd = next === "low" ? 65 : 100;
-    scene.metadata = { ...scene.metadata, quality: next };
+    scene.fogStart = effective === "low" ? 28 : 40;
+    scene.fogEnd = effective === "low" ? 65 : 100;
+    scene.metadata = { ...scene.metadata, quality: next, effectiveQuality:effective, adaptiveLevel:budget.level };
     try {
       localStorage.setItem("netcity-quality", next);
     } catch {
@@ -96,7 +99,8 @@ export function configureGraphics(
       apply(quality);
     },
     shadow,
-    apply,
+    apply(next:Quality){budget.reset();apply(next);},
+    sample(dt:number){if(assetsReady&&budget.sample(dt))apply(quality);},
     get environmentLoaded() {
       return environmentLoaded;
     },

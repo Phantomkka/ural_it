@@ -1,6 +1,6 @@
-import {CASE_CATALOG} from './caseCatalog.js';
-export interface BusinessProgress {logistics?:import('./logistics.js').LogisticsProgress;upgrades:string[];claimed:string[];workCounts:Record<string,number>;cableCertified?:boolean}
-export function businessStats(b:BusinessProgress|undefined){const counts=b?.workCounts??{};return {total:Object.values(counts).reduce((n,v)=>n+v,0),distinct:new Set(Object.entries(counts).filter(([,n])=>n>0).map(([id])=>CASE_CATALOG.find(t=>t.id===id)?.kind??({'crew-security':'camera','crew-network':'network','crew-renewal':'server'} as Record<string,string>)[id]??id)).size};}
+import {CASE_CATALOG,ENGINEERING_CASES} from './caseCatalog.js';
+export interface BusinessProgress {companyStock?:Partial<Record<import('./progression.js').ItemId,number>>;companyCode?:string;logistics?:import('./logistics.js').LogisticsProgress;upgrades:string[];claimed:string[];workCounts:Record<string,number>;cableCertified?:boolean}
+export function businessStats(b:BusinessProgress|undefined){const counts=b?.workCounts??{};return {total:Object.values(counts).reduce((n,v)=>n+v,0),distinct:new Set(Object.entries(counts).filter(([,n])=>n>0).map(([id])=>[...CASE_CATALOG,...ENGINEERING_CASES].find(t=>t.id===id)?.kind??({'crew-security':'camera','crew-network':'network','crew-renewal':'server'} as Record<string,string>)[id]).filter((kind):kind is string=>!!kind)).size};}
 export const BUSINESS_UPGRADES=[
  {id:'field-kit',name:'Полевой мультиметр',price:150,reputation:1,description:'Диагностика питания ПК и механики принтера.'},
  {id:'workbench',name:'Мастерская и стенд резервирования',price:450,reputation:3,description:'Серверные заказы и восстановление данных; +10% к оплате работ.'},

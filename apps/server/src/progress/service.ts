@@ -192,7 +192,7 @@ export class ProgressService {
         return bad(
           `Не хватает расходника: ${ITEMS[item].name}. Купите его в снабжении.`,
         );
-      if (item) d.inventory[item]--;
+      if (item) consumeInventory(d,item);
       job.status = "COMPLETED";
       job.stage = 2;
       job.completedAt = this.now();
@@ -207,3 +207,4 @@ export class ProgressService {
     });
   }
 }
+import {consumeInventory} from './inventory.js';

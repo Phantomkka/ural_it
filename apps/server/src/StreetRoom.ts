@@ -157,6 +157,7 @@ export class StreetRoom extends Room<{ state: StreetState }> {
     this.onMessage('business',(client,value:unknown)=>this.work.business(client,value));
     this.onMessage('crew',(client,value:unknown)=>this.work.crewCommand(client,value));
     this.onMessage('van',(client,value:unknown)=>this.work.vanCommand(client,value));
+    this.onMessage('enterprise',(client,value:unknown)=>this.work.companyCommand(client,value));
     this.onMessage("interaction",(client,value:unknown)=>this.work.interaction(client,value));
     this.onMessage("computer", (client, value: unknown) => {
       const now = performance.now();

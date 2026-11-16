@@ -4,6 +4,7 @@ import type {ProfileData,ProgressStore} from "./store.js";
 import {CASE_CATALOG,ENGINEERING_CASES,caseTemplate} from '@netcity/shared';
 import {performCase} from './caseEngine.js';
 import {initBusiness} from './business.js';
+import {consumeInventory,refundableInventory,stowCasePart} from './inventory.js';
 const bad=(message:string):ProgressResult=>({ok:false,message});
 const good=(message:string):ProgressResult=>({ok:true,message});
 export function refreshCases(data:ProfileData,now:number) {
@@ -23,7 +24,7 @@ export class ClientCaseService {
     if(!a || typeof a!=="object" || typeof a.requestId!=="string" || !/^[a-f0-9-]{36}$/.test(a.requestId) || typeof a.caseId!=="string" || !/^[a-f0-9-]{36}$/.test(a.caseId) ||
       (a.choice!==undefined && (typeof a.choice!=="string" || a.choice.length>64)) || (a.port!==undefined && (!Number.isInteger(a.port)||Number(a.port)<1||Number(a.port)>8)) ||
       Object.keys(a).some(k=>!["requestId","caseId","action","choice","port"].includes(k)) ||
-      !["measure","configure","select","accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
+      !["stow","measure","configure","select","accept","decline","talk","diagnose","buyPart","returnCleaner","returnPart","take","drop","install","verify","signoff","repairStep"].includes(String(a.action)))
       return Promise.resolve({result:bad("Некорректное действие заявки."),data:null});
     const fingerprint=createHash("sha256").update(JSON.stringify(["case",a.action,a.caseId,a.choice,a.port])).digest("hex");
     return this.store.transaction(id,a.requestId,tx=>{
@@ -42,6 +43,7 @@ export class ClientCaseService {
       }
       let result:ProgressResult;
       const perform=():ProgressResult=>{
+        if(c&&a.action==='stow')return stowCasePart(tx.data,c,position);
         if(c&&(c.templateId!=='moved-desks'||a.action==='returnPart')){
           const result=performCase(tx,c,a,position,this.now());
           if(result.ok&&c.lab&&['install','repairStep'].includes(String(a.action))){if(a.action==='install')(c.progress??={}).labInstalled=true;c.lab.revision++;c.lab.busyUntil=this.now()+350;}
@@ -82,7 +84,7 @@ export class ClientCaseService {
         }
         if(a.action==="returnCleaner") {
           if(!near(T.shop))return bad("Вернуть расходник можно у Марата.");
-          if(tx.data.inventory.cleaner<1)return bad("В рюкзаке нет лишнего баллона.");
+          if(refundableInventory(tx.data,'cleaner')<1)return bad("Нет личного баллона. Корпоративный расходник возвращается фирме.");
           tx.data.inventory.cleaner--;tx.data.credits+=10;return good("Баллон возвращён за 10 NET. Место освобождено.");
         }
         if(a.action==="take") {
@@ -90,7 +92,7 @@ export class ClientCaseService {
           if(tx.data.cable?.carrier)return bad('Сначала положите бухту: руки заняты.');
           if(c.stage!=="DIAGNOSED" || c.carrying)return bad("Сейчас нельзя взять деталь.");
           if(c.droppedAt) {if(!near(c.droppedAt))return bad("Подойдите к своей оставленной детали.");c.droppedAt=null;}
-          else {if(tx.data.inventory.patch_cord<1)return bad("В рюкзаке нет патч-корда.");tx.data.inventory.patch_cord--;}
+          else {if(tx.data.inventory.patch_cord<1)return bad("В рюкзаке нет патч-корда.");const source=consumeInventory(tx.data,'patch_cord');if(source)(c.progress??={}).companyIssued=source;}
           c.carrying=true;c.carrier=position.sessionId;c.carryOrigin={x:position.x,z:position.z};return good("Патч-корд в руках. Положить — через рюкзак или назначенной клавишей; установка — у CLIENT-PC04.");
         }
         if(a.action==="drop") {if(!c.carrying||c.carrier!==position.sessionId)return bad("В этом сеансе в руках нет детали.");c.carrying=false;c.carrier=undefined;c.carryOrigin=undefined;c.droppedAt={x:position.x,z:position.z};return good("Деталь оставлена у ног. Забрать её может только владелец заявки.");}
