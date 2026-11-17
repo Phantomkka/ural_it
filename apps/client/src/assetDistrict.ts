@@ -169,7 +169,7 @@ export function buildAssetDistrict(
       0.3,
       0.25,
       0,
-      0.82,
+      0.8,
     );
     place(
       "chair_B.glb",

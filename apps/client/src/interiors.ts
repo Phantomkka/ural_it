@@ -29,12 +29,14 @@ export function buildInteriors(scene:Scene,mat:Palette){
    box(`station-support-${b.id}-${slot}`,p.x,.4,p.z,.8,.8,.7,'#536775','station-support');
    const job=CASE_CATALOG.find(t=>t.buildingId===b.id&&t.station===slot)!,printer=job.kind==='printer',tower=['power','server','ups','storage'].includes(job.kind),height=printer?.32:tower?.65:.44,front=slot<2?1:-1,monitor=['network','dns','dhcp','voip'].includes(job.kind);
    const machine=box(`station-device-${b.id}-${slot}`,p.x,monitor?1.25:.8+height/2,p.z,printer?.7:.55,monitor?.34:height,monitor?.08:.48,'#bccbd0','station-device',true);machine.metadata={caseTarget:'hardware',deviceLabel:b.name+' · узел '+(slot+1),buildingId:b.id,station:slot};
+   const decorationStart=fixed.length;
    if(printer){box('district-printer-lid',p.x,1.14,p.z,.71,.035,.5,'#213a4a','printer-fallback');box('district-printer-paper',p.x,.89,p.z+front*.32,.3,.015,.23,'#e0e4df','printer-paper-fallback');}
    if(tower)for(const offset of [-.12,0,.12])box('district-server-vent',p.x+offset,1.05,p.z+front*.25,.04,.24,.02,'#213a4a','station-buttons');
    box('station-display',p.x,monitor?1.25:1.06,p.z+front*(monitor?.051:.248),monitor?.48:.3,monitor?.26:.16,.02,'#4bada0',monitor?'monitor-fallback-screen':'station-screen');
    if(monitor){box('station-monitor-stand',p.x,.94,p.z,.08,.28,.08,'#213a4a','monitor-fallback');box('station-keyboard',p.x,.825,p.z+front*.23,.4,.035,.2,'#213a4a','monitor-fallback');}
    box('station-panel',p.x,.4,p.z+front*.357,.66,.65,.02,'#71838a','station-panel');box('station-handle',p.x+.2,.55,p.z+front*.38,.035,.15,.025,'#213a4a','station-buttons');
    if(!printer&&!monitor)box('station-controls',p.x,.8+height+.012,p.z,.18,.015,.15,'#213a4a','station-buttons');
+   if(!['wifi','camera'].includes(job.kind)){const details=new TransformNode('station-legacy-details-'+b.id+'-'+slot,scene);for(const mesh of fixed.splice(decorationStart))mesh.parent=details;}
    const tag=sign(scene,`station-tag-${b.id}-${slot}`,`${slot+1} · ${CASE_KIND_NAMES[job.kind]}`,1.5,.18,21);tag.mesh.position.set(p.x,1.72,p.z);tag.mesh.billboardMode=7;tag.mesh.isPickable=false;
   }
   box('room-counter',b.x-Math.sign(b.x)*3,.4,b.z+3.5,1.2,.8,1,'#927b64','room-wood');

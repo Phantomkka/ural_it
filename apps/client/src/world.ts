@@ -37,7 +37,7 @@ import { buildDistrict, CONTACTS } from "./district";
 import { playFootstep,playCityAmbience } from "./sound";
 import {buildCaseObjects} from "./caseObjects";
 import type {ClientCase} from "@netcity/shared";
-export interface WorldView { vehicleId?:string;vehicleSpeed?:number;liftTarget?:number;liftStarted?:number;liftUntil?:number;floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number; }
+export interface WorldView { vehicleId?:string;vehicleSpeed?:number;liftTarget?:number;liftStarted?:number;liftUntil?:number;floor?:number;buildingId?:string; x: number; z: number; yaw: number; moved: boolean; looked: boolean; locked: boolean; fps: number; activeMeshes: number;renderer?:string;softwareRendering?:boolean;frameLimit?:number; }
 import { INTERACTION_RANGE, EYE_HEIGHT, TICK_RATE } from "@netcity/shared";
 import type { Room } from "@colyseus/sdk";
 import { sendComputer, sendEquipment, type NetworkState } from "./network";
@@ -54,7 +54,7 @@ export function createWorld(
 ) {
   const mobile = matchMedia("(pointer: coarse)").matches;
   const engine = new Engine(canvas, !mobile && initialQuality !== "low", {
-    stencil: false,
+    stencil: false,powerPreference:"high-performance",preserveDrawingBuffer:false,
   });
   try {
     engine.setHardwareScalingLevel(mobile ? 1.25 : 1);
@@ -276,6 +276,7 @@ export function createWorld(
     engine.runRenderLoop(() => {
       // A hidden tab keeps the network session, but does not run the 3D simulation/render work.
       if(document.hidden){stop();return;}
+      graphics.setModal(touch.modal);
       if(!touch.modal)graphics.sample(engine.getDeltaTime()/1000);
       if (touch.modal || document.hidden || !active) stop();
       else {
@@ -365,7 +366,7 @@ export function createWorld(
           lastTarget = next?.id ?? "";
         }
         lastPick = performance.now();
-        onView({vehicleId:me?.vehicleId,vehicleSpeed:me?.vehicleId?room.state.vans?.get(me.vehicleId)?.speed:undefined,liftTarget:me?.liftTarget??-1,liftStarted:me?.liftStarted,liftUntil:me?.liftUntil,floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),activeMeshes:scene.getActiveMeshes().length});
+        onView({vehicleId:me?.vehicleId,vehicleSpeed:me?.vehicleId?room.state.vans?.get(me.vehicleId)?.speed:undefined,liftTarget:me?.liftTarget??-1,liftStarted:me?.liftStarted,liftUntil:me?.liftUntil,floor:me?.floor??0,buildingId:me?.buildingId||buildingAt(me??camera.position)?.id,x:me?.x??0,z:me?.z??-10,yaw,moved,looked,locked:document.pointerLockElement===canvas,fps:engine.getFps(),renderer:scene.metadata.renderer,softwareRendering:scene.metadata.softwareRendering,frameLimit:engine.maxFPS,activeMeshes:scene.getActiveMeshes().length});
       }
       scene.render();
     });

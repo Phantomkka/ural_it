@@ -22,6 +22,9 @@ export function configureGraphics(
   sun: DirectionalLight,
   initial: Quality,
 ) {
+  const renderer=engine.getGlInfo().renderer,softwareRendering=/swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(renderer);
+  scene.metadata={...scene.metadata,renderer,softwareRendering};
+  let modal=false,frameLimit=60;
   const shadow = new ShadowGenerator(1024, sun);
   shadow.usePercentageCloserFiltering = true;
   shadow.filteringQuality = ShadowGenerator.QUALITY_LOW;
@@ -69,9 +72,10 @@ export function configureGraphics(
     }, 15000);
   });
   const apply = (next: Quality) => {
-    quality = next;
+    quality = next;frameLimit=softwareRendering||next==='low'?30:60;engine.maxFPS=modal?15:frameLimit;
+    scene.metadata={...scene.metadata,frameLimit};
     const selectedRank={low:0,medium:1,high:2}[next];
-    const effective = assetsReady ? (['low','medium','high'] as const)[Math.max(0,selectedRank-budget.level)] : "low";
+    const effective = assetsReady&&!softwareRendering ? (['low','medium','high'] as const)[Math.max(0,selectedRank-budget.level)] : "low";
     engine.setHardwareScalingLevel(
       Math.max(effective === "low" ? 1.5 : effective === "medium" ? 1 : 1, budget.level>selectedRank?Math.min(2.5,1.5+(budget.level-selectedRank)*.25):1, Math.max(engine.getRenderingCanvas()?.clientWidth??0,engine.getRenderingCanvas()?.clientHeight??0)/(effective==='low'?1280:1920)),
     );
@@ -100,7 +104,8 @@ export function configureGraphics(
     },
     shadow,
     apply(next:Quality){budget.reset();apply(next);},
-    sample(dt:number){if(assetsReady&&budget.sample(dt))apply(quality);},
+    setModal(value:boolean){if(modal!==value){modal=value;engine.maxFPS=modal?15:frameLimit;}},
+    sample(dt:number){if(assetsReady&&budget.sample(dt,frameLimit))apply(quality);},
     get environmentLoaded() {
       return environmentLoaded;
     },
