@@ -1,3 +1,4 @@
+import {SIP_STATION,SIP_CLIENT} from './furniture.js';
 import {FIELD_SITES} from './fieldSites.js';
 import {betaCases} from './betaCatalog.js';
 import {engineeringCases} from './diagnosticLab.js';
@@ -7,7 +8,7 @@ import type {ClientCase} from './clientCases.js';
 import type {ItemId} from './progression.js';
 export type CaseKind='network'|'wifi'|'power'|'printer'|'server'|'backup'|'camera'|'voip'|'dhcp'|'dns'|'ups'|'storage';
 export interface CaseTemplate {
- lab?:boolean;
+ floor?:number;lab?:boolean;
  buildingId?:string;station?:number;tuning?:{wifiChannel?:number;backupFile?:string;voiceVlan?:number;sipHost?:string;poolStart?:number;poolEnd?:number;dnsHost?:string;targetIP?:string};
  id:string;title:string;caller:string;address:string;client:{x:number;z:number};hardware:{x:number;z:number};shop:{x:number;z:number};advance:number;payment:number;xp:number;port:number;questions:Record<string,string>;symptom:string;diagnosis:string;part:ItemId|null;kind:CaseKind;indoor:boolean;upgrade?:string;
 }
@@ -20,9 +21,10 @@ export const CASE_CATALOG:CaseTemplate[]=[
  {id:'server-heat',kind:'server',title:'Сервер перегревается под нагрузкой',caller:'Игорь · серверы',address:office+' · серверная RACK-01',client:{x:15.7,z:4.65},hardware:{x:18,z:0},shop,advance:20,payment:190,xp:120,port:1,part:'cleaner',indoor:true,upgrade:'workbench',symptom:'Вентиляторы шумят, задачи прерываются.',diagnosis:'cooling',questions:{changed:'Профилактики не было несколько месяцев.',lights:'Датчик CPU показывает 91 °C.',scope:'Диск и сеть исправны, аварии только под нагрузкой.'}},
  {id:'backup-restore',kind:'backup',title:'Повреждён файл договоров',caller:'Игорь · серверы',address:office+' · BACKUP-NAS',client:{x:15.7,z:4.65},hardware:{x:18,z:3.3},shop,advance:0,payment:210,xp:130,port:1,part:null,indoor:true,upgrade:'workbench',symptom:'contracts.db перестал открываться после обновления.',diagnosis:'integrity',questions:{changed:'После неудачного обновления пропали последние записи.',lights:'Хранилище исправно; ошибка контрольной суммы файла.',scope:'Резервный снимок вчерашнего дня доступен. Остальные файлы открываются.'}},
  {id:'camera-uplink',kind:'camera',title:'Камера склада потеряла связь',caller:'Марат · склад и снабжение',address:'Склад · двор у северного фонаря',client:shop,hardware:{x:-6,z:20},shop,advance:30,payment:240,xp:150,port:2,part:'patch_cord',indoor:false,upgrade:'service-van',symptom:'Изображение со склада отсутствует после ремонта двора.',diagnosis:'uplink',questions:{changed:'Строители повредили кабельную трассу вдоль тротуара.',lights:'Питание камеры есть, линк отсутствует.',scope:'Нужна новая линия от снабжения к камере; разъём №2.'}},
- {id:'voip-vlan',kind:'voip',title:'IP-телефон не регистрируется',caller:'Алина · диспетчер',address:'Диспетчерская · терминал у входа',client:DISPATCHER_POINT,hardware:{x:6,z:-4},shop,advance:0,payment:220,xp:140,port:1,part:null,indoor:false,upgrade:'service-van',symptom:'Телефон включён, но звонки не проходят.',diagnosis:'voice',questions:{changed:'Телефон переставили на порт с обычной сетью данных.',lights:'Экран показывает ошибку регистрации SIP.',scope:'Голосовая VLAN 20, сервер pbx.netcity.local; соседние телефоны работают.'}},
+ {id:'voip-vlan',kind:'voip',title:'IP-телефон не регистрируется',caller:'Алина · диспетчер',address:'IT-офис · первый этаж · телефон в рабочем крыле',client:SIP_CLIENT,hardware:SIP_STATION,shop,advance:0,payment:220,xp:140,port:1,part:null,indoor:true,buildingId:'hq',upgrade:'service-van',symptom:'Телефон включён, но звонки не проходят.',diagnosis:'voice',questions:{changed:'Телефон переставили на порт с обычной сетью данных.',lights:'Экран показывает ошибку регистрации SIP.',scope:'Голосовая VLAN 20, сервер pbx.netcity.local; соседние телефоны работают.'}},
 ];
 CASE_CATALOG.push(...betaCases(CASE_CATALOG));
 export const ENGINEERING_CASES=engineeringCases(CASE_CATALOG);
 ENGINEERING_CASES.push(...FIELD_SITES.map(p=>({...ENGINEERING_CASES.find(t=>t.kind===p.kind)!,id:p.id,title:"Выездной аудит: "+p.name,caller:p.caller,address:p.name,client:p.client,hardware:{x:p.x,z:p.z},buildingId:undefined,station:undefined,indoor:false,payment:390,xp:160})));
+ENGINEERING_CASES.push(...([{id:'upper-wifi',kind:'wifi',floor:1},{id:'upper-dns',kind:'dns',floor:2}] as const).map(p=>({...ENGINEERING_CASES.find(t=>t.kind===p.kind)!,id:p.id,title:(p.floor+1)+' этаж: '+(p.kind==='wifi'?'помехи беспроводной сети':'устаревшая запись приложения'),address:'Снабжение и мастерская · этаж '+(p.floor+1)+' · рабочий кабинет',floor:p.floor,buildingId:'building-2',indoor:true,client:{x:-13,z:-1.5},hardware:{x:-15,z:-3},caller:'Сотрудник рабочего кабинета'})));
 export function caseTemplate(c:Pick<ClientCase,'templateId'>|undefined|null){return [...CASE_CATALOG,...ENGINEERING_CASES].find(t=>t.id===c?.templateId)??CASE_CATALOG[0];}

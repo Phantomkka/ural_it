@@ -5,9 +5,12 @@ import {initBusiness} from './business.js';
 import {initLab,performLab,labPart,labFault} from './diagnosticLab.js';
 import {consumeInventory,refundableInventory} from './inventory.js';
 const bad=(message:string):ProgressResult=>({ok:false,message}),ok=(message:string):ProgressResult=>({ok:true,message});
-export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>,p:{x:number;z:number;sessionId:string}|null,now:number):ProgressResult{
+export function performCase(tx:Transaction,c:ClientCase,a:Record<string,unknown>,p:{x:number;z:number;sessionId:string;floor?:number;buildingId?:string}|null,now:number):ProgressResult{
  if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.z))return bad('Сеанс закрыт.');
  const t=caseTemplate(c),d=tx.data,b=initBusiness(d),q=c.progress??={};
+ const physical=!['accept','decline','buyPart','returnCleaner','returnPart'].includes(String(a.action));if(physical&&(p.floor??0)!==(t.floor??0))return bad('Оборудование и клиент находятся на этаже '+((t.floor??0)+1)+'.');
+ if(['buyPart','returnCleaner','returnPart'].includes(String(a.action))&&(p.floor??0)!==0)return bad('Магазин находится на первом этаже.');
+ if(physical&&(t.floor??0)>0&&p.buildingId!==t.buildingId)return bad('Подойдите в нужное здание.');
  const near=(point:{x:number;z:number},inside=false)=> (!inside||(t.buildingId?insideBuilding(p,t.buildingId):inOfficeRoom(p,point.x)))&&Math.hypot(p.x-point.x,p.z-point.z)<=2.5;
  const hardware=()=>near(t.hardware,t.indoor),cameraReady=()=>d.cable?.kind==='camera'&&d.cable.caseId===c.id&&d.cable.stage==='TESTED';
  if(t.lab){

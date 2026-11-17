@@ -8,16 +8,17 @@ import type {ProgressStore} from './progress/store.js';
 export async function diagnosticsContract(store:ProgressStore){
  assert.equal(new Set(ENGINEERING_CASES.map(t=>t.kind)).size,12);const variants=new Set<string>();
  for(const t of ENGINEERING_CASES)for(let variant=0;variant<(['network','server','printer'].includes(t.kind)?2:1);variant++){
-  const guest=await store.register(),work={...t.hardware,x:t.hardware.x-Math.sign(t.hardware.x)};let now=Date.now(),p={...t.client},online=true;
+  const guest=await store.register(),work={...t.hardware,x:t.hardware.x-Math.sign(t.hardware.x)};let now=Date.now(),p={...t.client},online=true,floor=t.floor??0;
   await store.transaction(guest.profileId,null,tx=>{refreshCases(tx.data,now);tx.data.business!.upgrades=BUSINESS_UPGRADES.map(u=>u.id);tx.data.credits=2000;return {ok:true,message:''};});
   const svc=new ClientCaseService(store,()=>now),original=(await store.read(guest.profileId)).service!.cases.at(-1)!;
-  const actor=()=>online?{...p,sessionId:'lab-tests'}:null;
+  const actor=()=>online?{...p,floor,buildingId:t.buildingId,sessionId:'lab-tests'}:null;
   assert.equal((await svc.command(guest.profileId,{action:'select',caseId:original.id,choice:t.id,requestId:randomUUID()},actor)).result.ok,true);
   await store.transaction(guest.profileId,null,tx=>{const c=tx.data.service!.cases.at(-1)!;if(['network','server','printer'].includes(t.kind))while(labFault(c,t)!==({network:['cable','vlan'],server:['heat','ram'],printer:['jam','queue']} as Record<string,string[]>)[t.kind][variant])c.id=randomUUID();return {ok:true,message:''};});
   const current=async()=>(await store.read(guest.profileId)).service!.cases.at(-1)!;let c=await current();const id=c.id,fault=labFault(c,t),site=labSite(c,t);variants.add(fault);
   const act=async(action:CaseIntent['action'],choice?:string,port?:number)=>{now+=2000;return svc.command(guest.profileId,{action,caseId:id,requestId:randomUUID(),...(choice!==undefined?{choice}:{}),...(port!==undefined?{port}:{})},actor);};
   const yes=async(action:CaseIntent['action'],choice?:string,port?:number)=>{const r=await act(action,choice,port);assert.equal(r.result.ok,true,`${t.kind}/${fault}/${action}/${choice}: ${r.result.message}`);return r;};
   const accept={action:'accept',caseId:id,requestId:randomUUID()};assert.equal((await svc.command(guest.profileId,accept,actor)).result.ok,true);assert.equal((await svc.command(guest.profileId,accept,actor)).result.replayed,true);
+  if(t.floor){floor=0;assert.equal((await act('talk','changed')).result.ok,false,'same coordinates on another floor denied');floor=t.floor;}
   await yes('talk','changed');await yes('talk','scope');p={...work};
   assert.equal((await act('diagnose',fault)).result.ok,false,'hypothesis needs observed measurements');
   p={x:0,z:44};assert.equal((await act('measure',LAB_REQUIRED[t.kind][0])).result.ok,false,'remote instruments denied');p={...work};

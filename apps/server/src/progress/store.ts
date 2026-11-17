@@ -37,7 +37,7 @@ export interface Reward {
   credits: number;
   xp: number;
 }
-export interface Transaction {
+export interface Transaction {wirePorts?:number[];
   companyReceiptUsed?:boolean;
   consumeCompanyReceipt?:string;
   company?:import('@netcity/shared').EnterpriseCompany;
@@ -63,6 +63,7 @@ export interface ProgressStore {
     projectCode?:string,
     companyCode?:string,
     receiptId?:string,
+    wirePorts?:boolean,
   ): Promise<{ result: ProgressResult; data: ProfileData }>;
   health(): Promise<void>;
   close(): Promise<void>;
@@ -107,6 +108,7 @@ export function snapshot(
   return { ...privateData, ...levelFor(data.xp), persistence: mode, company:companyFromProgress(data) };
 }
 export function assertProfile(data: ProfileData) {
+  const c=data.cable;if(c?.routing==='free'&&(!c.source||!Number.isFinite(c.source.x)||!Number.isFinite(c.source.z)||Math.abs(c.source.x)>45||Math.abs(c.source.z)>45||c.stage!=='PULLING'&&(c.switchId!=='hq-ground'||!Number.isInteger(c.port)||c.port!<5||c.port!>8)||c.points.some(p=>p.y!==undefined&&(!Number.isFinite(p.y)||p.y<0||p.y>4))))throw Error('Invalid physical cable');
   if (
     (data.business?.companyStock!==undefined&&(!data.business.companyCode||Object.entries(data.business.companyStock).some(([item,n])=>!Object.hasOwn(ITEMS,item)||!Number.isSafeInteger(n)||n!<0||n!>data.inventory[item as ItemId]))) ||
     (data.business?.companyCode!==undefined&&!/^[A-F0-9]{12}$/.test(data.business.companyCode)) ||
@@ -174,6 +176,7 @@ export class MemoryProgressStore implements ProgressStore {
     projectCode?:string,
     companyCode?:string,
     receiptId?:string,
+    wirePorts?:boolean,
   ) {
     const task = this.tail.then(() => {
       const original = this.profiles.get(id);
@@ -181,6 +184,7 @@ export class MemoryProgressStore implements ProgressStore {
       const data = structuredClone(original),
         opKey = `${id}:${key}`,
         tx: Transaction = {
+          wirePorts:wirePorts?[...this.profiles.values()].filter(p=>p.id!==id&&p.cable?.routing==='free'&&p.cable.stage!=='PULLING').map(p=>p.cable!.port!):undefined,
           companyReceiptUsed:receiptId?this.companyReceipts.has(receiptId):false,
           company:companyCode?structuredClone(this.companies.get(companyCode)):undefined,
           occupiedOffices:companyCode?[...this.companies.entries()].filter(([code])=>code!==companyCode).flatMap(([,c])=>c.officeId&&c.officeId!=='coworking'?[c.officeId]:[]):undefined,
@@ -189,7 +193,7 @@ export class MemoryProgressStore implements ProgressStore {
           operation: key ? this.operations.get(opKey) : undefined,
         };
       const result = work(tx);
-      assertProfile(data);
+      assertProfile(data);if(data.cable?.routing==='free'&&data.cable.stage!=='PULLING'&&[...this.profiles.values()].some(p=>p.id!==id&&p.cable?.routing==='free'&&p.cable.stage!=='PULLING'&&p.cable.port===data.cable!.port))throw Error('Switch port already occupied');
       if(tx.consumeCompanyReceipt&&(!companyCode||this.companyReceipts.has(tx.consumeCompanyReceipt)))throw Error('Company receipt already consumed');
       if(tx.company&&(!companyCode||tx.company.code!==companyCode||!validCompany(tx.company)||[...this.companies.values()].some(c=>c.code!==companyCode&&c.owner===tx.company!.owner)||(tx.company.officeId!=='coworking'&&tx.occupiedOffices?.includes(tx.company.officeId!))))throw Error('Company invariant violation');
       if (tx.reward && this.rewards.has(tx.reward.jobId))

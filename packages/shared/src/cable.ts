@@ -1,9 +1,11 @@
+import {SIP_STATION} from './furniture.js';
+export const WIRE_EQUIPMENT=[{id:'client-pc04',name:'CLIENT-PC04',x:11.5,z:-5.25,height:1.08},{id:'sip-01',name:'SIP-01',...SIP_STATION,height:.9}];
 import { WORLD_COLLIDERS, OFFICE_DOORS, ENTRY_DOOR_CLOSED } from './index.js';
-export interface CablePoint {
+export interface CablePoint {y?:number;
     x: number;
     z: number;
 }
-export interface CableTask {
+export interface CableTask {routing?:'free';source?:CablePoint;sourceHeight?:number;sourceId?:string;port?:number;switchId?:string;
     kind?:'camera';caseId?:string;
     id: string;
     stage: 'PULLING' | 'TERMINATED' | 'TESTED';
@@ -12,12 +14,13 @@ export interface CableTask {
     carrier?: string;
 }
 export type CableAction = {
-    action: 'take' | 'anchor' | 'drop' | 'terminate' | 'test' | 'reset' | 'mission';
+    action: 'take' | 'anchor' | 'drop' | 'terminate' | 'test' | 'reset' | 'mission' | 'refresh';
+    sourceId?:string;port?:number;
     requestId: string;
 };
 export const CABLE_SOURCE = { x: 11, z: 4.8 }, CABLE_TARGET = { x: 18, z: 0 };
 export const CABLE_BUDGET = 18, CABLE_MAX_ANCHORS = 12;
-export function cableSpec(c?:Pick<CableTask,'kind'>){return c?.kind==='camera'?{source:{x:-6,z:2},target:{x:-6,z:20},budget:26,indoor:false}:{source:CABLE_SOURCE,target:CABLE_TARGET,budget:CABLE_BUDGET,indoor:true};}
+export function cableSpec(c?:Pick<CableTask,'kind'|'routing'|'source'>){return c?.routing==='free'?{source:c.source??CABLE_SOURCE,target:CABLE_TARGET,budget:2000,indoor:true}:c?.kind==='camera'?{source:{x:-6,z:2},target:{x:-6,z:20},budget:26,indoor:false}:{source:CABLE_SOURCE,target:CABLE_TARGET,budget:CABLE_BUDGET,indoor:true};}
 /** Deduplicate one physical line when the same profile is open on two devices. */
 export function visibleCablePaths(players: Iterable<{
     x: number;
@@ -33,13 +36,13 @@ export function visibleCablePaths(players: Iterable<{
     for (const p of players)
         if (p.cablePath) {
             const c = JSON.parse(p.cablePath) as {
-                id: string;
+                routing?:'free';id: string;
                 revision: number;
                 points: CablePoint[];
             }, held = p.heldItem === 'cable_roll', old = selected.get(c.id);
             if (old && (old.held && !held || old.held === held && old.revision > c.revision))
                 continue;
-            selected.set(c.id, { revision: c.revision, held, points: held ? [...c.points, { x: p.x, z: p.z }] : c.points });
+            selected.set(c.id, { revision: c.revision, held, points: held ? [...c.points, { x: p.x, z: p.z,y:c.routing==='free'?1:.12 }] : c.points });
         }
     return new Map([...selected].map(([id, c]) => [id, c.points]));
 }

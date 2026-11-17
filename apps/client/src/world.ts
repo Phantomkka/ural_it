@@ -395,7 +395,7 @@ export function createWorld(
       engine.dispose();
     };
     room.onLeave(dispose);
-    return { interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync,setCable:cableObjects.setTask,setCrewObjects:crewObjects.sync,setCrewTarget:crewObjects.target };
+    return { setCablePorts:office.setCablePorts, interact, dispose, setQuality: graphics.apply, setClientCase:caseObjects.sync,setCable:cableObjects.setTask,setCrewObjects:crewObjects.sync,setCrewTarget:crewObjects.target };
   } catch (error) {
     engine.dispose();
     throw error;

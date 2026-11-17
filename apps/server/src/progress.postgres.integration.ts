@@ -14,7 +14,7 @@ import { ROOM_NAME } from "@netcity/shared";
 import { PostgresProgressStore } from "./progress/postgres.js";
 import { progressContract } from "./progress.contract.js";
 import { clientCaseContract } from "./clientCases.contract.js";
-import {cableContract} from './cable.contract.js';
+import {cableContract,physicalCableContract} from './cable.contract.js';
 import {releaseGameplayContract} from './releaseGameplay.contract.js';
 import { ProgressService } from "./progress/service.js";
 import { hashToken, newProfile } from "./progress/store.js";
@@ -70,6 +70,7 @@ test("PostgreSQL real transactions, concurrent requests and server restart persi
     await progressContract(t, store);
     await t.test("client case transactional lifecycle and replay protection",()=>clientCaseContract(store));
     await t.test('cable route and checkpoint persistence',()=>cableContract(store));
+    await t.test('physical cable shared port allocation',()=>physicalCableContract(store));
     await t.test('eight-archetype release engine and business transactions',()=>releaseGameplayContract(store));
     await t.test('beta 36-site missions, variants, secure selection and new consumable transactions',()=>betaContract(store));
     await t.test('27 crew projects with five participants and atomic shared stock/rewards',()=>crewContract(store));

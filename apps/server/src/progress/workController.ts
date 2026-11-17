@@ -206,7 +206,7 @@ export class WorkController {
     this.subscribers.add(client.sessionId);
     this.enqueue(client,"caseResult", value, async id=>{
       if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel|freight:)/))return this.send(client,"caseResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
-      const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId}:null;});
+      const outcome=await new ClientCaseService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p?{x:p.x,z:p.z,sessionId:client.sessionId,floor:p.floor,buildingId:p.buildingId}:null;});
       if(outcome.data) {
         this.profile(client,outcome.data);
         const player=this.room.state.players.get(client.sessionId);
@@ -223,6 +223,8 @@ export class WorkController {
       if(this.room.state.players.get(client.sessionId)?.heldItem.match(/^(prop:|crew_parcel|freight:)/))return this.send(client,"cableResult",{ok:false,message:"Сначала поставьте предмет: G / Положить.",requestId:(value as any)?.requestId});
       const outcome=await new CableService(this.service.store).command(id,value,()=>{const p=this.room.state.players.get(client.sessionId);return p&&!p.floor?{x:p.x,z:p.z,sessionId:client.sessionId,entryOpen:this.room.state.equipment.officeDoorOpen}:null;});
       if(outcome.data){this.profile(client,outcome.data);this.cableRoom.sync(client,outcome.data);this.syncCrewHands();}
+      if(outcome.physicalChanged){const sw=this.room.state.devices.get('switch');if(sw)sw.revision++;}
+      if(outcome.data)this.room.broadcast('cablePorts',outcome.ports);
       this.send(client,'cableResult',{...outcome.result,requestId:typeof (value as any)?.requestId==='string'?(value as any).requestId.slice(0,36):undefined});
     });
   }

@@ -1,5 +1,5 @@
 import {MeshBuilder,type Scene} from './babylon';
-import {CLIENT_CASE_TEMPLATE as T,SERVICE_FURNITURE,type ClientCase} from '@netcity/shared';
+import {SIP_STATION,CLIENT_CASE_TEMPLATE as T,SERVICE_FURNITURE,type ClientCase} from '@netcity/shared';
 import {sign,type Palette} from './visuals';
 export function buildCaseObjects(scene:Scene,mat:Palette){
   const shell=mat('service-device','#c0ccd0'),dark=mat('service-device-dark','#294756'),metal=mat('fixture-metal','#526774');
@@ -22,9 +22,9 @@ export function buildCaseObjects(scene:Scene,mat:Palette){
   box('printer-paper',12.5,.955,2.64,.3,.012,.24);
   const nas=box('service-device-backup',18,1.02,3.3,.42,.4,.4,dark);target(nas,'BACKUP-NAS');
   for(const x of [17.87,18,18.13])box('nas-drive',x,1.02,3.09,.09,.3,.02,metal);
-  const phone=box('service-device-voip',6,.92,-4,.3,.14,.3,dark);target(phone,'SIP-01');
-  box('phone-handset',5.88,1.02,-4,.075,.07,.33);
-  box('phone-display',6.04,1.005,-3.93,.13,.015,.09,mat('device-indicator','#63cdb0',true));
+  const phone=box('service-device-voip',SIP_STATION.x,.92,SIP_STATION.z,.3,.14,.3,dark);target(phone,'SIP-01');
+  box('phone-handset',SIP_STATION.x-.12,1.02,SIP_STATION.z,.075,.07,.33);
+  box('phone-display',SIP_STATION.x+.04,1.005,SIP_STATION.z+.07,.13,.015,.09,mat('device-indicator','#63cdb0',true));
   const ap=box('service-device-wifi',12.79,2.5,-1.8,.1,.3,.4);target(ap,'WIFI-AP');
   const server=box('service-device-server',18.045,1.25,0,.04,.25,1.3,dark);target(server,'RACK-01');
   const camera=box('service-device-camera',-6.5,2.55,20.23,.3,.22,.5);target(camera,'CAM-01');
@@ -32,7 +32,7 @@ export function buildCaseObjects(scene:Scene,mat:Palette){
   for(const p of [
     {id:'network',label:'CLIENT-PC04',x:11.5,y:1.55,z:-5.25},{id:'printer',label:'PRINT-01',x:12.5,y:1.43,z:3},
     {id:'backup',label:'BACKUP-NAS',x:18,y:1.42,z:3.3},{id:'wifi',label:'WIFI-AP',x:12.78,y:2.85,z:-1.8},
-    {id:'voip',label:'SIP-01',x:6,y:1.23,z:-4},{id:'camera',label:'CAM-01',x:-6.5,y:2.95,z:20},
+    {id:'voip',label:'SIP-01',x:SIP_STATION.x,y:1.23,z:SIP_STATION.z},{id:'camera',label:'CAM-01',x:-6.5,y:2.95,z:20},
   ]){const label=sign(scene,'device-label-'+p.id,p.label,.95,.15);label.mesh.position.set(p.x,p.y,p.z);label.mesh.billboardMode=7;label.mesh.isPickable=false;}
   const dropped=box('owned-patch-cord',0,.08,0,.3,.08,.25,mat('case-cable','#64dec1',true),true);dropped.metadata={caseTarget:'dropped'};dropped.setEnabled(false);
   const link=box('client-pc04-link',T.hardware.x,1.25,workstation.z-.37,.08,.08,.04);

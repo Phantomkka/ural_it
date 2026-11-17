@@ -19,7 +19,7 @@ export function refreshCases(data:ProfileData,now:number) {
 /** Purely private case state; actor position is supplied by the authoritative room. */
 export class ClientCaseService {
   constructor(readonly store:ProgressStore,private now=Date.now){}
-  command(id:string,value:unknown,actor:()=>{x:number;z:number;sessionId:string}|null) {
+  command(id:string,value:unknown,actor:()=>{x:number;z:number;sessionId:string;floor?:number;buildingId?:string}|null) {
     const a=value as Record<string,unknown>|null;
     if(!a || typeof a!=="object" || typeof a.requestId!=="string" || !/^[a-f0-9-]{36}$/.test(a.requestId) || typeof a.caseId!=="string" || !/^[a-f0-9-]{36}$/.test(a.caseId) ||
       (a.choice!==undefined && (typeof a.choice!=="string" || a.choice.length>64)) || (a.port!==undefined && (!Number.isInteger(a.port)||Number(a.port)<1||Number(a.port)>8)) ||
@@ -50,6 +50,7 @@ export class ClientCaseService {
           return result;
         }
         if(!position || !Number.isFinite(position.x) || !Number.isFinite(position.z))return bad("Сеанс закрыт. Переподключитесь.");
+        if((position.floor??0)>0&&!["accept","decline"].includes(String(a.action)))return bad("Это оборудование находится на первом этаже.");
         if(!c)return bad("Эта заявка не принадлежит вашему профилю.");
         if(a.action==="accept") {
           if(c.stage!=="RINGING")return bad("Звонок уже обработан.");

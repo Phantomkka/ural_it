@@ -48,3 +48,30 @@ export async function cableContract(store: ProgressStore) {
     assert.equal((await command('reset')).result.ok, true);
     assert.equal((await store.read(guest.profileId)).cable, undefined);
 }
+
+/** Real shared port allocation, tested against both persistence adapters. */
+export async function physicalCableContract(store:ProgressStore){
+ const a=await store.register(),b=await store.register(),svc=new CableService(store);
+ let p={x:11.5,z:-5.25};
+ const command=(id:string,action:string,extra={})=>svc.command(id,{action,requestId:randomUUID(),...extra},()=>({...p,sessionId:id,entryOpen:false}));
+ assert.equal((await command(a.profileId,'take',{sourceId:'unknown'})).result.ok,false);
+ assert.equal((await command(a.profileId,'take',{sourceId:'client-pc04',x:18})).result.ok,false);
+ p={x:11.5,z:-7};assert.equal((await command(a.profileId,'take',{sourceId:'client-pc04'})).result.ok,false,'cannot start equipment line through external wall');p={x:11.5,z:-5.25};
+ for(const id of [a.profileId,b.profileId])assert.equal((await command(id,'take',{sourceId:'client-pc04'})).result.ok,true);
+ p={x:-30,z:30};assert.equal((await command(a.profileId,'anchor')).result.ok,true,'arbitrary route does not impose cable collision restrictions');
+ p={x:0,z:0};assert.equal((await command(a.profileId,'terminate',{port:5})).result.ok,false,'server checks actual switch proximity');
+ p={...CABLE_TARGET};assert.equal((await command(a.profileId,'terminate',{port:3})).result.ok,false,'infrastructure port protected');
+ const replies=await Promise.all([a,b].map(v=>command(v.profileId,'terminate',{port:5})));
+ assert.equal(replies.filter(r=>r.result.ok).length,1,'exactly one profile acquires the shared port');
+ const winner=replies[0].result.ok?a:b,loser=winner===a?b:a;
+ assert.equal((await command(loser.profileId,'refresh')).ports.includes(5),true);
+ assert.equal((await command(loser.profileId,'terminate',{port:6})).result.ok,true);
+ assert.equal((await command(winner.profileId,'test')).result.ok,true);
+ const saved=await store.read(winner.profileId);assert.equal(saved.cable!.port,5);assert.equal(saved.credits,0);assert.equal(saved.xp,0);
+ assert.equal((await command(winner.profileId,'reset')).result.ok,true);
+ assert.equal((await command(loser.profileId,'refresh')).ports.includes(5),false,'reset atomically releases claim');
+ const repeat={action:'reset',requestId:randomUUID()};const actor=()=>({...p,sessionId:loser.profileId,entryOpen:true});
+ assert.equal((await svc.command(loser.profileId,repeat,actor)).result.ok,true);
+ assert.equal((await svc.command(loser.profileId,repeat,actor)).result.replayed,true);
+ assert.equal((await svc.command(loser.profileId,{...repeat,port:7},actor)).result.ok,false,'reused operation cannot change intent');
+}
