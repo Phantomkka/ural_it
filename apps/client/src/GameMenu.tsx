@@ -8,8 +8,8 @@ const LABELS: Record<Binding, string> = {
   forward:"Вперёд", back:"Назад", left:"Влево", right:"Вправо", sprint:"Бег",
   interact:"Взаимодействие", inventory:"Инвентарь", journal:"Журнал", map:"Карта", help:"Помощь",
 };
-export function GameMenu({ menu, settings, change, quality, setQuality, close, repeat, dialogRef, position, navigate, work, track }: {
-  menu: Menu; settings: Settings; change: (s: Settings) => void; quality: Quality;
+export function GameMenu({ renderer,softwareRendering,menu, settings, change, quality, setQuality, close, repeat, dialogRef, position, navigate, work, track }: {
+  renderer?:string;softwareRendering?:boolean;menu: Menu; settings: Settings; change: (s: Settings) => void; quality: Quality;
   setQuality: (q: Quality) => void; close: () => void; repeat: () => void;
   dialogRef: RefObject<HTMLElement | null>;
   position: {x:number;z:number};
@@ -48,6 +48,7 @@ export function GameMenu({ menu, settings, change, quality, setQuality, close, r
     <label>Чувствительность мыши<input aria-label="Чувствительность мыши" type="range" min="0.25" max="3" step="0.05" value={settings.sensitivity} onChange={e=>change({...settings,sensitivity:Number(e.target.value)})}/><output>{settings.sensitivity.toFixed(2)}</output></label>
     <label><input type="checkbox" checked={settings.invertY} onChange={e=>change({...settings,invertY:e.target.checked})}/> Инверсия Y</label>
     <label>Громкость звуков<input aria-label="Громкость звуков" type="range" min="0" max="1" step="0.05" value={settings.volume} onChange={e=>change({...settings,volume:Number(e.target.value)})}/></label>
+<p aria-label="Рендерер в настройках">WebGL · {renderer??"Определение видеокарты…"}</p>{softwareRendering&&<p role="status">Обнаружен программный рендерер: графику считает процессор. Включите графическое ускорение в настройках браузера и перезапустите его. Игра не может включить отключённый браузером GPU.</p>}<p>Низкое качество: до 30 FPS; среднее и высокое: до 60 FPS. При открытом планшете сцена ограничена 15 FPS.</p>
     <label>Графика<select aria-label="Графика в настройках" value={quality} onChange={e=>setQuality(e.target.value as Quality)}><option value="low">Низкое / телефон</option><option value="medium">Среднее</option><option value="high">Высокое</option></select></label>
     <div className="menu-actions"><button onClick={()=> { change(structuredClone(DEFAULT_SETTINGS)); setCapture(null); setError(""); }}>Сбросить управление</button>
       <button onClick={repeat}>Повторить обучение</button>

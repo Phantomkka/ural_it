@@ -1,0 +1,19 @@
+{
+  "scenario": "Stationary initial street, low quality, Edge on Windows, 1280x720, one browser client, 5-second CDP samples after models ready",
+  "renderer": "ANGLE (NVIDIA, NVIDIA GeForce GTX 1060 3GB (0x00001C02) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "before": {
+    "meshes": 7648,
+    "activeMeshes": 402,
+    "fps": 60.02400960419946,
+    "mainThreadTaskSeconds": 4.094752000000001,
+    "scriptSeconds": 4.003795
+  },
+  "after": {
+    "meshes": 1486,
+    "activeMeshes": 392,
+    "fps": 30.003000300298325,
+    "mainThreadTaskSeconds": 1.620513,
+    "scriptSeconds": 1.53304
+  },
+  "note": "Single local samples; combined lazy-instantiation/decor cleanup/render-cap change, 60 FPS before vs intentional30 FPS after. Not an i3/integrated-GPU benchmark and not an isolated GPU speed comparison."
+}
