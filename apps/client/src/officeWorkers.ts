@@ -8,8 +8,8 @@ export function buildOfficeWorkers(scene:Scene,mat:Palette){
  let ready=false;const roots:TransformNode[]=[],activity=new Map<TransformNode,(active:boolean)=>void>();
  return {update(library:AssetLibrary,camera:Vector3){
   if(!ready&&library.complete){ready=true;
-   for(const [i,p]of COMPUTERS.entries()){
-    const model=library.instantiate(CHARACTER_FILES[i%3],'office-worker-'+p.id,true);if(!model){const fallback=officeWorkerFallback(scene,mat,'worker-seat-'+p.id,true);fallback.position.set(p.x-.9,0,p.z);fallback.rotation.y=Math.PI/2;fallback.getChildMeshes().forEach(m=>{m.metadata={npcId:p.id==='pc01'?'alex':p.id==='pc03'?'olga':'igor',workstation:p.id};m.isPickable=true;});roots.push(fallback);continue;}
+   for(const p of COMPUTERS){
+    const model=library.instantiate(CHARACTER_FILES[p.id==='pc03'?1:p.id==='pc02'?0:2],'office-worker-'+p.id,true);if(!model){const fallback=officeWorkerFallback(scene,mat,'worker-seat-'+p.id,true);fallback.position.set(p.x-.9,0,p.z);fallback.rotation.y=Math.PI/2;fallback.getChildMeshes().forEach(m=>{m.metadata={npcId:p.id==='pc01'?'alex':p.id==='pc03'?'olga':'igor',workstation:p.id};m.isPickable=true;});roots.push(fallback);continue;}
     for(const a of model.entries.animationGroups)a.stop();fitModel(model.root,undefined,1.8,undefined);
     const nodes=model.root.getDescendants().filter((n):n is TransformNode=>n instanceof TransformNode);
     const node=(name:string)=>nodes.find(n=>n.name.endsWith('/'+name));

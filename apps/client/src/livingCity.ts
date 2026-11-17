@@ -19,8 +19,13 @@ export function buildLivingCity(scene:Scene,mat:Palette){
     const label=sign(scene,'walker-label-'+i,n.name,2.5,0.3);label.mesh.parent=root;label.mesh.position.y=2.05;label.mesh.billboardMode=7;label.mesh.isPickable=false;
   }
   const ground=MeshBuilder.CreateGround('terrain-continuation',{width:600,height:600},scene);ground.position.y=-0.09;ground.material=mat('grass','#6f9278');ground.isPickable=false;
-  for(const z of [-47,47]){const portal=MeshBuilder.CreateBox('road-tunnel',{width:10,height:7,depth:4},scene);portal.position.set(0,3.3,z);portal.material=mat('tunnel','#283b42');portal.isPickable=false;const tag=sign(scene,'district-edge','НОВОЛИНСК · ОБЪЕЗД',8,0.8);tag.mesh.position.set(0,5,z-Math.sign(z)*2.05);tag.mesh.isPickable=false;}
-  for(const x of [-37,37])for(const z of [-52,-26,0,26,52]){const block=MeshBuilder.CreateBox('distant-block',{width:10,height:12+(z+52)%9,depth:10},scene);block.position.set(x,6,z);block.material=mat('distant-building','#8b9b9d');block.isPickable=false;}
+  for(const z of [-47,47]){
+    // Keep the ten-metre road opening empty instead of hiding traffic in a solid box.
+    for(const x of [-5.6,5.6]){const pier=MeshBuilder.CreateBox('road-tunnel-pier',{width:1.2,height:5.2,depth:4},scene);pier.position.set(x,2.6,z);pier.material=mat('tunnel','#65767c');pier.isPickable=false;}
+    const header=MeshBuilder.CreateBox('road-tunnel-header',{width:12.4,height:1.2,depth:4},scene);header.position.set(0,5.8,z);header.material=mat('tunnel','#65767c');header.isPickable=false;
+    const tag=sign(scene,'district-edge','НОВОЛИНСК · ОБЪЕЗД',8,0.8);tag.mesh.position.set(0,5.8,z-Math.sign(z)*2.03);tag.mesh.rotation.y=z<0?Math.PI:0;tag.mesh.isPickable=false;
+  }
+  for(const x of [-37,37])for(const z of [-52,-26,0,26,52]){const height=12+(z+52)%9,block=MeshBuilder.CreateBox('distant-block',{width:10,height,depth:10},scene);block.position.set(x,height/2,z);block.material=mat('distant-building','#8b9b9d');block.isPickable=false;}
   return {update(vehicles:Map<string,CityCar>|undefined,phase:string,now:number,camera:Vector3,dt:number,library:AssetLibrary){
     if(now!==clock){clock=now;clockAt=performance.now();}now=clock+Math.min(performance.now()-clockAt,1500);
     for(const group of lights)group.forEach((m,i)=>m.material=phase==='DRIVE'&&i===2?lamp:phase==='AMBER'&&i===1?amber:phase==='CROSS'&&i===0?red:off);

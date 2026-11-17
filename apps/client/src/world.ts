@@ -1,3 +1,4 @@
+import {doorResponse} from './motion';
 import {buildFieldSites} from './fieldSites';
 import {buildOfficeRemaster} from "./officeRemaster";
 import {buildServiceVans,createFreightCrate} from './serviceVan';
@@ -93,7 +94,7 @@ export function createWorld(
     const fieldSites=buildFieldSites(scene,material);
     const office = buildOffice(scene, material);
     const computers = buildComputers(scene, material);
-    buildDistrict(scene,material);
+    const district=buildDistrict(scene,material);
     const caseObjects=buildCaseObjects(scene,material);
     const cableObjects=buildCableObjects(scene,material);
     const city=buildLivingCity(scene,material);
@@ -244,7 +245,7 @@ export function createWorld(
         if (!graphics.environmentLoaded)
           library.failed.push("potsdamer_platz_128.env");
         buildAssetDistrict(scene, library, material);
-        interiors.hydrate(library);officeRemaster.hydrate(library);fieldSites.hydrate(library);
+        interiors.hydrate(library);officeRemaster.hydrate(library);fieldSites.hydrate(library);district.hydrate(library);
         graphics.refreshCasters();
         graphics.activate();
         const progress = {
@@ -342,13 +343,13 @@ export function createWorld(
           avatars.delete(id);
           graphics.refreshCasters();
         }
-      interiors.sync(room.state.doors,camera.position);officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices,room.state.players?.values(),Math.min(engine.getDeltaTime()/1000,.1));
+      district.update(camera.position,me?.floor??0);interiors.sync(room.state.doors,camera.position,Math.min(engine.getDeltaTime()/1000,.1));officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices,room.state.players?.values(),Math.min(engine.getDeltaTime()/1000,.1));
       if(serviceVans.update(room.state.vans,room.state.freight,camera.position,room.sessionId,Math.min(engine.getDeltaTime()/1000,.1)))graphics.refreshCasters();
-      if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*.22;
+      if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*doorResponse(engine.getDeltaTime()/1000);
       office.sync(
         room.state.equipment?.port3Connected ?? false,
         room.state.equipment?.rackServiced ?? false,
-        room.state.equipment?.officeDoorOpen ?? true,
+        room.state.equipment?.officeDoorOpen ?? true,Math.min(engine.getDeltaTime()/1000,.1),
       );
       computers.sync(
         room.state.devices,

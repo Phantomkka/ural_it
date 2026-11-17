@@ -4,6 +4,7 @@ import {
   Texture,
   Mesh,
   MeshBuilder,
+  Vector4,
   StandardMaterial,
   PBRMaterial,
   type Scene,
@@ -45,23 +46,22 @@ export function sign(
 ) {
   const mesh = MeshBuilder.CreatePlane(
     name,
-    { width, height, sideOrientation: Mesh.DOUBLESIDE },
+    { width, height, sideOrientation: Mesh.DOUBLESIDE,backUVs:new Vector4(1,0,0,1) },
     scene,
   );
+  const textureWidth=2**Math.ceil(Math.log2(Math.min(2048,Math.max(256,128*width/height))));
   const texture = new DynamicTexture(
     `${name}-text`,
-    { width: 512, height: 128 },
+    { width: textureWidth, height: 128 },
     scene,true,Texture.TRILINEAR_SAMPLINGMODE,
   );
-  texture.drawText(
-    text,
-    null,
-    82,
-    `bold ${fontSize}px sans-serif`,
-    "#e5f9f5",
-    "#142c36",
-    true,
-  );
+  const context=texture.getContext() as CanvasRenderingContext2D;let fitted=Math.min(92,fontSize*2);
+  context.font=`bold ${fitted}px sans-serif`;
+  const aspectCorrection=(textureWidth/128)/(width/height),measured=context.measureText(text).width*aspectCorrection;
+  if(measured>textureWidth-24)fitted=Math.max(1,Math.floor(fitted*(textureWidth-24)/measured));
+  context.fillStyle='#142c36';context.fillRect(0,0,textureWidth,128);
+  context.font=`bold ${fitted}px sans-serif`;context.textAlign='center';context.textBaseline='middle';context.fillStyle='#e5f9f5';context.save();context.translate(textureWidth/2,64);context.scale(aspectCorrection,1);context.fillText(text,0,0);context.restore();texture.update();
+  mesh.metadata={signText:text,signFontSize:fitted,signTextWidth:context.measureText(text).width*aspectCorrection,signTextureWidth:textureWidth};
   const material = new StandardMaterial(name, scene);
   material.diffuseTexture = texture;
   material.emissiveColor = Color3.White();
@@ -84,7 +84,9 @@ export function batchStatic(scene: Scene, meshes: Mesh[]) {
     // Transparent triangles need independent depth ordering; a city-wide merged
     // glass mesh cannot be sorted correctly as the camera moves between rooms.
     if(material.needAlphaBlendingForMesh(mesh)){
-      material.unfreeze();material.needDepthPrePass=true;material.freeze();
+      // A depth prepass on frozen PBR glass can render black panes. Independent
+      // meshes already provide the required back-to-front transparent ordering.
+      material.unfreeze();material.needDepthPrePass=false;material.freeze();
       mesh.isPickable=false;if(!mesh.billboardMode)mesh.freezeWorldMatrix();continue;
     }
     const group = groups.get(material) ?? [];

@@ -81,16 +81,18 @@ test("disconnect disposes WebGL resources; repeated reconnects keep one scene an
   expect(baseline.scenes).toBe(1);
   expect(baseline.loops).toBe(1);
   for (let i = 0; i < 3; i++) {
+    if(i===0)await tabletApp(a,'Офис / этажи');
     await a.evaluate(() => {
       for (const socket of (window as any).__gameSockets)
         if (socket.readyState === WebSocket.OPEN)
           socket.close(4000, "test disconnect");
     });
-    await expect(a.locator(".connection-status")).toContainText("Соединение закрыто");
+    if(i===0){await expect(a.locator('.tablet-connection')).toContainText('Соединение закрыто');await expect(a.locator('.profile-summary')).toHaveText('Нет соединения');}
+    else await expect(a.locator(".connection-status")).toContainText("Соединение закрыто");
     await expect(b.locator(".connection-status")).toContainText("Игроков: 1");
     await expect.poll(async () => (await resources(a)).engines).toBe(0);
-    await tabletApp(a,"Обзор");
-    await a.getByRole("button", { name: "Переподключиться" }).click();
+    if(i===0)await a.getByRole('button',{name:'Восстановить соединение',exact:true}).click();
+    else {await tabletApp(a,"Обзор");await a.getByRole("button", { name: "Переподключиться" }).click();}
     await expect(a.locator(".connection-status")).toContainText("Игроков: 2");
     await expect(a.locator(".asset-status")).toHaveAttribute(
       "data-state",
