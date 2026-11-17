@@ -48,3 +48,4 @@ NETCITY 4.0 warehouse shelving, delivery parcels, camera brackets/lenses, equipm
 
 World quality bugfix: camera housings/lenses, access point geometry and revised keyboard/sign artwork are project-authored code. Existing GLB files and their pinned source/checksum records are unchanged.
 Character GLB bytes remain unchanged. Runtime character Skin materials use a project-authored three-tone palette in assets.ts instead of the conversion placeholder color; this is a runtime visual modification, not a new downloaded model.
+Office character clones hide their Hat submesh draw ranges at runtime; source GLBs, shared geometry and other characters remain unchanged.

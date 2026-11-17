@@ -49,7 +49,7 @@ export function sign(
     { width, height, sideOrientation: Mesh.DOUBLESIDE,backUVs:new Vector4(1,0,0,1) },
     scene,
   );
-  const textureWidth=2**Math.ceil(Math.log2(Math.min(2048,Math.max(256,128*width/height))));
+  const textureWidth=2**Math.ceil(Math.log2(Math.min(1024,Math.max(256,128*width/height))));
   const texture = new DynamicTexture(
     `${name}-text`,
     { width: textureWidth, height: 128 },

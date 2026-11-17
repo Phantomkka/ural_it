@@ -1,3 +1,4 @@
+import {dressOfficeCharacter} from './characterAppearance';
 import {doorResponse} from './motion';
 import {AssetLibrary,CHARACTER_FILES,appearanceVariant,fitModel} from './assets';
 import {MeshBuilder,TransformNode,Vector3,type Scene,type Mesh} from './babylon';
@@ -49,7 +50,7 @@ export function buildInteriors(scene:Scene,mat:Palette){
  }
  batchStatic(scene,fixed);
  return {hydrate(library:AssetLibrary){
-   for(const t of tenants){const file=CHARACTER_FILES[appearanceVariant(t.id)],model=library.instantiate(file,'tenant-skin-'+t.id,true);if(!model)continue;fitModel(model.root,undefined,1.8,undefined);model.root.position.x+=t.point.x;model.root.position.z+=t.point.z;model.root.metadata={asset:file,tenant:t.id};for(const m of model.root.getChildMeshes()){m.metadata={npcId:'tenant:'+t.id,cityDynamic:true};m.isPickable=true;}for(const g of model.entries.animationGroups)g.stop();model.entries.animationGroups.find(g=>g.name.endsWith('/Idle'))?.start(true);t.model=model;t.fallback.setEnabled(false);}
+   for(const t of tenants){const file=CHARACTER_FILES[appearanceVariant(t.id)],model=library.instantiate(file,'tenant-skin-'+t.id,true);if(!model)continue;fitModel(model.root,undefined,1.8,undefined);dressOfficeCharacter(model.root);model.root.position.x+=t.point.x;model.root.position.z+=t.point.z;model.root.metadata={asset:file,tenant:t.id};for(const m of model.root.getChildMeshes()){m.metadata={npcId:'tenant:'+t.id,cityDynamic:true};m.isPickable=true;}for(const g of model.entries.animationGroups)g.stop();model.entries.animationGroups.find(g=>g.name.endsWith('/Idle'))?.start(true);t.model=model;t.fallback.setEnabled(false);}
    const place=(file:string,name:string,x:number,z:number,w:number,h:number,d:number,elevation=0,yaw=0)=>{const model=library.instantiate(file,name);if(!model)return false;fitModel(model.root,w,h,d);const pivot=new TransformNode(name+'-placement',scene);model.root.parent=pivot;pivot.position.set(x,elevation,z);pivot.rotation.y=yaw;model.root.getChildMeshes().forEach(m=>{m.isPickable=false;m.computeWorldMatrix(true);m.freezeWorldMatrix();});return true;};
    for(const b of CITY_BUILDINGS.filter(b=>b.id!=='hq')){const x=b.x-Math.sign(b.x)*3;place('table_medium.glb','interior-desk-'+b.id,x,b.z+3.5,1.2,.8,1);place('chair_B.glb','interior-chair-'+b.id,x,b.z+4.3,.6,1,.6,0,Math.PI);place('book_set.glb','interior-books-'+b.id,x,b.z+3.5,.3,.16,.25,.8);}
    if(library.has('table_medium.glb'))scene.getMeshByName('detail-batch-room-wood')?.setEnabled(false);

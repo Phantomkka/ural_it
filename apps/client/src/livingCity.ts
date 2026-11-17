@@ -19,6 +19,7 @@ export function buildLivingCity(scene:Scene,mat:Palette){
     const label=sign(scene,'walker-label-'+i,n.name,2.5,0.3);label.mesh.parent=root;label.mesh.position.y=2.05;label.mesh.billboardMode=7;label.mesh.isPickable=false;
   }
   const ground=MeshBuilder.CreateGround('terrain-continuation',{width:600,height:600},scene);ground.position.y=-0.09;ground.material=mat('grass','#6f9278');ground.isPickable=false;
+  for(const side of [-1,1]){const road=MeshBuilder.CreateBox('road-continuation',{width:10,height:.08,depth:60},scene);road.position.set(0,-.035,side*80);road.material=mat('road','#344452');road.isPickable=false;road.freezeWorldMatrix();}
   for(const z of [-47,47]){
     // Keep the ten-metre road opening empty instead of hiding traffic in a solid box.
     for(const x of [-5.6,5.6]){const pier=MeshBuilder.CreateBox('road-tunnel-pier',{width:1.2,height:5.2,depth:4},scene);pier.position.set(x,2.6,z);pier.material=mat('tunnel','#65767c');pier.isPickable=false;}
