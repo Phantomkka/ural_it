@@ -116,11 +116,11 @@ export function buildOffice(scene: Scene, mat: Palette) {
       0.05,
       0.12,
       0.1,
-      i === 2 ? red : green,
+      i === 2 || i>=4 ? red : green,
     ),
   );
   for (let i = 0; i < 8; i++)
-    if (i !== 2)
+    if (i !== 2 && i<4)
       MeshBuilder.CreateTube(
         `patch-cable-${i + 1}`,
         {
@@ -192,6 +192,7 @@ export function buildOffice(scene: Scene, mat: Palette) {
   let previousService: boolean | undefined;
   let previous: boolean | undefined;
   return {
+    setCablePorts(occupied:number[]){for(let i=4;i<8;i++)ports[i].material=occupied.includes(i+1)?green:red;},
     floor,
     switchMesh,
     sync(connected: boolean, serviced = false, entryOpen=true) {

@@ -16,11 +16,11 @@ export function createCableRoll(scene: Scene, mat: Palette, name: string) {
 export function buildCableObjects(scene: Scene, mat: Palette) {
     const roll = createCableRoll(scene, mat, 'training-roll');
     roll.position.set(CABLE_SOURCE.x, 0.3, CABLE_SOURCE.z);
-    const label = sign(scene, 'training-roll-label', 'КЛАДОВАЯ · БУХТА 18 М', 2.5, 0.35);
-    label.mesh.position.set(CABLE_SOURCE.x, 1.8, CABLE_SOURCE.z);
+    const label = sign(scene, 'training-roll-label', 'КЛАДОВАЯ · КАБЕЛЬ', 1.5, 0.2);
+    label.mesh.position.set(CABLE_SOURCE.x, 1.45, CABLE_SOURCE.z);
     label.mesh.billboardMode = 7;
     label.mesh.isPickable = false;
-    const end = sign(scene, 'training-port-label', 'УЧЕБНЫЙ КАБЕЛЬ', 1.6, 0.24);
+    const end = sign(scene, 'training-port-label', 'SW-01 · ПОРТЫ 5–8', 1.6, 0.24);
     end.mesh.position.set(CABLE_TARGET.x, 2.6, CABLE_TARGET.z);
     end.mesh.billboardMode = 7;
     end.mesh.isPickable = false;
@@ -39,14 +39,14 @@ export function buildCableObjects(scene: Scene, mat: Palette) {
             for (const [id, raw] of visibleCablePaths(players.values())) {
                 const path: Vector3[] = [];
                 for (const point of raw) {
-                    const v = new Vector3(point.x, 0.12, point.z);
+                    const v = new Vector3(point.x, point.y??0.12, point.z);
                     if (!path.length || Vector3.Distance(path.at(-1)!, v) > 0.02)
                         path.push(v);
                 }
                 if (path.length < 2)
                     continue;
                 seen.add(id);
-                const signature = path.map(p => `${p.x.toFixed(2)},${p.z.toFixed(2)}`).join(';');
+                const signature = path.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)},${p.z.toFixed(2)}`).join(';');
                 let prior = meshes.get(id);
                 if (prior?.signature === signature)
                     continue;

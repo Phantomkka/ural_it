@@ -4,6 +4,7 @@ import "@babylonjs/core/Rendering/outlineRenderer.js";
 export { Engine } from "@babylonjs/core/Engines/engine.js";
 export { EngineStore } from "@babylonjs/core/Engines/engineStore.js";
 export { Scene } from "@babylonjs/core/scene.js";
+export { Quaternion } from "@babylonjs/core/Maths/math.vector.js";
 export { Vector3 } from "@babylonjs/core/Maths/math.vector.js";
 export { Color3, Color4 } from "@babylonjs/core/Maths/math.color.js";
 export { FreeCamera } from "@babylonjs/core/Cameras/freeCamera.js";

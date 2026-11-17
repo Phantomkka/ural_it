@@ -93,6 +93,7 @@ export class PostgresProgressStore implements ProgressStore {
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=8")).rowCount) {await client.query(await readFile(new URL("../../migrations/008_beta_inventory.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(8)");}
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=9")).rowCount) {await client.query(await readFile(new URL("../../migrations/009_crew_projects.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(9)");}
       if (!(await client.query("SELECT version FROM schema_migrations WHERE version=10")).rowCount) {await client.query(await readFile(new URL("../../migrations/010_companies.sql",import.meta.url),"utf8"));await client.query("INSERT INTO schema_migrations(version) VALUES(10)");}
+      if(!(await client.query('SELECT version FROM schema_migrations WHERE version=11')).rowCount){await client.query(await readFile(new URL('../../migrations/011_cable_ports.sql',import.meta.url),'utf8'));await client.query('INSERT INTO schema_migrations(version) VALUES(11)');}
       await client.query("COMMIT");
     } catch (error) {
       await client.query("ROLLBACK");
@@ -138,6 +139,7 @@ export class PostgresProgressStore implements ProgressStore {
     projectCode?:string,
     companyCode?:string,
     receiptId?:string,
+    wirePorts?:boolean,
   ) {
     const client = await this.pool.connect();
     try {
@@ -145,7 +147,7 @@ export class PostgresProgressStore implements ProgressStore {
       // All project mutations acquire this lock BEFORE a profile row: joining from
       // another server process cannot overfill a crew or duplicate stock/rewards.
       if(projectCode)await client.query('SELECT pg_advisory_xact_lock(731009)');
-      if(companyCode)await client.query('SELECT pg_advisory_xact_lock(731010)');
+      if(companyCode)await client.query('SELECT pg_advisory_xact_lock(731010)');if(wirePorts)await client.query('SELECT pg_advisory_xact_lock(731011)');
       const rows = await client.query(
         "SELECT * FROM profiles WHERE id=$1 FOR UPDATE",
         [id],
@@ -162,10 +164,11 @@ export class PostgresProgressStore implements ProgressStore {
           ).rows[0]
         : undefined;
       const project=projectCode?(await client.query('SELECT data FROM crew_projects WHERE code=$1 FOR UPDATE',[projectCode])).rows[0]?.data:undefined;
+      const occupiedWirePorts=wirePorts?(await client.query("SELECT (cable->>'port')::integer AS port FROM profiles WHERE id<>$1 AND cable->>'routing'='free' AND cable->>'stage' IN ('TERMINATED','TESTED')",[id])).rows.map(r=>r.port):undefined;
       const company=companyCode?(await client.query('SELECT data FROM companies WHERE code=$1 FOR UPDATE',[companyCode])).rows[0]?.data:undefined;
       const occupiedOffices=companyCode?(await client.query("SELECT data->>'officeId' AS office FROM companies WHERE code<>$1 AND data->>'officeId' IS NOT NULL AND data->>'officeId'<>'coworking'",[companyCode])).rows.map(r=>r.office):undefined;
       const companyReceiptUsed=companyCode&&receiptId?!!(await client.query('SELECT 1 FROM company_case_receipts WHERE case_id=$1',[receiptId])).rowCount:false;
-      const tx: Transaction = { data, operation: prior,project,company,occupiedOffices,companyReceiptUsed };
+      const tx: Transaction = {wirePorts:occupiedWirePorts, data, operation: prior,project,company,occupiedOffices,companyReceiptUsed };
       const result = work(tx);
       assertProfile(data);
       if(tx.company&&(!companyCode||tx.company.code!==companyCode||!validCompany(tx.company)))throw Error('Company invariant violation');
@@ -220,7 +223,7 @@ export class PostgresProgressStore implements ProgressStore {
     );
   }
   async health() {
-    if(!(await this.pool.query('SELECT version FROM schema_migrations WHERE version=10')).rowCount)throw Error('Company migration required');
+    if(!(await this.pool.query('SELECT version FROM schema_migrations WHERE version=11')).rowCount)throw Error('Cable migration required');
     await this.pool.query("SELECT id,cable,business FROM profiles LIMIT 0");
     await this.pool.query("SELECT id,preferences FROM accounts LIMIT 0");
     await this.pool.query("SELECT code FROM crew_projects LIMIT 0");
