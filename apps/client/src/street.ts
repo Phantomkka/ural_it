@@ -67,31 +67,6 @@ export function buildStreet(scene: Scene, mat: Palette) {
     details.pop();
     mesh.freezeWorldMatrix();
     box("foundation", b.x, -0.03, b.z, 12.2, 0.06, 12.2, "#73858d");
-    box("cornice", b.x, b.height - 0.15, b.z, 12.3, 0.35, 12.3, "#e1dac5");
-    for (let y = 4.8; y < b.height; y += 3)
-      for (let z = -3; z <= 3; z += 3) {
-        box(
-          "window-frame",
-          b.x - Math.sign(b.x) * 6.03,
-          y,
-          b.z + z,
-          0.08,
-          1.65,
-          1.75,
-          "#e1dac5",
-          "cornice",
-        );
-        box(
-          "window-glass",
-          b.x - Math.sign(b.x) * 6.09,
-          y,
-          b.z + z,
-          0.04,
-          1.35,
-          1.45,
-          "#476b7d",
-        );
-      }
 
   });
   for (const p of STREET_DETAILS) {

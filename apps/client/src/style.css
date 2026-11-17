@@ -1051,3 +1051,4 @@ aside .open-progress {
 .enterprise-feedback{color:#a0e7d3;overflow-wrap:anywhere}.company-code{letter-spacing:.1em}.enterprise-page details{min-width:0}.enterprise-page summary{cursor:pointer;padding:10px 0}
 .company-chart{width:100%;max-height:160px}.company-ledger{overflow-x:auto}.company-ledger table{width:100%;border-collapse:collapse}.company-ledger td,.company-ledger th{padding:9px;text-align:left;border-bottom:1px solid #304752}.company-ledger small{display:block;color:#a1b8be}
 .enterprise-page .case-actions{flex-wrap:wrap}.enterprise-page button{overflow-wrap:anywhere}
+.tablet-connection {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 16px;background:#503a23;color:#ffe7bc;font-size:12px;flex-shrink:0}.tablet-connection button {min-height:44px}

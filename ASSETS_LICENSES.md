@@ -45,3 +45,7 @@ Direct access to kenney.nl, quaternius.com, api.polyhaven.com, dl.polyhaven.org,
 The downloaded city/character packs are detailed **stylized** assets, not photorealistic architectural scans. Photographic asphalt/brick/concrete map downloads and a licensed ready-made server-hardware pack remain unavailable; procedural PBR surfaces and project-authored hardware are used openly instead. Additional network domains have been proposed in the cloud configuration draft for a future asset sourcing pass. Saving that draft does not apply network access.
 
 NETCITY 4.0 warehouse shelving, delivery parcels, camera brackets/lenses, equipment cabinets and overhead cable routes are project-authored Babylon geometry, not downloaded models. Existing asset licenses/checksums remain unchanged.
+
+World quality bugfix: camera housings/lenses, access point geometry and revised keyboard/sign artwork are project-authored code. Existing GLB files and their pinned source/checksum records are unchanged.
+Character GLB bytes remain unchanged. Runtime character Skin materials use a project-authored three-tone palette in assets.ts instead of the conversion placeholder color; this is a runtime visual modification, not a new downloaded model.
+Office character clones hide their Hat submesh draw ranges at runtime; source GLBs, shared geometry and other characters remain unchanged.

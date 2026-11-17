@@ -1,6 +1,7 @@
 import { MeshBuilder, PBRMaterial, Vector3, type Scene } from "./babylon";
 import { OFFICE_WALLS, OFFICE_DOORS, SWITCH } from "@netcity/shared";
 import { sign, batchStatic, type Palette } from "./visuals";
+import {doorResponse} from './motion';
 export function buildOffice(scene: Scene, mat: Palette) {
   const wall = mat("office-wall", "#aebac8"),
     dark = mat("rack-metal", "#172a3d"),
@@ -195,8 +196,8 @@ export function buildOffice(scene: Scene, mat: Palette) {
     setCablePorts(occupied:number[]){for(let i=4;i<8;i++)ports[i].material=occupied.includes(i+1)?green:red;},
     floor,
     switchMesh,
-    sync(connected: boolean, serviced = false, entryOpen=true) {
-      if(entryDoor)entryDoor.rotation.y+=((entryOpen?0:-Math.PI/2)-entryDoor.rotation.y)*0.2;
+    sync(connected: boolean, serviced = false, entryOpen=true,dt=1/60) {
+      if(entryDoor)entryDoor.rotation.y+=((entryOpen?0:-Math.PI/2)-entryDoor.rotation.y)*doorResponse(dt);
       if (previousService !== serviced) {
         serviceLED.material = serviced ? green : red;
         previousService = serviced;

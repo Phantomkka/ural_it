@@ -5,7 +5,7 @@ import type {
   AssetContainer,
   InstantiatedEntries,
 } from "@babylonjs/core/assetContainer.js";
-import { TransformNode, Vector3, type Scene } from "./babylon";
+import { TransformNode, Vector3,Color3,PBRMaterial, type Scene } from "./babylon";
 import manifest from "../public/assets/manifest.json";
 export const MODEL_COUNT = manifest.length;
 export interface GraphicsProgress {
@@ -57,6 +57,12 @@ export class AssetLibrary {
           }
           // Rest poses are the asset's authored poses, not a randomly playing action clip.
           container.animationGroups.forEach((group) => group.stop());
+          // The converted character files ship a near-black placeholder Skin color.
+          // Apply the authored runtime palette once per shared material, not per frame.
+          const character=CHARACTER_FILES.indexOf(entry.file);
+          if(character>=0)for(const material of container.materials)if(material instanceof PBRMaterial&&material.name==='Skin'){
+            material.albedoColor=Color3.FromHexString(['#b98160','#80523e','#d6a47b'][character]).toLinearSpace();material.roughness=.82;
+          }
           this.containers.set(entry.file, container);
         } catch (error) {
           if (!this.disposed) {

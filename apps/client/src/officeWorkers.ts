@@ -1,3 +1,4 @@
+import {dressOfficeCharacter} from './characterAppearance';
 import {TransformNode,Quaternion,type Scene,type Vector3} from './babylon';
 import {COMPUTERS,ENGINEERING_CASES,CASE_CATALOG,FLOOR_HEIGHT} from '@netcity/shared';
 import {officeWorkerFallback} from './officeWorkerFallback';
@@ -8,9 +9,9 @@ export function buildOfficeWorkers(scene:Scene,mat:Palette){
  let ready=false;const roots:TransformNode[]=[],activity=new Map<TransformNode,(active:boolean)=>void>();
  return {update(library:AssetLibrary,camera:Vector3){
   if(!ready&&library.complete){ready=true;
-   for(const [i,p]of COMPUTERS.entries()){
-    const model=library.instantiate(CHARACTER_FILES[i%3],'office-worker-'+p.id,true);if(!model){const fallback=officeWorkerFallback(scene,mat,'worker-seat-'+p.id,true);fallback.position.set(p.x-.9,0,p.z);fallback.rotation.y=Math.PI/2;fallback.getChildMeshes().forEach(m=>{m.metadata={npcId:p.id==='pc01'?'alex':p.id==='pc03'?'olga':'igor',workstation:p.id};m.isPickable=true;});roots.push(fallback);continue;}
-    for(const a of model.entries.animationGroups)a.stop();fitModel(model.root,undefined,1.8,undefined);
+   for(const p of COMPUTERS){
+    const model=library.instantiate(CHARACTER_FILES[p.id==='pc03'?1:p.id==='pc02'?0:2],'office-worker-'+p.id,true);if(!model){const fallback=officeWorkerFallback(scene,mat,'worker-seat-'+p.id,true);fallback.position.set(p.x-.9,0,p.z);fallback.rotation.y=Math.PI/2;fallback.getChildMeshes().forEach(m=>{m.metadata={npcId:p.id==='pc01'?'alex':p.id==='pc03'?'olga':'igor',workstation:p.id};m.isPickable=true;});roots.push(fallback);continue;}
+    for(const a of model.entries.animationGroups)a.stop();fitModel(model.root,undefined,1.8,undefined);dressOfficeCharacter(model.root);
     const nodes=model.root.getDescendants().filter((n):n is TransformNode=>n instanceof TransformNode);
     const node=(name:string)=>nodes.find(n=>n.name.endsWith('/'+name));
     const rotate=(name:string,x:number,y=0,z=0)=>{const n=node(name);if(n)n.rotationQuaternion=Quaternion.FromEulerAngles(x,y,z);};
@@ -21,7 +22,7 @@ export function buildOfficeWorkers(scene:Scene,mat:Palette){
    }
    // A visible contact on each new service floor, with a normal idle animation.
    for(const t of [...ENGINEERING_CASES.filter(t=>!!t.floor),CASE_CATALOG.find(t=>t.id==='voip-vlan')!]){
-    const model=library.instantiate(CHARACTER_FILES[(t.floor??1)%3],'upper-client-'+t.id,true);if(!model){const fallback=officeWorkerFallback(scene,mat,'client-floor-'+t.id,false);fallback.position.set(t.client.x,(t.floor??0)*FLOOR_HEIGHT,t.client.z);fallback.getChildMeshes().forEach(m=>{m.metadata={caseTarget:'client'};m.isPickable=true;});roots.push(fallback);continue;}fitModel(model.root,undefined,1.8,undefined);const anchor=new TransformNode('client-floor-'+t.id,scene);model.root.parent=anchor;anchor.position.set(t.client.x,(t.floor??0)*FLOOR_HEIGHT,t.client.z);model.root.getChildMeshes().forEach(m=>{m.metadata={caseTarget:'client',cityDynamic:true};m.isPickable=true;});activity.set(anchor,active=>{for(const a of model.entries.animationGroups)if(a.name.endsWith('/Idle')){if(active&&!a.isPlaying)a.play(true);else if(!active&&a.isPlaying)a.pause();}});roots.push(anchor);
+    const model=library.instantiate(CHARACTER_FILES[(t.floor??1)%3],'upper-client-'+t.id,true);if(!model){const fallback=officeWorkerFallback(scene,mat,'client-floor-'+t.id,false);fallback.position.set(t.client.x,(t.floor??0)*FLOOR_HEIGHT,t.client.z);fallback.getChildMeshes().forEach(m=>{m.metadata={caseTarget:'client'};m.isPickable=true;});roots.push(fallback);continue;}fitModel(model.root,undefined,1.8,undefined);dressOfficeCharacter(model.root);const anchor=new TransformNode('client-floor-'+t.id,scene);model.root.parent=anchor;anchor.position.set(t.client.x,(t.floor??0)*FLOOR_HEIGHT,t.client.z);model.root.getChildMeshes().forEach(m=>{m.metadata={caseTarget:'client',cityDynamic:true};m.isPickable=true;});activity.set(anchor,active=>{for(const a of model.entries.animationGroups)if(a.name.endsWith('/Idle')){if(active&&!a.isPlaying)a.play(true);else if(!active&&a.isPlaying)a.pause();}});roots.push(anchor);
    }
   }
   for(const root of roots){const visible=Math.abs(camera.y-root.position.y)<2.7&&Math.hypot(root.position.x-camera.x,root.position.z-camera.z)<26;root.setEnabled(visible);activity.get(root)?.(visible);}
