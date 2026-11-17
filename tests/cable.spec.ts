@@ -40,6 +40,8 @@ test('route equipment to a free switch port around the corridor, save/drop/resum
     await expect(page.locator('.cable-panel')).toContainText('линк проверен');
     await expect(page.locator('.profile-summary')).toContainText('0 NET');
     await expect(page.locator('.profile-summary')).toContainText('0 XP');
+    await action('Отключить и убрать линию');
+    await expect(page.getByLabel('Источник кабеля')).toBeVisible();
     expect(errors).toEqual([]);
 });
 test('portrait cable tools fit and require approaching the real spool', async ({ browser }) => {
@@ -50,7 +52,7 @@ test('portrait cable tools fit and require approaching the real spool', async ({
         await expect(page.locator('.connection-status')).toContainText('В сети');
         await tabletApp(page, 'Инструменты');
         await page.getByRole('button', { name: 'Начать линию у оборудования', exact: true }).tap();
-        await expect(page.locator('.cable-panel')).toContainText('Подойдите');
+        await expect(page.locator('.cable-panel')).toContainText(/подойдите/i);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.getByRole('button', { name: 'Закрыть планшет' }).tap();
         await expect(page.getByLabel('Джойстик движения')).toBeVisible();
