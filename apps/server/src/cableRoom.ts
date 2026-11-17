@@ -1,5 +1,5 @@
 import type { Client } from '@colyseus/core';
-import { cableRouteValid, segmentHitsBox, ENTRY_DOOR_CLOSED, visibleCablePaths,cableSpec,caseTemplate, type CableTask, type CablePoint } from '@netcity/shared';
+import { cableRouteValid, segmentHitsBox, ENTRY_DOOR_CLOSED, blockingCablePaths,cableSpec,caseTemplate, type CableTask, type CablePoint } from '@netcity/shared';
 import type { ProfileData } from './progress/store.js';
 import type { StreetRoom } from './StreetRoom.js';
 export class CableRoomController {
@@ -39,7 +39,7 @@ export class CableRoomController {
         return { x: from.x, z: from.z };
     }
     blocksDoor() {
-        for (const path of visibleCablePaths([...this.room.state.players.values()].filter(p=>!p.cablePath||JSON.parse(p.cablePath).routing!=='free')).values()) {
+        for (const path of blockingCablePaths(this.room.state.players.values()).values()) {
             for (let i = 1; i < path.length; i++)
                 if (segmentHitsBox(path[i - 1], path[i], ENTRY_DOOR_CLOSED))
                     return true;

@@ -5,6 +5,7 @@ import { Client, type Room } from '@colyseus/sdk';
 import { matchMaker } from '@colyseus/core';
 import { ROOM_NAME, CABLE_SOURCE } from '@netcity/shared';
 import { cableContract,physicalCableContract } from './cable.contract.js';
+import {toggleDoor} from './doorsState.js';
 import { MemoryProgressStore } from './progress/store.js';
 import { createGameServer } from './server.js';
 import type { StreetState, StreetRoom } from './StreetRoom.js';
@@ -70,10 +71,12 @@ test('free cable keeps movement unrestricted and updates authoritative switch re
   const send=async(value:unknown)=>{const before=replies.length;client!.send('cable',value);const end=Date.now()+5000;while(replies.length===before){assert.ok(Date.now()<end);await new Promise(r=>setTimeout(r,15));}return replies.at(-1);};
   Object.assign(p,{x:11.5,z:-5.25});assert.equal((await send({action:'take',sourceId:'client-pc04',requestId:randomUUID()})).ok,true);
   assert.deepEqual((room as any).work.constrainMove(client.sessionId,p,{x:18,z:0}),{x:18,z:0});
+  Object.assign(p,{x:11,z:0});assert.equal((await send({action:'anchor',requestId:randomUUID()})).ok,true);
   Object.assign(p,{x:18,z:0});const sw=room.state.devices.get('switch')!,before=sw.revision,request={action:'terminate',port:5,requestId:randomUUID()};
   assert.equal((await send(request)).ok,true);assert.equal(sw.revision,before+1);
   assert.equal((await send(request)).replayed,true);assert.equal(sw.revision,before+1);
   assert.equal(JSON.parse(p.cablePath).routing,'free');assert.equal(JSON.parse(p.cablePath).caseId,undefined);
-  await send({action:'reset',requestId:randomUUID()});assert.equal(sw.revision,before+2);
+  Object.assign(p,{x:14,z:0});assert.equal(toggleDoor(room,client.sessionId,{kind:'cityDoor',id:'hq-server'}).ok,true,'free route crossing doorway must not prevent closing');assert.equal(room.state.doors.get('hq-server')!.open,false);
+  Object.assign(p,{x:18,z:0});await send({action:'reset',requestId:randomUUID()});assert.equal(sw.revision,before+2);
  }finally{if(client?.connection.isOpen)await client.leave();await server.gracefullyShutdown(false);}
 });

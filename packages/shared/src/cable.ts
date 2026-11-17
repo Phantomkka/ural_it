@@ -46,6 +46,10 @@ export function visibleCablePaths(players: Iterable<{
         }
     return new Map([...selected].map(([id, c]) => [id, c.points]));
 }
+/** Free routes are decorative geometry; only legacy tensioned lines can obstruct doors. */
+export function blockingCablePaths(players:Parameters<typeof visibleCablePaths>[0]){
+    return visibleCablePaths([...players].filter(p=>!p.cablePath||JSON.parse(p.cablePath).routing!=='free'));
+}
 export function segmentHitsBox(a: CablePoint, b: CablePoint, box: {
     x: number;
     z: number;
