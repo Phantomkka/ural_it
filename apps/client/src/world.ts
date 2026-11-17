@@ -71,6 +71,7 @@ export function createWorld(
       scene,
     );
     camera.minZ = 0.1;
+    camera.maxZ = 180;
     camera.fov = 1.2;
     const sky = new HemisphericLight("sky", new Vector3(0, 1, 0), scene);
     sky.intensity = 0.85;

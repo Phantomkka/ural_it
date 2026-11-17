@@ -21,6 +21,8 @@ export function buildOfficeRemaster(scene:Scene,mat:Palette){
   }
   box('office-roof',e.x,n*FLOOR_HEIGHT,b.z,e.width+.3,.18,12.3,mat('roof','#526772'));
  }
+ // These procedural panels replace the old solid outer walls even on asset failure.
+ for(let i=0;i<5;i++)scene.getMeshByName('office-wall-'+i)?.setEnabled(false);
  batchStatic(scene,shell);
  return {hydrate(library:AssetLibrary){
   hardware.use(library);scene.getMeshByName("detail-batch-room-cupboard")?.setEnabled(false);for(const key of ['monitor-fallback','monitor-fallback-screen','printer-fallback','printer-paper-fallback'])scene.getMeshByName('detail-batch-'+key)?.setEnabled(false);for(const name of ['printer-scanner-lid','printer-output-slot','printer-paper','phone-handset','phone-display'])scene.getMeshByName(name)?.setEnabled(false);
