@@ -23,7 +23,7 @@ export function buildOffice(scene: Scene, mat: Palette) {
   const floor = box(
     "building-office",
     14,
-    -0.05,
+    -0.03,
     0,
     12,
     0.1,
@@ -84,7 +84,7 @@ export function buildOffice(scene: Scene, mat: Palette) {
     box(
       "floor-route",
       11.5,
-      0.015,
+      0.025,
       0,
       6,
       0.012,

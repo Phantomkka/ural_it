@@ -1,6 +1,7 @@
 import {
   Color3,
   DynamicTexture,
+  Texture,
   Mesh,
   MeshBuilder,
   StandardMaterial,
@@ -50,7 +51,7 @@ export function sign(
   const texture = new DynamicTexture(
     `${name}-text`,
     { width: 512, height: 128 },
-    scene,
+    scene,true,Texture.TRILINEAR_SAMPLINGMODE,
   );
   texture.drawText(
     text,
@@ -80,6 +81,12 @@ export function batchStatic(scene: Scene, meshes: Mesh[]) {
   const groups = new Map<StandardMaterial | PBRMaterial, Mesh[]>();
   for (const mesh of meshes) {
     const material = mesh.material as StandardMaterial | PBRMaterial;
+    // Transparent triangles need independent depth ordering; a city-wide merged
+    // glass mesh cannot be sorted correctly as the camera moves between rooms.
+    if(material.needAlphaBlendingForMesh(mesh)){
+      material.unfreeze();material.needDepthPrePass=true;material.freeze();
+      mesh.isPickable=false;if(!mesh.billboardMode)mesh.freezeWorldMatrix();continue;
+    }
     const group = groups.get(material) ?? [];
     group.push(mesh);
     groups.set(material, group);

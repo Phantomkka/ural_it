@@ -1,5 +1,6 @@
 import { MeshBuilder, type Mesh, type Scene } from "./babylon";
 import { BUILDINGS, OFFICE, STREET_DETAILS } from "@netcity/shared";
+import {buildGround} from './ground';
 import { batchStatic, sign, type Palette } from "./visuals";
 export function buildStreet(scene: Scene, mat: Palette) {
   const details: Mesh[] = [];
@@ -24,11 +25,7 @@ export function buildStreet(scene: Scene, mat: Palette) {
     details.push(mesh);
     return mesh;
   };
-  const grass = MeshBuilder.CreateGround(
-    "ground",
-    { width: 110, height: 110 },
-    scene,
-  );
+  const grass = buildGround(scene);
   grass.material = mat("grass", "#6f9278");
   grass.isPickable = false;
   grass.freezeWorldMatrix();

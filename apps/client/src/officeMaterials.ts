@@ -1,7 +1,7 @@
-import {DynamicTexture,PBRMaterial,Color3,type Scene} from './babylon';
+import {DynamicTexture,Texture,PBRMaterial,Color3,type Scene} from './babylon';
 /** Small reusable authored maps, including actual keyboard/display graphics. */
 export function officeMaterials(scene:Scene){
- const make=(name:string,draw:(c:CanvasRenderingContext2D)=>void,roughness=.8)=>{const t=new DynamicTexture('office-map-'+name,{width:512,height:512},scene);const c=t.getContext() as CanvasRenderingContext2D;draw(c);t.update();const m=new PBRMaterial('office-pbr-'+name,scene);m.albedoTexture=t;m.metallic=0;m.roughness=roughness;m.freeze();return m;};
+ const make=(name:string,draw:(c:CanvasRenderingContext2D)=>void,roughness=.8)=>{const t=new DynamicTexture('office-map-'+name,{width:512,height:512},scene,true,Texture.TRILINEAR_SAMPLINGMODE);t.anisotropicFilteringLevel=Math.min(4,scene.getEngine().getCaps().maxAnisotropy||1);const c=t.getContext() as CanvasRenderingContext2D;draw(c);t.update();const m=new PBRMaterial('office-pbr-'+name,scene);m.albedoTexture=t;m.metallic=0;m.roughness=roughness;m.freeze();return m;};
  let seed=591;const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
  const carpet=make('woven-carpet',c=>{c.fillStyle='#53646b';c.fillRect(0,0,512,512);for(let i=0;i<24000;i++){const v=70+Math.floor(rand()*45);c.fillStyle=`rgba(${v},${v+12},${v+16},.45)`;c.fillRect(rand()*512,rand()*512,1,4);}c.strokeStyle='#45565d';c.lineWidth=2;c.strokeRect(1,1,510,510);});(carpet.albedoTexture as DynamicTexture).uScale=8;(carpet.albedoTexture as DynamicTexture).vScale=5;
  const wood=make('oak',c=>{c.fillStyle='#a88b66';c.fillRect(0,0,512,512);for(let i=0;i<1200;i++){c.strokeStyle=`rgba(65,39,19,${rand()*.09})`;c.beginPath();const y=rand()*512;c.moveTo(0,y);c.bezierCurveTo(150,y+rand()*12,340,y-rand()*12,512,y);c.stroke();}},.55);
