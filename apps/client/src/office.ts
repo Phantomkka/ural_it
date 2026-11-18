@@ -1,7 +1,7 @@
 import { MeshBuilder, PBRMaterial, Vector3, type Scene } from "./babylon";
-import { OFFICE_WALLS, OFFICE_DOORS, SWITCH } from "@netcity/shared";
+import { OFFICE_WALLS, CITY_DOORS,HQ_ENTRY_DOOR, SWITCH } from "@netcity/shared";
 import { sign, batchStatic, type Palette } from "./visuals";
-import {doorResponse} from './motion';
+import {buildDoor} from './doors';
 export function buildOffice(scene: Scene, mat: Palette) {
   const wall = mat("office-wall", "#aebac8"),
     dark = mat("rack-metal", "#172a3d"),
@@ -49,12 +49,7 @@ export function buildOffice(scene: Scene, mat: Palette) {
   for (const x of [8, 13]) {
     box("door-lintel", x, 3, 0, 0.35, 0.6, 2.4, dark);
   }
-  let entryDoor:ReturnType<typeof MeshBuilder.CreateBox>|undefined;
-  for (const [i,door] of OFFICE_DOORS.entries()) {
-    const leaf=box("open-door",door.x,1.3,door.z,door.width,2.6,door.depth,dark);
-    if(i===1)leaf.metadata={cityDoor:"hq-server",cityDynamic:true};
-    if(i===0){entryDoor=leaf;leaf.setPivotPoint(new Vector3(-door.width/2,0,0));leaf.metadata={entryDoor:true};}
-  }
+  const entryDoor=buildDoor(scene,mat,HQ_ENTRY_DOOR,true),serverDoor=buildDoor(scene,mat,CITY_DOORS.find(d=>d.id==='hq-server')!);
   const accents = [];
   accents.push(
     box("office-canopy", 7.6, 3.65, 0, 1.2, 0.15, 4, mat("trim", "#247d86")),
@@ -196,8 +191,8 @@ export function buildOffice(scene: Scene, mat: Palette) {
     setCablePorts(occupied:number[]){for(let i=4;i<8;i++)ports[i].material=occupied.includes(i+1)?green:red;},
     floor,
     switchMesh,
-    sync(connected: boolean, serviced = false, entryOpen=true,dt=1/60) {
-      if(entryDoor)entryDoor.rotation.y+=((entryOpen?0:-Math.PI/2)-entryDoor.rotation.y)*doorResponse(dt);
+    sync(connected: boolean, serviced = false, entryOpen=true,dt=1/60,serverOpen=true) {
+      entryDoor.update(entryOpen,dt);serverDoor.update(serverOpen,dt);
       if (previousService !== serviced) {
         serviceLED.material = serviced ? green : red;
         previousService = serviced;

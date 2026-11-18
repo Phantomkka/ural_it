@@ -141,3 +141,9 @@ The glass color regression test renders through a real office pane and checks fr
 Character skin colors are an authored runtime palette applied once to shared imported materials; source GLB checksums remain unchanged.
 Open tablets show connection loss and offer reconnection on every page instead of an indefinite profile-loading message; offline lift buttons are disabled. Door finish animations use elapsed time, keeping the same response at 30/60 FPS without changing server colliders.
 A disconnect during lift travel dismisses the stale travel cover so reconnection remains reachable. Small signs are capped at1024px. Road surfaces continue beyond the portals into the fog, with matching grass cutouts. Office clones hide helmet submeshes independently; outdoor/player model geometry and materials are preserved.
+
+## Traffic signals and doorway dimensions
+
+A single authored signal head per traffic direction replaces the unsynchronised decorative GLBs/floating bulbs. Northbound and southbound signals face their approaching lanes; only one lens is illuminated. Both consume the existing server phase; unknown phases fail red. Visible stop lines and car-length clearance share constants in city.ts. Cars approach the line on amber/red, clamp before it without creeping, and vehicles already through it clear the crossing. No new wire fields or client-authoritative clock/movement are introduced.
+
+Door dimensions are defined in shared/buildings.ts: the2.4m wall opening has two1.2m leaves rather than an off-centre1.6m slab. Shared open footprints include both hinged leaves; closed footprints span the full opening. Rendering, movement and anti-crush/cable checks use those definitions, including HQ entry and server room. Both pivots rotate about their jambs. Existing door states, IDs, interaction distances, account/economy/saved-job data are retained; no migration is required.

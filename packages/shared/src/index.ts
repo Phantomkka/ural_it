@@ -6,7 +6,7 @@ export * from './worldGeometry.js';
 export * from './diagnosticLab.js';
 export * from './logistics.js';
 export * from './enterprise.js';
-import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaf,doorClosed} from './buildings.js';
+import {CITY_BUILDINGS,CITY_WALLS,CITY_DOORS,DISTRICT_FURNITURE,doorLeaves,doorClosed,HQ_ENTRY_DOOR} from './buildings.js';
 import {upperColliders,OFFICE_REAR_FURNITURE,officeLiftWalls,insideOffice} from './officeFloors.js';
 export * from './officeFloors.js';
 export * from './buildings.js';
@@ -84,17 +84,12 @@ export const OFFICE_WALLS = [
   { x: 18.5, z: 0, width: 0.8, depth: 1.6 },
 ];
 // The open leaves occupy the same footprint used by the scene.
-export const OFFICE_DOORS = [8, 13].map((x) => ({
-  x: x + 0.8,
-  z: -1.15,
-  width: 1.6,
-  depth: 0.12,
-}));
-export const ENTRY_DOOR_CLOSED={x:8,z:-0.35,width:0.12,depth:1.6};
+export const OFFICE_DOORS = [8,13].flatMap(x=>doorLeaves({x,z:0,side:1}));
+export const ENTRY_DOOR_CLOSED=doorClosed(HQ_ENTRY_DOOR);
 export const STREET_DETAILS = [-1, 1].flatMap((side) =>
   [-28, -12, 12, 28].map((z) => ({ x: side * 6.8, z })),
 );
-export const WORLD_COLLIDERS = [
+const STATIC_WORLD_COLLIDERS = [
   ...FIELD_COLLIDERS,
   ...CITY_FENCES,
   ...OFFICE_REAR_FURNITURE,...CITY_BUILDINGS.flatMap(officeLiftWalls),
@@ -102,18 +97,17 @@ export const WORLD_COLLIDERS = [
   ...PARKED_CARS,
   ...CITY_WALLS,
   ...DISTRICT_FURNITURE,
-  ...CITY_DOORS.filter(d=>d.id!=='hq-server').map(doorLeaf),
   ...OFFICE_WALLS,
-  ...OFFICE_DOORS,
   ...STREET_DETAILS.map((p) => ({ ...p, width: 0.25, depth: 0.25 })),
   ...[-1, 1].flatMap((side) =>
     [-22, 22].map((z) => ({ x: side * 7, z, width: 1.5, depth: 2 })),
   ),
 ];
+export const WORLD_COLLIDERS=[...STATIC_WORLD_COLLIDERS,...CITY_DOORS.flatMap(doorLeaves),...doorLeaves(HQ_ENTRY_DOOR)];
 export function movementColliders(entryOpen=true,doors?:ReadonlyMap<string,{open:boolean}>){
  const closed=CITY_DOORS.filter(d=>doors?.get(d.id)?.open===false);
  if(entryOpen&&!closed.length)return WORLD_COLLIDERS;
- return [...WORLD_COLLIDERS.filter(c=>!(c===OFFICE_DOORS[0]&&!entryOpen)&&!closed.some(d=>Math.abs(c.x-(d.x+d.side*.8))<.01&&Math.abs(c.z-(d.z-1.15))<.01&&c.width===1.6)),...(!entryOpen?[ENTRY_DOOR_CLOSED]:[]),...closed.map(doorClosed)];
+ return [...STATIC_WORLD_COLLIDERS,...CITY_DOORS.flatMap(d=>doors?.get(d.id)?.open===false?[doorClosed(d)]:doorLeaves(d)),...(entryOpen?doorLeaves(HQ_ENTRY_DOOR):[ENTRY_DOOR_CLOSED])];
 }
 export const TICKET_STEPS = [
   "Получить заявку",
