@@ -1,12 +1,12 @@
 import {dressOfficeCharacter} from './characterAppearance';
-import {doorResponse} from './motion';
+import {buildDoor} from './doors';
 import {AssetLibrary,CHARACTER_FILES,appearanceVariant,fitModel} from './assets';
 import {MeshBuilder,TransformNode,Vector3,type Scene,type Mesh} from './babylon';
-import {officeEnvelope,CASE_CATALOG,CASE_KIND_NAMES,CITY_BUILDINGS,CITY_DOORS,buildingWalls,buildingClient,missionStation,doorLeaf} from '@netcity/shared';
+import {officeEnvelope,CASE_CATALOG,CASE_KIND_NAMES,CITY_BUILDINGS,CITY_DOORS,buildingWalls,buildingClient,missionStation} from '@netcity/shared';
 import {batchStatic,sign,type Palette} from './visuals';
 export function buildInteriors(scene:Scene,mat:Palette){
  const tenants:{fallback:TransformNode;point:{x:number;z:number};id:string;model?:ReturnType<AssetLibrary["instantiate"]>}[]=[];
- const fixed:Mesh[]=[],doors=new Map<string,Mesh>(),dynamic:Mesh[]=[];
+ const fixed:Mesh[]=[],doors=new Map<string,ReturnType<typeof buildDoor>>();
  const box=(name:string,x:number,y:number,z:number,w:number,h:number,d:number,color:string,key:string,pick=false)=>{const m=MeshBuilder.CreateBox(name,{width:w,height:h,depth:d},scene);m.position.set(x,y,z);m.material=mat(key,color);m.isPickable=pick;if(!pick)fixed.push(m);return m;};
  for(const b of CITY_BUILDINGS.filter(b=>b.id!=='hq')){
   for(const [i,w]of buildingWalls(b).entries()){
@@ -44,15 +44,12 @@ export function buildInteriors(scene:Scene,mat:Palette){
   box('room-counter',b.x-Math.sign(b.x)*3,.4,b.z+3.5,1.2,.8,1,'#927b64','room-wood');
   box('room-cupboard',b.x+Math.sign(b.x)*4.6,.8,b.z, .65,1.6,1.4,'#536775','room-cupboard');
  }
- for(const d of CITY_DOORS.filter(d=>d.id!=='hq-server')){
-  const p=doorLeaf(d),m=box('district-door-'+d.id,p.x,1.3,p.z,p.width,2.6,p.depth,'#315766','district-door',true);m.setPivotPoint(new Vector3(-d.side*.8,0,0));m.metadata={cityDoor:d.id,cityDynamic:true};doors.set(d.id,m);
-  const handle=MeshBuilder.CreateBox('district-handle',{width:.05,height:.22,depth:.06},scene);handle.parent=m;handle.position.set(d.side*.5,0,-.09);handle.material=mat('handle','#b8c6be');handle.isPickable=false;handle.metadata={cityDynamic:true};dynamic.push(handle);
- }
+ for(const d of CITY_DOORS.filter(d=>d.id!=='hq-server'))doors.set(d.id,buildDoor(scene,mat,d));
  batchStatic(scene,fixed);
  return {hydrate(library:AssetLibrary){
    for(const t of tenants){const file=CHARACTER_FILES[appearanceVariant(t.id)],model=library.instantiate(file,'tenant-skin-'+t.id,true);if(!model)continue;fitModel(model.root,undefined,1.8,undefined);dressOfficeCharacter(model.root);model.root.position.x+=t.point.x;model.root.position.z+=t.point.z;model.root.metadata={asset:file,tenant:t.id};for(const m of model.root.getChildMeshes()){m.metadata={npcId:'tenant:'+t.id,cityDynamic:true};m.isPickable=true;}for(const g of model.entries.animationGroups)g.stop();model.entries.animationGroups.find(g=>g.name.endsWith('/Idle'))?.start(true);t.model=model;t.fallback.setEnabled(false);}
    const place=(file:string,name:string,x:number,z:number,w:number,h:number,d:number,elevation=0,yaw=0)=>{const model=library.instantiate(file,name);if(!model)return false;fitModel(model.root,w,h,d);const pivot=new TransformNode(name+'-placement',scene);model.root.parent=pivot;pivot.position.set(x,elevation,z);pivot.rotation.y=yaw;model.root.getChildMeshes().forEach(m=>{m.isPickable=false;m.computeWorldMatrix(true);m.freezeWorldMatrix();});return true;};
    for(const b of CITY_BUILDINGS.filter(b=>b.id!=='hq')){const x=b.x-Math.sign(b.x)*3;place('table_medium.glb','interior-desk-'+b.id,x,b.z+3.5,1.2,.8,1);place('chair_B.glb','interior-chair-'+b.id,x,b.z+4.3,.6,1,.6,0,Math.PI);place('book_set.glb','interior-books-'+b.id,x,b.z+3.5,.3,.16,.25,.8);}
    if(library.has('table_medium.glb'))scene.getMeshByName('detail-batch-room-wood')?.setEnabled(false);
- },sync(states:Map<string,{open:boolean}>|undefined,camera?:Vector3,dt=1/60){if(camera)for(const t of tenants)if(t.model){const near=Math.hypot(camera.x-t.point.x,camera.z-t.point.z)<22;t.model.root.setEnabled(near);const idle=t.model.entries.animationGroups.find(g=>g.name.endsWith('/Idle'));if(near&&!idle?.isPlaying)idle?.play(true);if(!near&&idle?.isPlaying)idle.pause();}for(const d of CITY_DOORS){const m=doors.get(d.id);if(m)m.rotation.y+=((states?.get(d.id)?.open?0:-d.side*Math.PI/2)-m.rotation.y)*doorResponse(dt);}}};
+ },sync(states:Map<string,{open:boolean}>|undefined,camera?:Vector3,dt=1/60){if(camera)for(const t of tenants)if(t.model){const near=Math.hypot(camera.x-t.point.x,camera.z-t.point.z)<22;t.model.root.setEnabled(near);const idle=t.model.entries.animationGroups.find(g=>g.name.endsWith('/Idle'));if(near&&!idle?.isPlaying)idle?.play(true);if(!near&&idle?.isPlaying)idle.pause();}for(const d of CITY_DOORS){const m=doors.get(d.id);m?.update(states?.get(d.id)?.open??false,dt);}}};
 }

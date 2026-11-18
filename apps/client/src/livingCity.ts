@@ -1,3 +1,4 @@
+import {buildTrafficSignals} from './trafficSignals';
 import {TransformNode,MeshBuilder,Vector3,type Scene,type Mesh} from './babylon';
 import {CITY_PEDESTRIANS,pedestrianPosition,type CityCar} from '@netcity/shared';
 import {buildOfficeWorkers} from './officeWorkers';
@@ -6,11 +7,8 @@ import {type AssetLibrary,fitModel,CHARACTER_FILES,appearanceVariant} from './as
 export function buildLivingCity(scene:Scene,mat:Palette){
   const workers=buildOfficeWorkers(scene,mat);
   const cars=new Map<string,{root:TransformNode;model?:boolean}>(),people:TransformNode[]=[];
-  const lamp=mat('traffic-green','#63e39b',true),red=mat('traffic-red','#ef6b69',true),amber=mat('traffic-amber','#efce72',true),off=mat('traffic-off','#334047');
-  const npcModels=new Map<number,NonNullable<ReturnType<AssetLibrary["instantiate"]>>>();
-  const lights:Mesh[][]=[];let clock=0,clockAt=0;
-  for(const x of [-5.4,5.4]){const pole=MeshBuilder.CreateCylinder('traffic-pole',{height:3,diameter:0.12,tessellation:6},scene);pole.position.set(x,1.5,1.8);pole.material=mat('traffic-metal','#34434c');
-    const group:Mesh[]=[];for(let i=0;i<3;i++){const m=MeshBuilder.CreateSphere('traffic-light-'+i,{diameter:0.22,segments:6},scene);m.position.set(x,2.65-i*0.3,1.8);m.material=off;m.isPickable=false;group.push(m);}lights.push(group);}
+  const signals=buildTrafficSignals(scene,mat);
+  const npcModels=new Map<number,NonNullable<ReturnType<AssetLibrary["instantiate"]>>>();let clock=0,clockAt=0;
   for(const [i,n]of CITY_PEDESTRIANS.entries()){
     const root=new TransformNode('city-npc-'+n.id,scene),body=MeshBuilder.CreateCylinder('npc-walking-body',{height:0.85,diameter:0.42,tessellation:6},scene),head=MeshBuilder.CreateSphere('npc-walking-head',{diameter:0.36,segments:6},scene);
     body.parent=root;body.position.y=1;body.material=mat('walker-'+i,['#7a9dbb','#c0997d','#75866c','#a78cae'][i]);head.parent=root;head.position.y=1.65;head.material=mat('npc-skin','#cb9573');
@@ -29,7 +27,7 @@ export function buildLivingCity(scene:Scene,mat:Palette){
   for(const x of [-37,37])for(const z of [-52,-26,0,26,52]){const height=12+(z+52)%9,block=MeshBuilder.CreateBox('distant-block',{width:10,height,depth:10},scene);block.position.set(x,height/2,z);block.material=mat('distant-building','#8b9b9d');block.isPickable=false;}
   return {update(vehicles:Map<string,CityCar>|undefined,phase:string,now:number,camera:Vector3,dt:number,library:AssetLibrary){
     if(now!==clock){clock=now;clockAt=performance.now();}now=clock+Math.min(performance.now()-clockAt,1500);
-    for(const group of lights)group.forEach((m,i)=>m.material=phase==='DRIVE'&&i===2?lamp:phase==='AMBER'&&i===1?amber:phase==='CROSS'&&i===0?red:off);
+    signals.update(phase);
     people.forEach((root,i)=>{const p=pedestrianPosition(i,now);root.position.set(p.x,0,p.z);root.rotation.y=p.yaw;const distance=Vector3.Distance(root.position,camera),far=distance>30;root.setEnabled(!far);let model=npcModels.get(i);if(!model&&library.complete){model=library.instantiate(CHARACTER_FILES[appearanceVariant(CITY_PEDESTRIANS[i].id)],'walker-skin-'+i,true);if(model){for(const mesh of root.getChildMeshes())if(!mesh.name.startsWith('walker-label-'))mesh.setEnabled(false);fitModel(model.root,undefined,1.8,undefined);model.root.parent=root;model.root.getChildMeshes().forEach(m=>{m.metadata={npcId:CITY_PEDESTRIANS[i].id,cityDynamic:true};m.isPickable=true;});npcModels.set(i,model);}}if(model){for(const g of model.entries.animationGroups){const desired=!far&&g.name.endsWith(p.walking?'/Walk':'/Idle');if(desired&&!g.isPlaying)g.play(true);else if(!desired&&g.isPlaying)g.pause();}}else if(!far)root.getChildMeshes().filter(m=>m.name==='npc-walking-leg').forEach((leg,j)=>leg.rotation.x=p.walking?Math.sin(now/180+j*Math.PI)*0.3:0);const label=scene.getMeshByName('walker-label-'+i);if(label){label.setEnabled(distance<9);label.scaling.setAll(Math.min(1,distance/8));}});
     workers.update(library,camera);
     if(!vehicles)return;

@@ -1,5 +1,5 @@
 import { MeshBuilder, type Mesh, type Scene } from "./babylon";
-import { BUILDINGS, OFFICE, STREET_DETAILS } from "@netcity/shared";
+import { BUILDINGS, OFFICE, STREET_DETAILS, TRAFFIC_SIGNALS,TRAFFIC_STOPLINE } from "@netcity/shared";
 import {buildGround} from './ground';
 import { batchStatic, sign, type Palette } from "./visuals";
 export function buildStreet(scene: Scene, mat: Palette) {
@@ -51,6 +51,7 @@ export function buildStreet(scene: Scene, mat: Palette) {
     box("lane", 0, 0.012, z, 0.12, 0.015, 3, "#eee6c4", "road-paint");
   for (let x = -4.4; x < 4.5; x += 0.85)
     box("crosswalk", x, 0.015, 0, 0.5, 0.015, 2.2, "#eee6c4", "road-paint");
+  for(const signal of TRAFFIC_SIGNALS)box('traffic-stopline',signal.direction*2.4,.015,-signal.direction*TRAFFIC_STOPLINE,4.2,.015,.12,'#eee6c4','road-paint');
   BUILDINGS.forEach((b, i) => {
     if (b === OFFICE) return;
     const mesh = box(

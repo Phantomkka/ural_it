@@ -4,8 +4,11 @@ export const CITY_BUILDINGS:CityBuilding[]=[-1,1].flatMap((side,s)=>Array.from({
 export interface CityDoor {id:string;buildingId:string;x:number;z:number;side:number;name:string}
 export const CITY_DOORS:CityDoor[]=CITY_BUILDINGS.filter(b=>b.id!=='hq').map(b=>({id:b.id,buildingId:b.id,x:Math.sign(b.x)*8,z:b.z,side:Math.sign(b.x),name:b.name}));
 CITY_DOORS.push({id:'hq-server',buildingId:'hq',x:13,z:0,side:1,name:'Серверная IT-офиса'});
-export const doorLeaf=(d:CityDoor)=>({x:d.x+d.side*.8,z:d.z-1.15,width:1.6,depth:.12});
-export const doorClosed=(d:CityDoor)=>({x:d.x,z:d.z-.35,width:.12,depth:1.6});
+export const DOOR_WIDTH=2.4,DOOR_HEIGHT=2.6,DOOR_THICKNESS=.12;
+export const HQ_ENTRY_DOOR:CityDoor={id:'hq-entry',buildingId:'hq',x:8,z:0,side:1,name:'Вход IT-офиса'};
+export const doorLeaves=(d:Pick<CityDoor,'x'|'z'|'side'>)=>[-1,1].map(end=>({x:d.x+d.side*DOOR_WIDTH/4,z:d.z+end*DOOR_WIDTH/2,width:DOOR_WIDTH/2,depth:DOOR_THICKNESS}));
+export const doorLeaf=(d:Pick<CityDoor,'x'|'z'|'side'>)=>doorLeaves(d)[0];
+export const doorClosed=(d:Pick<CityDoor,'x'|'z'>)=>({x:d.x,z:d.z,width:DOOR_THICKNESS,depth:DOOR_WIDTH});
 export function buildingWalls(b:CityBuilding){const side=Math.sign(b.x);return [
  {x:side*8,z:b.z-3.6,width:.3,depth:4.8},{x:side*8,z:b.z+3.6,width:.3,depth:4.8},
  {x:side*28,z:b.z,width:.3,depth:12},{x:side*18,z:b.z-6,width:20,depth:.3},{x:side*18,z:b.z+6,width:20,depth:.3},

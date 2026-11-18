@@ -150,13 +150,7 @@ export function buildAssetDistrict(
         4,
         side === 1 ? Math.PI : 0,
       );
-    place(
-      "trafficlight_A.glb",
-      `traffic-signal-${placements}`,
-      side * 5.5,
-      side * 3,
-      3,
-    );
+
   }
   for (const { x, z } of COMPUTERS) {
     place("table_medium.glb", `desk-${placements}`, x, z, 0.8, .9, 1.8, Math.PI/2);

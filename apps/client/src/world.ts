@@ -1,4 +1,3 @@
-import {doorResponse} from './motion';
 import {buildFieldSites} from './fieldSites';
 import {buildOfficeRemaster} from "./officeRemaster";
 import {buildServiceVans,createFreightCrate} from './serviceVan';
@@ -270,7 +269,6 @@ export function createWorld(
       });
     let lastTarget = "",
       lastPick = 0,lastAmbience=0;
-    const innerDoor=scene.meshes.find(m=>m.metadata?.cityDoor==='hq-server');
     const onVisibility = () => {
       if (document.hidden) stop();
     };
@@ -345,11 +343,10 @@ export function createWorld(
         }
       district.update(camera.position,me?.floor??0);interiors.sync(room.state.doors,camera.position,Math.min(engine.getDeltaTime()/1000,.1));officeRemaster.update(camera.position,me?.floor??0,me?.buildingId??"",room.state.devices,room.state.players?.values(),Math.min(engine.getDeltaTime()/1000,.1));
       if(serviceVans.update(room.state.vans,room.state.freight,camera.position,room.sessionId,Math.min(engine.getDeltaTime()/1000,.1)))graphics.refreshCasters();
-      if(innerDoor)innerDoor.rotation.y+=((room.state.doors?.get("hq-server")?.open===false?-Math.PI/2:0)-innerDoor.rotation.y)*doorResponse(engine.getDeltaTime()/1000);
       office.sync(
         room.state.equipment?.port3Connected ?? false,
         room.state.equipment?.rackServiced ?? false,
-        room.state.equipment?.officeDoorOpen ?? true,Math.min(engine.getDeltaTime()/1000,.1),
+        room.state.equipment?.officeDoorOpen ?? true,Math.min(engine.getDeltaTime()/1000,.1),room.state.doors?.get("hq-server")?.open??true,
       );
       computers.sync(
         room.state.devices,
